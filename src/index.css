@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-ink: #1B2A2F;
+  --color-paper: #F1EDDF;
+  --color-card: #FBF9F1;
+  --color-line: #E1DAC4;
+  --color-green: #1F5D4C;
+  --color-green-light: #3B8F6E;
+  --color-amber: #8A5A1F;
+  --color-rust: #A6432F;
+  --color-muted: #6E6A5C;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #e5dec9;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--color-ink);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.serif {
+  font-family: 'Fraunces', serif;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select {
+  font-family: inherit;
+}
+
+/* Transições suaves em elementos interativos */
+button, .tx-card {
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+.fab-btn:active {
+  transform: scale(0.9);
+}
+
+/* Alvo de toque confortável para ícones de ação */
+.icon-btn {
+  padding: 8px !important;
+  margin: -8px;
+  border-radius: 8px;
+}
+
+.icon-btn:active {
+  background: rgba(27, 42, 47, 0.06);
+}
+
+/* Foco visível para acessibilidade */
+input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-card), 0 0 0 4px var(--color-green);
+}
+
+/* Animações de Modal e Transições de Aba */
+@keyframes sheetUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-backdrop {
+  animation: backdropIn 0.18s ease;
+}
+
+.modal-sheet {
+  animation: sheetUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tab-content {
+  animation: fadeIn 0.16s ease;
+}
