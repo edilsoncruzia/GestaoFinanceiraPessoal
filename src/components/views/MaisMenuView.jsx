@@ -1,5 +1,5 @@
 import React from 'react';
-import { Landmark, Target, PieChart as PieChartIcon, LayoutGrid, TrendingUp, FileJson, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Landmark, Target, PieChart as PieChartIcon, LayoutGrid, TrendingUp, FileJson, ChevronRight, ArrowLeft, Users } from 'lucide-react';
 import { COLORS } from '../../constants/tokens';
 import { SectionTitle } from '../ui/SectionTitle';
 
@@ -19,6 +19,7 @@ export function MaisMenuView({ onSelect }) {
     ["regra", "Regra 50/30/20", LayoutGrid],
     ["projecao", "Projeção de meses futuros", TrendingUp],
     ["dados", "Exportar / importar dados", FileJson],
+    ["fontes", "Fontes (quem recebe/paga)", Users],
   ];
   return (
     <div>

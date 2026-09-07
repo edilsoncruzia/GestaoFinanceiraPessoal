@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Search, AlertTriangle, ArrowLeftRight, Paperclip, Link2, Pencil, Trash2 } from 'lucide-react';
 import { COLORS, CATEGORIES } from '../../constants/tokens';
-import { fmt, fmtDate, inScope } from '../../utils/formatters';
+import { fmt, fmtDate, inScope, monthKey } from '../../utils/formatters';
+import { MonthNav } from '../ui/MonthNav';
 import { Card } from '../ui/Card';
 import { CategoryIcon } from '../ui/CategoryIcon';
 import { MemberBadge } from '../ui/MemberBadge';
@@ -61,8 +62,9 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
   );
 }
 
-export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilter, search, setSearch, filterType, setFilterType, accounts, onEdit, onDelete, onPay, onEditPlanned, onDeletePlanned }) {
+export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilter, search, setSearch, filterType, setFilterType, accounts, onEdit, onDelete, onPay, onEditPlanned, onDeletePlanned, selectedMonth, onMonthChange }) {
   const [status, setStatus] = useState("todos");
+  const closedForMonth = closedList.filter((t) => monthKey(t.date) === selectedMonth);
   const openItems = rawOpenItems
     .filter((i) => inScope(i.memberId, memberFilter))
     .filter((i) => filterType === "todos" || i.type === filterType)
@@ -73,6 +75,7 @@ export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilt
 
   return (
     <div>
+      {selectedMonth && <MonthNav month={selectedMonth} onChange={onMonthChange} />}
       <p className="serif" style={{ fontSize: 22, fontWeight: 500, margin: "0 0 14px" }}>Transações</p>
       <div style={{ position: "relative", marginBottom: 10 }}>
         <Search size={16} color={COLORS.muted} style={{ position: "absolute", left: 12, top: 11 }} />
@@ -100,10 +103,10 @@ export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilt
 
       {showClosed && (
         <div>
-          {status === "todos" && <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.muted, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Fechadas ({closedList.length})</p>}
+          {status === "todos" && <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.muted, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Fechadas ({closedForMonth.length})</p>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {closedList.length === 0 && <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "24px 0" }}>Nenhuma transação encontrada.</p>}
-            {closedList.map((t) => <TxRow key={t.id} t={t} accounts={accounts} onEdit={onEdit} onDelete={onDelete} />)}
+            {closedForMonth.length === 0 && <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "24px 0" }}>Nenhuma transação encontrada.</p>}
+            {closedForMonth.map((t) => <TxRow key={t.id} t={t} accounts={accounts} onEdit={onEdit} onDelete={onDelete} />)}
           </div>
         </div>
       )}

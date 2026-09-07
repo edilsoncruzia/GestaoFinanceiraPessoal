@@ -33,9 +33,12 @@ export function monthLabelFull(month) {
 export function generatePlannedOccurrences(templates, month) {
   const out = [];
   templates.forEach((t) => {
+    if ((t.skippedMonths || []).includes(month)) return;
+    if (t.realized) return; // encerrado/efetivado não gera mais ocorrências
     if (t.recurrence === "unica") {
       if (monthKey(t.dueDate) === month) out.push({ ...t, occId: t.id + "-" + month });
     } else if (t.recurrence === "recorrente") {
+      if (month < monthKey(t.dueDate)) return; // começa a partir do mês do vencimento
       const day = t.dueDate.slice(8, 10);
       out.push({ ...t, occId: t.id + "-" + month, dueDate: month + "-" + day });
     } else if (t.recurrence === "parcelada") {
@@ -105,5 +108,6 @@ export function memberColor(id) {
 }
 
 export function inScope(memberId, filter) {
-  return filter === "todos" || memberId === null || memberId === undefined || memberId === filter;
+  // "Todos" mostra tudo; ao escolher um membro, mostra só o que é daquele membro.
+  return filter === "todos" || memberId === filter;
 }

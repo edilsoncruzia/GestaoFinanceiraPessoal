@@ -27,11 +27,13 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
 
   if (confirming) {
     return (
-      <Card style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderColor: COLORS.rust }}>
-        <AlertTriangle size={16} color={COLORS.rust} style={{ flexShrink: 0 }} />
-        <p style={{ fontSize: 13, margin: 0, flex: 1 }}>Excluir "{item.description}"? Isso remove o compromisso de todos os meses futuros.</p>
-        <button onClick={() => setConfirming(false)} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted }}>Cancelar</button>
-        <button onClick={() => onDelete(item.id)} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "none", background: COLORS.rust, color: "#fff", fontWeight: 500 }}>Excluir</button>
+      <Card style={{ padding: "12px 14px", borderColor: COLORS.rust }}>
+        <p style={{ fontSize: 13, margin: "0 0 10px", color: COLORS.rust }}>Excluir "{item.description}"?</p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setConfirming(false)} style={{ flex: 1, fontSize: 12, padding: "8px 0", borderRadius: 8, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted }}>Cancelar</button>
+          <button onClick={() => { onDelete(item, "current"); setConfirming(false); }} style={{ flex: 1, fontSize: 12, padding: "8px 0", borderRadius: 8, border: "1px solid " + COLORS.green, background: "transparent", color: COLORS.green, fontWeight: 500 }}>Apenas este mês</button>
+          <button onClick={() => { onDelete(item, "all"); setConfirming(false); }} style={{ flex: 1, fontSize: 12, padding: "8px 0", borderRadius: 8, border: "none", background: COLORS.rust, color: "#fff", fontWeight: 500 }}>Todos os futuros</button>
+        </div>
       </Card>
     );
   }
@@ -226,9 +228,7 @@ export function InicioView({ balance, availableNow, monthProjection, isCurrentMo
             <p style={{ fontSize: 12, color: COLORS.muted, margin: "2px 0 0" }}>deste mês e dos últimos 6, enquanto não forem pagas</p>
           </div>
         </div>
-        <button onClick={onNewPlanned} aria-label="Novo previsto" className="fab-btn" style={{ width: 40, height: 40, borderRadius: "50%", background: COLORS.green, border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 3px 10px rgba(31,93,76,0.3)" }}>
-          <Plus size={20} />
-        </button>
+
       </div>
 
       {openItems.length > 0 && (

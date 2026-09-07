@@ -11,13 +11,13 @@ export function GoalFormModal({ accounts, onClose, onSubmit }) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [memberId, setMemberId] = useState("null");
-  const [accountId, setAccountId] = useState(accounts[0]?.id || 1);
+  const [accountId, setAccountId] = useState(accounts[0]?.id ?? null);
   const [error, setError] = useState("");
 
   function handleSubmit() {
     if (!name.trim()) { setError("Dê um nome para a meta."); return; }
     if (!target || Number(target) <= 0) { setError("Informe um valor alvo válido."); return; }
-    onSubmit({ name: name.trim(), target: Number(target), memberId: memberId === "null" ? null : Number(memberId), accountId: Number(accountId) });
+    onSubmit({ name: name.trim(), target: Number(target), memberId: memberId === "null" ? null : Number(memberId), accountId: accountId ? Number(accountId) : null });
   }
 
   return (

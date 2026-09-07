@@ -5,8 +5,9 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { SectionTitle } from '../ui/SectionTitle';
 import { Card } from '../ui/Card';
 
-export function DadosView({ onExport, onImport, onReset }) {
+export function DadosView({ onExport, onImport, onReset, onClearSupabase }) {
   const [confirming, setConfirming] = useState(false);
+  const [clearConfirming, setClearConfirming] = useState(false);
   return (
     <div>
       <SectionTitle title="Dados" subtitle="Sua base de dados, para levar para a planilha ou fazer backup" />
@@ -51,6 +52,25 @@ export function DadosView({ onExport, onImport, onReset }) {
           <p style={{ fontSize: 13, margin: 0, flex: 1 }}>Tem certeza? Isso descarta tudo que foi cadastrado nesta sessão.</p>
           <button onClick={() => setConfirming(false)} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted }}>Cancelar</button>
           <button onClick={onReset} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "none", background: COLORS.rust, color: "#fff", fontWeight: 500 }}>Restaurar</button>
+        </Card>
+      )}
+
+      {isSupabaseConfigured && !clearConfirming && (
+        <Card style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: COLORS.rust + "1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><AlertTriangle size={18} color={COLORS.rust} /></div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Limpar Base de Dados do Supabase</p>
+            <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>Apaga tudo do banco na nuvem (contas, transações, previstos, metas, orçamentos, fontes)</p>
+          </div>
+          <button onClick={() => setClearConfirming(true)} style={{ fontSize: 12, padding: "8px 12px", borderRadius: 8, border: "1px solid " + COLORS.rust, background: "transparent", color: COLORS.rust, fontWeight: 500, whiteSpace: "nowrap" }}>Limpar</button>
+        </Card>
+      )}
+      {isSupabaseConfigured && clearConfirming && (
+        <Card style={{ display: "flex", alignItems: "center", gap: 10, borderColor: COLORS.rust }}>
+          <AlertTriangle size={18} color={COLORS.rust} style={{ flexShrink: 0 }} />
+          <p style={{ fontSize: 13, margin: 0, flex: 1 }}>Apagar TODOS os dados do Supabase? Isso não pode ser desfeito.</p>
+          <button onClick={() => setClearConfirming(false)} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted }}>Cancelar</button>
+          <button onClick={() => { setClearConfirming(false); onClearSupabase(); }} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "none", background: COLORS.rust, color: "#fff", fontWeight: 500 }}>Apagar tudo</button>
         </Card>
       )}
     </div>

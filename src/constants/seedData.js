@@ -62,16 +62,7 @@ export const SEED_TRANSACTIONS = [
   { id: 46, date: "2026-09-01", type: "income",  category: "salario",     description: "Salário",              amount: 4100, accountId: 1, memberId: 2, plannedId: 109 },
 ];
 
-export const BUDGETS = [
-  { category: "moradia",     limit: 1450, memberId: null },
-  { category: "contas",      limit: 250,  memberId: null },
-  { category: "alimentacao", limit: 900,  memberId: null },
-  { category: "transporte",  limit: 350,  memberId: null },
-  { category: "saude",       limit: 350,  memberId: null },
-  { category: "assinaturas", limit: 80,   memberId: null },
-  { category: "lazer",       limit: 200,  memberId: 1 },
-  { category: "lazer",       limit: 200,  memberId: 2 },
-];
+export const BUDGETS = [];
 
 export const SEED_PLANNED = [
   { id: 101, type: "income",  category: "salario",     description: "Salário",             amount: 5200, recurrence: "recorrente", dueDate: "2026-09-01", accountId: 1, memberId: 1, priority: "essencial" },

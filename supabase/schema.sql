@@ -32,8 +32,18 @@ CREATE TABLE IF NOT EXISTS accounts (
   closing_day INT,
   due_day INT,
   member_id BIGINT REFERENCES members(id) ON DELETE SET NULL,
+  initial_balance NUMERIC(12,2) DEFAULT 0,
+  is_default BOOLEAN DEFAULT false,
+  brand TEXT,
+  current_invoice NUMERIC(12,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migração (para bancos já existentes) — adiciona colunas caso ainda não existam
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS initial_balance NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT false;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS brand TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS current_invoice NUMERIC(12,2) DEFAULT 0;
 
 -- 4. Tabela de Metas de Economia
 CREATE TABLE IF NOT EXISTS goals (
@@ -49,8 +59,8 @@ CREATE TABLE IF NOT EXISTS goals (
 -- 5. Tabela de Compromissos Previstos (Receitas/Despesas Planejadas)
 CREATE TABLE IF NOT EXISTS planned (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-  category TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'transferencia')),
+  category TEXT,
   description TEXT NOT NULL,
   amount NUMERIC(12,2) NOT NULL,
   due_date DATE NOT NULL,
@@ -59,9 +69,27 @@ CREATE TABLE IF NOT EXISTS planned (
   installment_total INT,
   priority TEXT DEFAULT 'importante' CHECK (priority IN ('essencial', 'importante', 'flexivel')),
   account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+  from_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+  to_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
   member_id BIGINT REFERENCES members(id) ON DELETE SET NULL,
+  periodicity TEXT,
+  realized BOOLEAN DEFAULT false,
+  attachment TEXT,
+  attachment_method TEXT,
+  skipped_months TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migração (para bancos já existentes)
+ALTER TABLE planned DROP CONSTRAINT IF EXISTS planned_type_check;
+ALTER TABLE planned ADD CONSTRAINT planned_type_check CHECK (type IN ('income', 'expense', 'transferencia'));
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS from_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS to_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS periodicity TEXT;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS realized BOOLEAN DEFAULT false;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS attachment TEXT;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS attachment_method TEXT;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS skipped_months TEXT;
 
 -- 6. Tabela de Transações Efetivadas
 CREATE TABLE IF NOT EXISTS transactions (
@@ -89,6 +117,19 @@ CREATE TABLE IF NOT EXISTS budgets (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. Tabela de Fontes (de quem recebe / para quem paga)
+CREATE TABLE IF NOT EXISTS sources (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  name TEXT NOT NULL,
+  type TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Migração (para bancos já existentes)
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS fonte_id BIGINT REFERENCES sources(id) ON DELETE SET NULL;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS attachment_method TEXT;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS fonte_id BIGINT REFERENCES sources(id) ON DELETE SET NULL;
+
 -- Habilitar Row Level Security (RLS) para segurança
 ALTER TABLE members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
@@ -96,6 +137,7 @@ ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE planned ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sources ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de acesso anônimo/leitura e escrita (Para uso simples de chave anon/demo)
 CREATE POLICY "Permitir acesso total em members" ON members FOR ALL USING (true) WITH CHECK (true);
@@ -104,3 +146,4 @@ CREATE POLICY "Permitir acesso total em goals" ON goals FOR ALL USING (true) WIT
 CREATE POLICY "Permitir acesso total em planned" ON planned FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acesso total em transactions" ON transactions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acesso total em budgets" ON budgets FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acesso total em sources" ON sources FOR ALL USING (true) WITH CHECK (true);

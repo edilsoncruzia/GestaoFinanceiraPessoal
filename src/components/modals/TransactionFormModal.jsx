@@ -7,17 +7,18 @@ import { FormField } from '../ui/FormField';
 const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
 const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 };
 
-export function TransactionFormModal({ accounts, selectedMonth, editing, initialType, onClose, onSubmit }) {
+export function TransactionFormModal({ accounts, sources, selectedMonth, editing, initialType, onClose, onSubmit }) {
   const [type, setType] = useState(editing ? editing.type : (initialType || "expense"));
   const [category, setCategory] = useState(editing ? editing.category : (initialType === "income" ? "salario" : "alimentacao"));
   const [description, setDescription] = useState(editing ? editing.description : "");
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [date, setDate] = useState(editing ? editing.date : (selectedMonth === TODAY_MONTH ? "2026-09-01" : selectedMonth + "-01"));
-  const [accountId, setAccountId] = useState(editing && editing.accountId ? editing.accountId : accounts[0]?.id || 1);
-  const [fromAccountId, setFromAccountId] = useState(editing && editing.fromAccountId ? editing.fromAccountId : accounts[0]?.id || 1);
-  const [toAccountId, setToAccountId] = useState(editing && editing.toAccountId ? editing.toAccountId : (accounts[1] ? accounts[1].id : accounts[0]?.id || 1));
+  const [accountId, setAccountId] = useState(editing && editing.accountId ? editing.accountId : (accounts[0]?.id ?? null));
+  const [fromAccountId, setFromAccountId] = useState(editing && editing.fromAccountId ? editing.fromAccountId : (accounts[0]?.id ?? null));
+  const [toAccountId, setToAccountId] = useState(editing && editing.toAccountId ? editing.toAccountId : (accounts[1]?.id ?? accounts[0]?.id ?? null));
   const [attachment, setAttachment] = useState(editing && editing.attachment ? editing.attachment : "");
   const [memberId, setMemberId] = useState(editing ? (editing.memberId == null ? "null" : String(editing.memberId)) : String(CONNECTED_MEMBER_ID));
+  const [fonteId, setFonteId] = useState(editing && editing.fonteId ? String(editing.fonteId) : "");
   const [error, setError] = useState("");
 
   const options = Object.entries(CATEGORIES).filter(([, c]) => c.type === type);
@@ -36,10 +37,10 @@ export function TransactionFormModal({ accounts, selectedMonth, editing, initial
     let payload;
     if (type === "transferencia") {
       if (fromAccountId === toAccountId) { setError("Escolha contas diferentes para origem e destino."); return; }
-      payload = { type, description: description.trim() || "Transferência", amount: Number(amount), date, fromAccountId: Number(fromAccountId), toAccountId: Number(toAccountId), memberId: memberId === "null" ? null : Number(memberId) };
+      payload = { type, description: description.trim() || "Transferência", amount: Number(amount), date, fromAccountId: fromAccountId ? Number(fromAccountId) : null, toAccountId: toAccountId ? Number(toAccountId) : null, memberId: memberId === "null" ? null : Number(memberId) };
     } else {
       if (!description.trim()) { setError("Informe uma descrição."); return; }
-      payload = { type, category, description: description.trim(), amount: Number(amount), date, accountId: Number(accountId), memberId: memberId === "null" ? null : Number(memberId) };
+      payload = { type, category, description: description.trim(), amount: Number(amount), date, accountId: accountId ? Number(accountId) : null, memberId: memberId === "null" ? null : Number(memberId), fonteId: fonteId ? Number(fonteId) : undefined };
       if (attachment.trim()) payload.attachment = attachment.trim();
     }
     if (editing) { payload.id = editing.id; if (editing.plannedId) payload.plannedId = editing.plannedId; }
@@ -73,6 +74,12 @@ export function TransactionFormModal({ accounts, selectedMonth, editing, initial
             <select value={memberId} onChange={(e) => setMemberId(e.target.value)} style={inputStyle}>
               {MEMBERS.map((m) => <option key={m.id} value={m.id}>{m.name}{m.id === CONNECTED_MEMBER_ID ? " (conta conectada)" : ""}</option>)}
               <option value="null">Casal (conjunta)</option>
+            </select>
+          </FormField>
+          <FormField label="Fonte (de quem recebe / para quem paga)">
+            <select value={fonteId} onChange={(e) => setFonteId(e.target.value)} style={inputStyle}>
+              <option value="">Sem fonte</option>
+              {(sources || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </FormField>
           <FormField label="Anexar comprovante (opcional)"><input value={attachment} onChange={(e) => setAttachment(e.target.value)} placeholder="ex: nota-mercado.jpg" style={inputStyle} /></FormField>

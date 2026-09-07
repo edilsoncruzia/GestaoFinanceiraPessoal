@@ -30,6 +30,10 @@ body {
   justify-content: center;
 }
 
+#root {
+  width: 100%;
+}
+
 .serif {
   font-family: 'Fraunces', serif;
 }

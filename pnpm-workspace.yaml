@@ -1,6 +1,9 @@
 packages:
   - '.'
 
+allowBuilds:
+  esbuild: set this to true or false
+
 # pnpm 10/11 bloqueia scripts de build por padrão; libera o esbuild (usado pelo Vite)
 onlyBuiltDependencies:
   - esbuild
