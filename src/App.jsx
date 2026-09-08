@@ -15,7 +15,6 @@ import {
   syncSourceToSupabase, deleteSourceFromSupabase,
   syncCategoryToSupabase, deleteCategoryFromSupabase,
   syncIdeaToSupabase, deleteIdeaFromSupabase,
-  getAuthSession, onAuthChange, signInWithPasswordAuth, signInWithGoogleAuth, signOutAuth, lookupMemberEmailByCpf,
   clearSupabaseData
 } from './lib/supabase';
 
@@ -52,57 +51,16 @@ import { GoalFormModal } from './components/modals/GoalFormModal';
 import { CloseMonthModal } from './components/modals/CloseMonthModal';
 import { AccountFormModal } from './components/modals/AccountFormModal';
 import { AccountScopeModal } from './components/modals/AccountScopeModal';
-import { LoginView } from './components/views/LoginView';
 
 export default function App() {
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    getAuthSession().then((s) => { if (mounted) { setSession(s); setAuthLoading(false); } });
-    const unsub = onAuthChange((s) => { if (mounted) { setSession(s); setAuthLoading(false); } });
-    return () => { mounted = false; unsub(); };
-  }, []);
-
-  async function handleGoogleLogin() {
-    setSubmitting(true);
-    setAuthError("");
-    const { error } = await signInWithGoogleAuth();
-    if (error) { setAuthError(error.message || "Erro ao entrar com Google"); setSubmitting(false); }
-  }
-
-  async function handlePasswordLogin(cpf, password) {
-    setSubmitting(true);
-    setAuthError("");
-    const digits = cpf.replace(/\D/g, "");
-    if (digits.length !== 11) { setAuthError("Informe um CPF válido."); setSubmitting(false); return; }
-    const email = await lookupMemberEmailByCpf(digits);
-    if (!email) { setAuthError("CPF não encontrado."); setSubmitting(false); return; }
-    const { error } = await signInWithPasswordAuth(email, password);
-    if (error) setAuthError("CPF ou senha incorretos.");
-    setSubmitting(false);
-  }
-
-  async function handleLogout() {
-    await signOutAuth();
-    setSession(null);
-  }
-
-  if (authLoading) {
-    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", color: "#1B2A2F", background: "#e5dec9", fontSize: 14 }}>Carregando…</div>;
-  }
-
   return (
     <ErrorBoundary>
-      {session ? <FinanceApp user={session.user} onLogout={handleLogout} /> : <LoginView onGoogleLogin={handleGoogleLogin} onPasswordLogin={handlePasswordLogin} loading={submitting} error={authError} />}
+      <FinanceApp />
     </ErrorBoundary>
   );
 }
 
-function FinanceApp({ user, onLogout }) {
+function FinanceApp() {
   const [tab, setTab] = useState("inicio");
   const [moreView, setMoreView] = useState(null);
   const [transactions, setTransactions] = useState(isSupabaseConfigured ? [] : SEED_TRANSACTIONS);
@@ -663,7 +621,7 @@ function FinanceApp({ user, onLogout }) {
           {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={monthIncome} monthExpense={monthExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={openItems} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
           {tab === "transacoes" && <><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><TransacoesView closedList={filteredTx} openItems={openItems} memberFilter={memberFilter} search={search} setSearch={setSearch} filterType={filterType} setFilterType={setFilterType} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} accounts={accounts} onEdit={(t) => { const linkedPlanned = t.plannedId ? planned.find((p) => p.id === t.plannedId) : null; if (linkedPlanned) { setEditingPlanned(linkedPlanned); setShowPlannedForm(true); } else { setEditingTx(t); setShowForm(true); } }} onDelete={deleteTransaction} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} /></>}
           {tab === "orcamento" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><OrcamentoView budgets={budgetsWithSpent} memberFilter={memberFilter} /></>}
-          {tab === "mais" && moreView === null && <MaisMenuView onSelect={setMoreView} onLogout={onLogout} userName={user?.user_metadata?.full_name || user?.email} />}
+          {tab === "mais" && moreView === null && <MaisMenuView onSelect={setMoreView} />}
           {tab === "mais" && moreView === "contas" && <ContasView accounts={accounts} transactions={transactions} onBack={() => setMoreView(null)} onAdd={openNewAccount} onEdit={openEditAccount} onDelete={requestDeleteAccount} onViewStatements={(a) => setExtratoAccount(a)} />}
           {tab === "mais" && moreView === "categorias" && <CategoriasView onBack={() => setMoreView(null)} onSave={saveCategory} onDelete={deleteCategory} />}
           {tab === "mais" && moreView === "declaracao" && <DeclaracaoIRView transactions={transactions} onBack={() => setMoreView(null)} onAttach={attachReceipt} />}
