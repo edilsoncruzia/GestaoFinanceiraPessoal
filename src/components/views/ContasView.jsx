@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CreditCard, Landmark, Plus, Pencil, Trash2 } from 'lucide-react';
 import { COLORS } from '../../constants/tokens';
-import { fmt, statusFor } from '../../utils/formatters';
+import { fmt, statusFor, accountBalance } from '../../utils/formatters';
 import { SectionTitle } from '../ui/SectionTitle';
 import { Card } from '../ui/Card';
 import { MemberBadge } from '../ui/MemberBadge';
@@ -24,9 +24,8 @@ export function ContasView({ accounts, transactions, onBack, onAdd, onEdit, onDe
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
         {filtered.map((a) => {
-          const income = transactions.filter((t) => t.type === "income" && t.accountId === a.id).reduce((s, t) => s + t.amount, 0);
           const spent = transactions.filter((t) => t.type === "expense" && t.accountId === a.id).reduce((s, t) => s + t.amount, 0);
-          const saldo = (a.initialBalance || 0) + income - spent;
+          const saldo = accountBalance(a, transactions);
           const Icon = a.type === "cartao" ? CreditCard : Landmark;
           const st = a.type === "cartao" ? statusFor(spent, a.limit) : null;
           return (
@@ -41,6 +40,7 @@ export function ContasView({ accounts, transactions, onBack, onAdd, onEdit, onDe
                   <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
                     <MemberBadge memberId={a.memberId} />
                     {a.isDefault && <Badge color={COLORS.green}>Padrão</Badge>}
+                    {a.type === "conta" && a.countInAvailable === false && <Badge color={COLORS.amber}>Reserva</Badge>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -51,7 +51,7 @@ export function ContasView({ accounts, transactions, onBack, onAdd, onEdit, onDe
 
               {a.type === "conta" && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 8, borderTop: "1px solid " + COLORS.line }}>
-                  <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>Saldo</p>
+                  <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>{a.countInAvailable === false ? "Saldo (fora do disponível)" : "Saldo"}</p>
                   <p style={{ fontSize: 13, margin: 0, color: saldo >= 0 ? COLORS.green : COLORS.rust }}>{fmt(saldo)}</p>
                 </div>
               )}

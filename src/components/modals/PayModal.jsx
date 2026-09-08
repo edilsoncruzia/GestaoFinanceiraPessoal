@@ -27,7 +27,7 @@ export function PayModal({ item, accounts, sources, transactions, selectedMonth,
   const paidTotal = payments.reduce((s, t) => s + t.amount, 0);
 
   const [amount, setAmount] = useState(String(remaining));
-  const [date, setDate] = useState(selectedMonth === TODAY_MONTH ? TODAY_MONTH + "-12" : selectedMonth + "-01");
+  const [date, setDate] = useState(item.dueDate || (selectedMonth === TODAY_MONTH ? TODAY_MONTH + "-12" : selectedMonth + "-01"));
   const [accountId, setAccountId] = useState(item.accountId ?? accounts[0]?.id ?? null);
   const [fonteId, setFonteId] = useState(item.fonteId ? String(item.fonteId) : "");
   const [attachmentMethod, setAttachmentMethod] = useState("anexo");

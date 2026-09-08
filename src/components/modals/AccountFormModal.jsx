@@ -20,6 +20,7 @@ export function AccountFormModal({ editing, onClose, onSubmit }) {
   const [closingDay, setClosingDay] = useState(editing && editing.closingDay ? String(editing.closingDay) : "");
   const [dueDay, setDueDay] = useState(editing && editing.dueDay ? String(editing.dueDay) : "");
   const [isDefault, setIsDefault] = useState(editing ? Boolean(editing.isDefault) : false);
+  const [countInAvailable, setCountInAvailable] = useState(editing ? editing.countInAvailable !== false : true);
   const [memberId, setMemberId] = useState(editing ? (editing.memberId == null ? "null" : String(editing.memberId)) : "null");
   const [error, setError] = useState("");
 
@@ -36,6 +37,7 @@ export function AccountFormModal({ editing, onClose, onSubmit }) {
       closingDay: type === "cartao" && closingDay ? Number(closingDay) : undefined,
       dueDay: type === "cartao" && dueDay ? Number(dueDay) : undefined,
       initialBalance: type === "conta" ? (Number(initialBalance) || 0) : undefined,
+      countInAvailable: type === "conta" ? countInAvailable : undefined,
       brand: type === "cartao" ? brand : undefined,
       currentInvoice: type === "cartao" ? (Number(currentInvoice) || 0) : undefined,
     };
@@ -60,7 +62,18 @@ export function AccountFormModal({ editing, onClose, onSubmit }) {
       <FormField label="Banco (opcional)"><input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="ex: Banco Ipê" style={inputStyle} /></FormField>
 
       {type === "conta" ? (
-        <FormField label="Saldo inicial (R$)"><input value={initialBalance} onChange={(e) => setInitialBalance(e.target.value)} type="number" min="0" step="0.01" placeholder="0,00" style={inputStyle} /></FormField>
+        <>
+          <FormField label="Saldo inicial (R$)"><input value={initialBalance} onChange={(e) => setInitialBalance(e.target.value)} type="number" min="0" step="0.01" placeholder="0,00" style={inputStyle} /></FormField>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px", cursor: "pointer" }}>
+            <input type="checkbox" checked={countInAvailable} onChange={(e) => setCountInAvailable(e.target.checked)} style={{ marginTop: 2 }} />
+            <span style={{ fontSize: 13, color: COLORS.ink }}>
+              Considerar no saldo disponível
+              <span style={{ display: "block", fontSize: 11.5, color: COLORS.muted, marginTop: 2 }}>
+                Desative para contas de reserva, investimento ou dinheiro guardado — o valor continua no saldo total, mas sai do disponível para uso.
+              </span>
+            </span>
+          </label>
+        </>
       ) : (
         <>
           <FormField label="Bandeira"><select value={brand} onChange={(e) => setBrand(e.target.value)} style={inputStyle}>{BANDEIRAS.map((b) => <option key={b} value={b}>{b}</option>)}</select></FormField>

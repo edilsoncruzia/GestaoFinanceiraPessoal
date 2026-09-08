@@ -31,6 +31,36 @@ export const CATEGORIES = {
   investimentos:{ label: "Investimentos",  color: "#2E6B72", icon: TrendingUp,      type: "income"  },
 };
 
+// Paleta de cores para novas categorias (gerenciamento + criação inline)
+export const CATEGORY_PALETTE = [
+  "#1F5D4C", "#3B8F6E", "#2E6B72", "#3B6E8F", "#8A5B7A",
+  "#C98A3B", "#8A5A1F", "#A6432F", "#5C7A3F", "#6B6558",
+];
+
+// Versão "só dados" das categorias padrão (sem componentes de ícone) para seed/persistência
+export const DEFAULT_CATEGORY_ROWS = Object.entries(CATEGORIES).map(([key, c]) => ({
+  key,
+  label: c.label,
+  color: c.color,
+  type: c.type,
+}));
+
+// Reconstrói o objeto de categorias em memória a partir de linhas persistidas,
+// recuperando o ícone dos built-ins pela chave (categorias custom ficam sem ícone -> fallback).
+export function buildCategoriesObject(rows) {
+  const out = {};
+  (rows || []).forEach((r) => {
+    const builtIn = CATEGORIES[r.key];
+    out[r.key] = { label: r.label, color: r.color, type: r.type, icon: builtIn ? builtIn.icon : undefined };
+  });
+  return out;
+}
+
+// Serializa o objeto de categorias em linhas persistíveis (sem componentes de ícone).
+export function categoriesToRows(obj) {
+  return Object.entries(obj || {}).map(([key, c]) => ({ key, label: c.label, color: c.color, type: c.type }));
+}
+
 export const NECESSIDADES = ["moradia", "contas", "alimentacao", "transporte", "saude", "educacao"];
 export const DESEJOS = ["lazer", "assinaturas", "outros"];
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, AlertTriangle, ArrowLeftRight, Paperclip, Link2, Pencil, Trash2 } from 'lucide-react';
-import { COLORS, CATEGORIES } from '../../constants/tokens';
+import { COLORS } from '../../constants/tokens';
+import { useCategories } from '../../context/CategoriesContext';
 import { fmt, fmtDate, inScope, monthKey } from '../../utils/formatters';
 import { MonthNav } from '../ui/MonthNav';
 import { Card } from '../ui/Card';
@@ -10,8 +11,9 @@ import { PlannedCard } from './InicioView';
 
 export function TxRow({ t, accounts, onEdit, onDelete }) {
   const [confirming, setConfirming] = useState(false);
+  const categories = useCategories();
   const isTransfer = t.type === "transferencia";
-  const c = isTransfer ? null : CATEGORIES[t.category];
+  const c = isTransfer ? null : categories[t.category];
 
   if (confirming) {
     return (
@@ -54,6 +56,12 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
           {t.plannedId && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: COLORS.green }}><Link2 size={11} />Previsto</span>}
         </p>
         <MemberBadge memberId={t.memberId} />
+        {(t.deductedInPayroll || t.includeInIR) && (
+          <span style={{ display: "inline-flex", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
+            {t.deductedInPayroll && <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.green, padding: "1px 7px", borderRadius: 10, background: COLORS.green + "1A" }}>Descontado em folha</span>}
+            {t.includeInIR && <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.amber, padding: "1px 7px", borderRadius: 10, background: COLORS.amber + "1A" }}>IR</span>}
+          </span>
+        )}
       </div>
       <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.green : COLORS.rust, whiteSpace: "nowrap" }}>{t.type === "income" ? "+" : "−"} {fmt(t.amount)}</p>
       {onEdit && <button onClick={() => onEdit(t)} aria-label="Editar" className="icon-btn" style={{ background: "none", border: "none", padding: 4, color: COLORS.muted }}><Pencil size={15} /></button>}

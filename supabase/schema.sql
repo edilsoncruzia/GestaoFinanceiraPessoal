@@ -10,8 +10,11 @@ CREATE TABLE IF NOT EXISTS members (
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#1F5D4C',
   email TEXT,
+  cpf TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE members ADD COLUMN IF NOT EXISTS cpf TEXT;
 
 -- Inserir membros padrões se a tabela estiver vazia
 INSERT INTO members (id, name, color, email)
@@ -36,6 +39,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   is_default BOOLEAN DEFAULT false,
   brand TEXT,
   current_invoice NUMERIC(12,2) DEFAULT 0,
+  count_in_available BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -44,6 +48,7 @@ ALTER TABLE accounts ADD COLUMN IF NOT EXISTS initial_balance NUMERIC(12,2) DEFA
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT false;
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS brand TEXT;
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS current_invoice NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS count_in_available BOOLEAN DEFAULT true;
 
 -- 4. Tabela de Metas de Economia
 CREATE TABLE IF NOT EXISTS goals (
@@ -77,6 +82,9 @@ CREATE TABLE IF NOT EXISTS planned (
   attachment TEXT,
   attachment_method TEXT,
   skipped_months TEXT,
+  end_month TEXT,
+  salary_deductions TEXT,
+  include_in_ir BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -90,6 +98,9 @@ ALTER TABLE planned ADD COLUMN IF NOT EXISTS realized BOOLEAN DEFAULT false;
 ALTER TABLE planned ADD COLUMN IF NOT EXISTS attachment TEXT;
 ALTER TABLE planned ADD COLUMN IF NOT EXISTS attachment_method TEXT;
 ALTER TABLE planned ADD COLUMN IF NOT EXISTS skipped_months TEXT;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS end_month TEXT;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS salary_deductions TEXT;
+ALTER TABLE planned ADD COLUMN IF NOT EXISTS include_in_ir BOOLEAN DEFAULT false;
 
 -- 6. Tabela de Transações Efetivadas
 CREATE TABLE IF NOT EXISTS transactions (
@@ -105,6 +116,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   member_id BIGINT REFERENCES members(id) ON DELETE SET NULL,
   planned_id BIGINT REFERENCES planned(id) ON DELETE SET NULL,
   attachment TEXT,
+  include_in_ir BOOLEAN DEFAULT false,
+  deducted_in_payroll BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -128,7 +141,26 @@ CREATE TABLE IF NOT EXISTS sources (
 -- Migração (para bancos já existentes)
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS fonte_id BIGINT REFERENCES sources(id) ON DELETE SET NULL;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS attachment_method TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS include_in_ir BOOLEAN DEFAULT false;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS deducted_in_payroll BOOLEAN DEFAULT false;
 ALTER TABLE planned ADD COLUMN IF NOT EXISTS fonte_id BIGINT REFERENCES sources(id) ON DELETE SET NULL;
+
+-- 9. Tabela de Categorias (receitas/despesas personalizáveis)
+CREATE TABLE IF NOT EXISTS categories (
+  key TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  color TEXT NOT NULL DEFAULT '#1F5D4C',
+  type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. Tabela de Ideias de Ajustes e Melhorias
+CREATE TABLE IF NOT EXISTS ideas (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  text TEXT NOT NULL,
+  done BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- Habilitar Row Level Security (RLS) para segurança
 ALTER TABLE members ENABLE ROW LEVEL SECURITY;
@@ -138,6 +170,8 @@ ALTER TABLE planned ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ideas ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de acesso anônimo/leitura e escrita (Para uso simples de chave anon/demo)
 CREATE POLICY "Permitir acesso total em members" ON members FOR ALL USING (true) WITH CHECK (true);
@@ -147,3 +181,5 @@ CREATE POLICY "Permitir acesso total em planned" ON planned FOR ALL USING (true)
 CREATE POLICY "Permitir acesso total em transactions" ON transactions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acesso total em budgets" ON budgets FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acesso total em sources" ON sources FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acesso total em categories" ON categories FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acesso total em ideas" ON ideas FOR ALL USING (true) WITH CHECK (true);

@@ -1,26 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Wallet, EyeOff, Eye, Coins, CalendarClock, Info, ArrowUpRight,
   HeartPulse, Bell, AlertTriangle, TrendingUp, TrendingDown, Calendar,
   Plus, Tag, CheckCircle2, MoreVertical, Pencil, Trash2, CreditCard, Download, Users, User
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Cell } from 'recharts';
-import { COLORS, CATEGORIES, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
+import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Cell, ReferenceLine } from 'recharts';
+import { COLORS, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
+import { useCategories } from '../../context/CategoriesContext';
 import { TODAY_DATE } from '../../constants/seedData';
-import { fmt, fmtDate, inScope, displayStatus, recurrenceIcon, recurrenceLabel, memberLabel, plannedStatus } from '../../utils/formatters';
+import { fmt, fmtDate, inScope, displayStatus, recurrenceIcon, recurrenceLabel, memberLabel, plannedStatus, monthLabelFull } from '../../utils/formatters';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
 import { HealthGauge } from '../ui/HealthGauge';
 import { CategoryIcon } from '../ui/CategoryIcon';
+import { ModalSheet } from '../ui/ModalSheet';
 
 export function PlannedCard({ item, onPay, onEdit, onDelete }) {
   const [confirming, setConfirming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const categories = useCategories();
   const st = displayStatus(item);
   const RecIcon = recurrenceIcon(item);
   const pct = Math.min(100, (item.paid / item.amount) * 100);
-  const catColor = CATEGORIES[item.category]?.color || COLORS.green;
+  const catColor = categories[item.category]?.color || COLORS.green;
   const prio = PRIORITY[item.priority] || PRIORITY.importante;
   const isCouple = item.memberId == null;
   const MemberIcon = isCouple ? Users : User;
@@ -86,12 +89,27 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
   );
 }
 
-export function InicioView({ balance, availableNow, monthProjection, isCurrentMonth, health, alerts, monthIncome, monthExpense, trend, openItems: allOpenItems, memberFilter, hideBalance, onToggleHide, onSeeAll, onPay, onEditPlanned, onDeletePlanned, onNewPlanned, onCloseMonth }) {
+export function InicioView({ balance, availableBalance, reservedAmount, availableNow, monthProjection, isCurrentMonth, health, alerts, monthIncome, monthExpense, projectedBalance, onSelectMonth, openItems: allOpenItems, memberFilter, hideBalance, onToggleHide, onSeeAll, onPay, onEditPlanned, onDeletePlanned, onNewPlanned, onCloseMonth }) {
   const [sortBy, setSortBy] = useState("vencimento");
+  const [showHealthInfo, setShowHealthInfo] = useState(false);
+  const lastTapRef = useRef({ month: null, time: 0 });
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-  const hasProjected = trend.some((t) => t.projected);
+  const hasProjected = projectedBalance.some((t) => t.projected);
+  const firstNegative = projectedBalance.find((t) => t.negative);
   const mask = (v) => (hideBalance ? "R$ • • • • •" : fmt(v));
+
+  function handleBarTap(data) {
+    const month = (data && (data.payload || data).month) || null;
+    if (!month) return;
+    const now = Date.now();
+    if (lastTapRef.current.month === month && now - lastTapRef.current.time < 400) {
+      lastTapRef.current = { month: null, time: 0 };
+      if (onSelectMonth) onSelectMonth(month);
+    } else {
+      lastTapRef.current = { month, time: now };
+    }
+  }
   const openItems = allOpenItems
     .filter((i) => inScope(i.memberId, memberFilter))
     .map((i) => ({ ...i, priority: i.priority || DEFAULT_PRIORITY[i.category] || "importante" }))
@@ -120,15 +138,19 @@ export function InicioView({ balance, availableNow, monthProjection, isCurrentMo
               <div style={{ width: 40, height: 40, borderRadius: 10, background: COLORS.green + "1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Wallet size={19} color={COLORS.green} />
               </div>
-              <p style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1 }}>Livre para usar agora</p>
+              <p style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1 }}>Saldo disponível</p>
               <button onClick={onToggleHide} aria-label={hideBalance ? "Mostrar saldo" : "Ocultar saldo"} className="icon-btn" style={{ background: "none", border: "none", padding: 2, color: COLORS.muted, display: "flex" }}>
                 {hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <p className="serif" style={{ fontSize: 32, fontWeight: 600, margin: "0 0 12px", color: availableNow >= 0 ? COLORS.green : COLORS.rust }}>{mask(availableNow)}</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.green + "12", borderRadius: 10, padding: "8px 12px", marginBottom: 16 }}>
+            <p className="serif" style={{ fontSize: 32, fontWeight: 600, margin: "0 0 12px", color: availableBalance >= 0 ? COLORS.green : COLORS.rust }}>{mask(availableBalance)}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.green + "12", borderRadius: 10, padding: "8px 12px", marginBottom: 10 }}>
               <Coins size={15} color={COLORS.green} />
-              <span style={{ fontSize: 12.5, color: COLORS.ink }}>Saldo em conta: <strong>{mask(balance)}</strong></span>
+              <span style={{ fontSize: 12.5, color: COLORS.ink }}>Saldo total: <strong>{mask(balance)}</strong>{reservedAmount > 0 && <> · Reservado: <strong>{mask(reservedAmount)}</strong></>}</span>
+            </div>
+            <div style={{ background: "#3B6E8F12", borderRadius: 10, padding: "8px 12px", marginBottom: 16 }}>
+              <span style={{ fontSize: 12, color: COLORS.ink }}>Livre para usar agora: <strong>{mask(availableNow)}</strong></span>
+              <span style={{ display: "block", fontSize: 10.5, color: COLORS.muted, marginTop: 1 }}>disponível menos contas em aberto</span>
             </div>
 
             <div style={{ height: 1, background: COLORS.line, margin: "0 0 16px" }} />
@@ -155,6 +177,7 @@ export function InicioView({ balance, availableNow, monthProjection, isCurrentMo
                 <HeartPulse size={17} color="#3B6E8F" />
               </div>
               <p style={{ fontSize: 13.5, fontWeight: 700, margin: 0, color: COLORS.ink, lineHeight: 1.2 }}>Saúde<br />financeira</p>
+              <button onClick={() => setShowHealthInfo(true)} aria-label="Como é calculada" style={{ background: "none", border: "none", padding: 0, color: COLORS.muted, cursor: "pointer", alignSelf: "flex-start", marginLeft: 2 }}><Info size={14} /></button>
             </div>
             <HealthGauge score={health.score} />
             <p className="serif" style={{ fontSize: 30, fontWeight: 600, margin: "2px 0 8px", color: COLORS.ink }}>{health.score}</p>
@@ -195,24 +218,34 @@ export function InicioView({ balance, availableNow, monthProjection, isCurrentMo
       </div>
 
       <Card style={{ marginBottom: 18 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px" }}>Receitas x despesas — últimos 6 meses</p>
-        <div style={{ width: "100%", height: 150 }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 2px" }}>Saldo projetado — próximos 12 meses</p>
+        <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 10px" }}>Toque na barra para ver o valor · duplo toque para abrir o mês</p>
+        <div style={{ width: "100%", height: 175 }}>
           <ResponsiveContainer>
-            <BarChart data={trend} barGap={4}>
+            <BarChart data={projectedBalance} barGap={2} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={COLORS.line} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: COLORS.muted }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={0} />
               <YAxis hide />
               <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line }} />
-              <Bar dataKey="receitas" fill={COLORS.green} radius={[4, 4, 0, 0]}>
-                {trend.map((d, i) => <Cell key={i} fillOpacity={d.projected ? 0.4 : 1} />)}
-              </Bar>
-              <Bar dataKey="despesas" fill={COLORS.rust} radius={[4, 4, 0, 0]}>
-                {trend.map((d, i) => <Cell key={i} fillOpacity={d.projected ? 0.4 : 1} />)}
+              <ReferenceLine y={0} stroke={COLORS.ink} strokeOpacity={0.5} strokeDasharray="3 3" />
+              <Bar dataKey="saldo" name="Saldo" radius={[4, 4, 4, 4]} onClick={handleBarTap} maxBarSize={22}>
+                {projectedBalance.map((d, i) => (
+                  <Cell key={i} fill={d.saldo < 0 ? COLORS.rust : COLORS.green} fillOpacity={d.projected ? 0.75 : 1} />
+                ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {hasProjected && <p style={{ fontSize: 11, color: COLORS.muted, margin: "8px 0 0" }}>Barras mais claras = projeção com base no Previsto, sem transação lançada ainda.</p>}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 10, height: 10, borderRadius: 3, background: COLORS.green }} /> Positivo</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 10, height: 10, borderRadius: 3, background: COLORS.rust }} /> Negativo</span>
+          {hasProjected && <span style={{ fontSize: 11, color: COLORS.muted }}>barras claras = projeção</span>}
+        </div>
+        {firstNegative ? (
+          <p style={{ fontSize: 12, color: COLORS.rust, margin: "10px 0 0" }}>Atenção: o saldo fica negativo em <strong>{monthLabelFull(firstNegative.month)}</strong>.</p>
+        ) : (
+          <p style={{ fontSize: 12, color: COLORS.green, margin: "10px 0 0" }}>Nos próximos 12 meses o saldo se mantém positivo ✓</p>
+        )}
       </Card>
 
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
@@ -225,7 +258,7 @@ export function InicioView({ balance, availableNow, monthProjection, isCurrentMo
               <p className="serif" style={{ fontSize: 19, fontWeight: 600, margin: 0, color: COLORS.ink }}>Contas em aberto</p>
               {openItems.length > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.green, background: COLORS.green + "1E", borderRadius: 20, padding: "1px 10px" }}>{openItems.length}</span>}
             </div>
-            <p style={{ fontSize: 12, color: COLORS.muted, margin: "2px 0 0" }}>deste mês e dos últimos 6, enquanto não forem pagas</p>
+            <p style={{ fontSize: 12, color: COLORS.muted, margin: "2px 0 0" }}>do mês selecionado e de meses anteriores ainda não pagos</p>
           </div>
         </div>
 
@@ -269,6 +302,41 @@ export function InicioView({ balance, availableNow, monthProjection, isCurrentMo
         )}
         {openItems.map((item) => <PlannedCard key={item.occId} item={item} onPay={onPay} onEdit={onEditPlanned} onDelete={onDeletePlanned} />)}
       </div>
+
+      {showHealthInfo && (
+        <ModalSheet title="Saúde financeira — como é calculada" onClose={() => setShowHealthInfo(false)}>
+          <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 12px" }}>A pontuação vai de <strong>0 a 100</strong> e começa em 100. Cada situação abaixo desconta pontos:</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            {[
+              ["Orçamentos estourados", "−15 por orçamento acima do limite · −5 no limite"],
+              ["Despesas acima da receita", "−25 quando o mês fechou no vermelho"],
+              ["Poupança insuficiente", "−20 se gastou além da renda · −8 se guarda menos de 15%"],
+            ].map(([t, d]) => (
+              <div key={t} style={{ padding: "10px 12px", borderRadius: 12, background: COLORS.card, border: "1px solid " + COLORS.line }}>
+                <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px", color: COLORS.ink }}>{t}</p>
+                <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>{d}</p>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.green, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Neste mês</p>
+          {health.factors.length === 0 ? (
+            <p style={{ fontSize: 13, color: COLORS.green, margin: 0 }}>Nenhum desconto aplicado — pontuação máxima! ✓</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {health.factors.map((f, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 30, fontSize: 12, fontWeight: 700, color: COLORS.rust, flexShrink: 0 }}>{f.impact}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: COLORS.ink }}>{f.label}</p>
+                    <p style={{ fontSize: 11.5, color: COLORS.muted, margin: 0 }}>{f.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ModalSheet>
+      )}
     </div>
   );
 }

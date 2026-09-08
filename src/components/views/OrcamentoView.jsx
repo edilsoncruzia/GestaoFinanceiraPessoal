@@ -1,6 +1,7 @@
 import React from 'react';
 import { PiggyBank } from 'lucide-react';
-import { COLORS, CATEGORIES } from '../../constants/tokens';
+import { COLORS } from '../../constants/tokens';
+import { useCategories } from '../../context/CategoriesContext';
 import { fmt, statusFor, inScope } from '../../utils/formatters';
 import { SectionTitle } from '../ui/SectionTitle';
 import { Card } from '../ui/Card';
@@ -10,6 +11,7 @@ import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
 
 export function OrcamentoView({ budgets: allBudgets, memberFilter }) {
+  const categories = useCategories();
   const budgets = allBudgets.filter((b) => inScope(b.memberId, memberFilter));
   const totalLimit = budgets.reduce((s, b) => s + b.limit, 0);
   const totalSpent = budgets.reduce((s, b) => s + b.spent, 0);
@@ -26,7 +28,7 @@ export function OrcamentoView({ budgets: allBudgets, memberFilter }) {
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {budgets.map((b) => {
-          const c = CATEGORIES[b.category];
+          const c = categories[b.category];
           const st = statusFor(b.spent, b.limit);
           const pct = Math.min(100, (b.spent / b.limit) * 100);
           return (

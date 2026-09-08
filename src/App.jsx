@@ -1,15 +1,21 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { COLORS, CATEGORIES, NECESSIDADES, DESEJOS, PRIORITY, DEFAULT_PRIORITY } from './constants/tokens';
+import { COLORS, CATEGORIES, NECESSIDADES, DESEJOS, PRIORITY, DEFAULT_PRIORITY, buildCategoriesObject, categoriesToRows } from './constants/tokens';
+import { CategoriesContext } from './context/CategoriesContext';
+import { computeHealthScore } from './utils/health';
 import { SEED_ACCOUNTS, SEED_TRANSACTIONS, SEED_PLANNED, SEED_GOALS, BUDGETS, MEMBERS, INITIAL_BALANCE, TODAY_MONTH, TODAY_DATE } from './constants/seedData';
 import {
   fmt, fmtDate, monthKey, round2, statusFor, plannedStatus, displayStatus,
-  memberLabel, inScope, addMonths, monthDiff, monthLabel, generatePlannedOccurrences
+  memberLabel, inScope, addMonths, monthDiff, monthLabel, generatePlannedOccurrences,
+  accountBalance, buildOpenItems
 } from './utils/formatters';
 import {
   loadInitialData, syncTransactionToSupabase, deleteTransactionFromSupabase,
   syncPlannedToSupabase, deletePlannedFromSupabase, isSupabaseConfigured,
   syncAccountToSupabase, deleteAccountFromSupabase,
   syncSourceToSupabase, deleteSourceFromSupabase,
+  syncCategoryToSupabase, deleteCategoryFromSupabase,
+  syncIdeaToSupabase, deleteIdeaFromSupabase,
+  getAuthSession, onAuthChange, signInWithPasswordAuth, signInWithGoogleAuth, signOutAuth, lookupMemberEmailByCpf,
   clearSupabaseData
 } from './lib/supabase';
 
@@ -25,6 +31,9 @@ import { TransacoesView } from './components/views/TransacoesView';
 import { OrcamentoView } from './components/views/OrcamentoView';
 import { MaisMenuView, BackRow } from './components/views/MaisMenuView';
 import { ContasView } from './components/views/ContasView';
+import { CategoriasView } from './components/views/CategoriasView';
+import { DeclaracaoIRView } from './components/views/DeclaracaoIRView';
+import { IdeiasView } from './components/views/IdeiasView';
 import { MetasView } from './components/views/MetasView';
 import { RelatoriosView } from './components/views/RelatoriosView';
 import { Regra503020View } from './components/views/Regra503020View';
@@ -37,21 +46,63 @@ import { ExtratoView } from './components/views/ExtratoView';
 import { TransactionFormModal } from './components/modals/TransactionFormModal';
 import { PlannedFormModal } from './components/modals/PlannedFormModal';
 import { PayModal } from './components/modals/PayModal';
+import { HoleriteModal } from './components/modals/HoleriteModal';
 import { ContributeModal } from './components/modals/ContributeModal';
 import { GoalFormModal } from './components/modals/GoalFormModal';
 import { CloseMonthModal } from './components/modals/CloseMonthModal';
 import { AccountFormModal } from './components/modals/AccountFormModal';
 import { AccountScopeModal } from './components/modals/AccountScopeModal';
+import { LoginView } from './components/views/LoginView';
 
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    getAuthSession().then((s) => { if (mounted) { setSession(s); setAuthLoading(false); } });
+    const unsub = onAuthChange((s) => { if (mounted) { setSession(s); setAuthLoading(false); } });
+    return () => { mounted = false; unsub(); };
+  }, []);
+
+  async function handleGoogleLogin() {
+    setSubmitting(true);
+    setAuthError("");
+    const { error } = await signInWithGoogleAuth();
+    if (error) { setAuthError(error.message || "Erro ao entrar com Google"); setSubmitting(false); }
+  }
+
+  async function handlePasswordLogin(cpf, password) {
+    setSubmitting(true);
+    setAuthError("");
+    const digits = cpf.replace(/\D/g, "");
+    if (digits.length !== 11) { setAuthError("Informe um CPF válido."); setSubmitting(false); return; }
+    const email = await lookupMemberEmailByCpf(digits);
+    if (!email) { setAuthError("CPF não encontrado."); setSubmitting(false); return; }
+    const { error } = await signInWithPasswordAuth(email, password);
+    if (error) setAuthError("CPF ou senha incorretos.");
+    setSubmitting(false);
+  }
+
+  async function handleLogout() {
+    await signOutAuth();
+    setSession(null);
+  }
+
+  if (authLoading) {
+    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", color: "#1B2A2F", background: "#e5dec9", fontSize: 14 }}>Carregando…</div>;
+  }
+
   return (
     <ErrorBoundary>
-      <FinanceApp />
+      {session ? <FinanceApp user={session.user} onLogout={handleLogout} /> : <LoginView onGoogleLogin={handleGoogleLogin} onPasswordLogin={handlePasswordLogin} loading={submitting} error={authError} />}
     </ErrorBoundary>
   );
 }
 
-function FinanceApp() {
+function FinanceApp({ user, onLogout }) {
   const [tab, setTab] = useState("inicio");
   const [moreView, setMoreView] = useState(null);
   const [transactions, setTransactions] = useState(isSupabaseConfigured ? [] : SEED_TRANSACTIONS);
@@ -71,6 +122,8 @@ function FinanceApp() {
   const [editingAccount, setEditingAccount] = useState(null);
   const [accountAction, setAccountAction] = useState(null); // { account, action: 'edit' | 'delete' }
   const [sources, setSources] = useState([]);
+  const [categories, setCategories] = useState(CATEGORIES);
+  const [ideas, setIdeas] = useState([]);
   const [extratoAccount, setExtratoAccount] = useState(null);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("todos");
@@ -89,6 +142,8 @@ function FinanceApp() {
       if (data.goals) setGoals(data.goals);
       if (data.budgets) setBudgets(data.budgets);
       if (data.sources) setSources(data.sources);
+      if (Array.isArray(data.ideas)) setIdeas(data.ideas);
+      if (Array.isArray(data.categories) && data.categories.length) setCategories(buildCategoriesObject(data.categories));
     });
   }, []);
 
@@ -99,8 +154,10 @@ function FinanceApp() {
       localStorage.setItem('gf_transactions', JSON.stringify(transactions));
       localStorage.setItem('gf_planned', JSON.stringify(planned));
       localStorage.setItem('gf_goals', JSON.stringify(goals));
+      localStorage.setItem('gf_categories', JSON.stringify(categoriesToRows(categories)));
+      localStorage.setItem('gf_ideas', JSON.stringify(ideas));
     }
-  }, [accounts, transactions, planned, goals]);
+  }, [accounts, transactions, planned, goals, categories, ideas]);
 
   useEffect(() => {
     if (!toast) return;
@@ -125,92 +182,61 @@ function FinanceApp() {
     return projectedMonth.filter((o) => o.type === "expense").reduce((s, o) => s + o.amount, 0);
   }, [currentMonthTx, projectedMonth]);
 
-  const monthlyTrend = useMemo(() => {
-    const months = Array.from({ length: 6 }, (_, i) => addMonths(selectedMonth, i - 5));
-    return months.map((m) => {
-      const actual = visibleTx.filter((t) => monthKey(t.date) === m);
-      let receitas = actual.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-      let despesas = actual.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-      let projected = false;
-      if (actual.length === 0) {
+  // Saldo projetado ao final de cada mês, acumulado desde o início do histórico.
+  // O valor de cada mês é FIXO (não muda conforme o mês selecionado): o filtro apenas
+  // desliza a "janela" de 12 meses exibida. Assim, o saldo de fevereiro é o mesmo quer
+  // estejamos olhando a partir de setembro ou do próprio fevereiro.
+  const projectedBalance = useMemo(() => {
+    let earliest = null;
+    transactions.forEach((t) => { const m = monthKey(t.date); if (earliest == null || m < earliest) earliest = m; });
+    planned.forEach((p) => { if (p.dueDate) { const m = monthKey(p.dueDate); if (earliest == null || m < earliest) earliest = m; } });
+    if (earliest == null) earliest = selectedMonth;
+    const startMonth = earliest < selectedMonth ? earliest : selectedMonth;
+    const endMonth = addMonths(selectedMonth, 11);
+
+    let running = initialBalance;
+    const rows = [];
+    let m = startMonth;
+    while (m <= endMonth) {
+      const actual = transactions.filter((t) => monthKey(t.date) === m && inScope(t.memberId, memberFilter));
+      let result = 0, projected = false;
+      if (actual.length > 0) {
+        result = actual.reduce((s, t) => s + (t.type === "income" ? t.amount : t.type === "expense" ? -t.amount : 0), 0);
+      } else {
         const occ = generatePlannedOccurrences(planned, m).filter((o) => inScope(o.memberId, memberFilter));
-        receitas = occ.filter((o) => o.type === "income").reduce((s, o) => s + o.amount, 0);
-        despesas = occ.filter((o) => o.type === "expense").reduce((s, o) => s + o.amount, 0);
-        projected = receitas > 0 || despesas > 0;
+        result = occ.reduce((s, o) => s + (o.type === "income" ? o.amount : o.type === "expense" ? -o.amount : 0), 0);
+        projected = result !== 0;
       }
-      return { month: m, label: monthLabel(m), receitas, despesas, projected };
-    });
-  }, [selectedMonth, visibleTx, planned, memberFilter]);
+      running += result;
+      if (m >= selectedMonth) {
+        rows.push({ month: m, label: monthLabel(m), saldo: round2(running), result: round2(result), projected, negative: running < 0 });
+      }
+      m = addMonths(m, 1);
+    }
+    return rows;
+  }, [selectedMonth, transactions, planned, memberFilter, initialBalance]);
 
   const categoryBreakdown = useMemo(() => {
     const map = {};
     currentMonthTx.filter((t) => t.type === "expense").forEach((t) => { map[t.category] = (map[t.category] || 0) + t.amount; });
-    return Object.entries(map).map(([category, value]) => ({ category, value, color: CATEGORIES[category]?.color || COLORS.green, label: CATEGORIES[category]?.label || category })).sort((a, b) => b.value - a.value);
-  }, [currentMonthTx]);
+    return Object.entries(map).map(([category, value]) => ({ category, value, color: categories[category]?.color || COLORS.green, label: categories[category]?.label || category })).sort((a, b) => b.value - a.value);
+  }, [currentMonthTx, categories]);
 
   const monthTxAll = useMemo(() => transactions.filter((t) => monthKey(t.date) === selectedMonth), [transactions, selectedMonth]);
   const budgetsWithSpent = useMemo(() => budgets.map((b) => ({
     ...b, spent: monthTxAll.filter((t) => t.type === "expense" && t.category === b.category && (b.memberId == null || t.memberId === b.memberId)).reduce((s, t) => s + t.amount, 0),
   })), [budgets, monthTxAll]);
 
-  const openWindowMonths = useMemo(() => Array.from({ length: 6 }, (_, i) => addMonths(TODAY_MONTH, i - 5)), []);
-  const todayOpenItems = useMemo(() => {
-    const all = [];
-    openWindowMonths.forEach((m) => {
-      generatePlannedOccurrences(planned, m).forEach((o) => {
-        const linked = transactions.filter((tx) => monthKey(tx.date) === m && (tx.plannedId === o.id));
-        const paid = o.realized ? o.amount : linked.reduce((s, tx) => s + tx.amount, 0);
-        const st = plannedStatus(paid, o.amount);
-        if (!o.realized && (st.state === "pendente" || st.state === "parcial")) all.push({ ...o, paid });
-      });
-    });
-    return all;
-  }, [planned, transactions]);
-  const accumulatedOpenItems = useMemo(() => {
-    const all = [];
-    const start = addMonths(TODAY_MONTH, -5);
-    let m = start;
-    while (m <= selectedMonth) {
-      generatePlannedOccurrences(planned, m).forEach((o) => {
-        const linked = transactions.filter((tx) => monthKey(tx.date) === m && (tx.plannedId === o.id));
-        const paid = o.realized ? o.amount : linked.reduce((s, tx) => s + tx.amount, 0);
-        const st = plannedStatus(paid, o.amount);
-        if (o.realized || (st.state !== "pendente" && st.state !== "parcial")) return;
-        const occMonth = monthKey(o.dueDate);
-        if (occMonth === selectedMonth || (occMonth < selectedMonth && o.dueDate < TODAY_DATE)) {
-          all.push({ ...o, paid });
-        }
-      });
-      m = addMonths(m, 1);
-    }
-    return all;
-  }, [planned, transactions, selectedMonth]);
+  // Contas em aberto: mês selecionado + meses anteriores ainda não pagos/recebidos.
+  const openItems = useMemo(() => buildOpenItems(planned, transactions, selectedMonth), [planned, transactions, selectedMonth]);
+  const openExpenseTotal = useMemo(() => openItems.filter((i) => i.type === "expense").reduce((s, i) => s + (i.amount - i.paid), 0), [openItems]);
 
-  const pendingExpenseTotal = useMemo(() => todayOpenItems.filter((i) => i.type === "expense").reduce((s, i) => s + (i.amount - i.paid), 0), [todayOpenItems]);
-  const availableNow = balance - pendingExpenseTotal;
+  // Dinheiro guardado em contas de reserva (fora do saldo disponível).
+  const reservedAmount = useMemo(() => accounts.filter((a) => a.type === "conta" && a.countInAvailable === false).reduce((s, a) => s + accountBalance(a, transactions), 0), [accounts, transactions]);
+  const availableBalance = balance - reservedAmount;
+  const availableNow = availableBalance - openExpenseTotal;
 
-  const health = useMemo(() => {
-    let score = 100;
-    const overCount = budgetsWithSpent.filter((b) => statusFor(b.spent, b.limit).state === "over").length;
-    const exactCount = budgetsWithSpent.filter((b) => statusFor(b.spent, b.limit).state === "exact").length;
-    score -= overCount * 15 + exactCount * 5;
-    if (monthIncome > 0 && monthExpense > monthIncome) score -= 25;
-    const necessidades = currentMonthTx.filter((t) => t.type === "expense" && NECESSIDADES.includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const desejos = currentMonthTx.filter((t) => t.type === "expense" && DESEJOS.includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const poupanca = monthIncome - necessidades - desejos;
-    const poupancaPct = monthIncome > 0 ? Math.round((poupanca / monthIncome) * 100) : 0;
-    if (monthIncome > 0) {
-      if (poupancaPct < 0) score -= 20;
-      else if (poupancaPct < 15) score -= 8;
-    }
-    score = Math.max(0, Math.min(100, Math.round(score)));
-    let mood;
-    if (score >= 80) mood = { label: "Saúde financeira ótima", shortLabel: "Ótima", color: COLORS.green };
-    else if (score >= 60) mood = { label: "Saúde financeira boa", shortLabel: "Boa", color: COLORS.greenLight };
-    else if (score >= 40) mood = { label: "Atenção com os gastos", shortLabel: "Atenção", color: COLORS.amber };
-    else mood = { label: "Momento de ajustar o mês", shortLabel: "Crítica", color: COLORS.rust };
-    return { score, overCount, exactCount, poupancaPct, totalBudgets: budgetsWithSpent.length, ...mood };
-  }, [budgetsWithSpent, monthIncome, monthExpense, currentMonthTx]);
+  const health = useMemo(() => computeHealthScore({ budgetsWithSpent, monthIncome, monthExpense, currentMonthTx }), [budgetsWithSpent, monthIncome, monthExpense, currentMonthTx]);
 
   const monthOccurrences = useMemo(() => generatePlannedOccurrences(planned, selectedMonth), [planned, selectedMonth]);
   const plannedWithStatus = useMemo(() => monthOccurrences.map((o) => {
@@ -220,13 +246,12 @@ function FinanceApp() {
 
   const monthProjection = useMemo(() => {
     let pendingIncome = 0, pendingExpense = 0;
-    plannedWithStatus.forEach((i) => {
-      const st = plannedStatus(i.paid, i.amount);
-      if (st.state !== "pendente" && st.state !== "parcial") return;
-      if (i.type === "income") pendingIncome += (i.amount - i.paid); else pendingExpense += (i.amount - i.paid);
+    openItems.forEach((i) => {
+      if (i.type === "income") pendingIncome += (i.amount - i.paid);
+      else if (i.type === "expense") pendingExpense += (i.amount - i.paid);
     });
     return { pendingIncome, pendingExpense, endBalance: balance + pendingIncome - pendingExpense };
-  }, [plannedWithStatus, balance]);
+  }, [openItems, balance]);
 
   const todayOccurrences = useMemo(() => {
     const occ = generatePlannedOccurrences(planned, TODAY_MONTH);
@@ -245,7 +270,7 @@ function FinanceApp() {
     const list = [];
     todayBudgets.forEach((b) => {
       const st = statusFor(b.spent, b.limit);
-      const label = (CATEGORIES[b.category]?.label || b.category) + (b.memberId ? " (" + memberLabel(b.memberId) + ")" : "");
+      const label = (categories[b.category]?.label || b.category) + (b.memberId ? " (" + memberLabel(b.memberId) + ")" : "");
       if (st.state === "over") list.push({ level: "rust", priorityRank: 0, text: label + " ultrapassou o limite em " + fmt(b.spent - b.limit) });
       else if (st.state === "exact") list.push({ level: "amber", priorityRank: 1, text: label + " atingiu o limite do mês" });
       else if (b.limit > 0 && b.spent / b.limit >= 0.8) list.push({ level: "amber", priorityRank: 1, text: label + " já está em " + Math.round((b.spent / b.limit) * 100) + "% do limite" });
@@ -259,7 +284,7 @@ function FinanceApp() {
       else if (diffDays <= 3) list.push({ level: "amber", priorityRank, text: o.description + " vence " + (diffDays === 0 ? "hoje" : "em " + diffDays + " dia" + (diffDays > 1 ? "s" : "")) });
     });
     return list.sort((a, b) => (a.level === b.level ? a.priorityRank - b.priorityRank : a.level === "rust" ? -1 : 1));
-  }, [todayBudgets, todayOccurrences]);
+  }, [todayBudgets, todayOccurrences, categories]);
 
   const filteredTx = useMemo(() => sorted.filter((t) => {
     if (filterType !== "todos" && t.type !== filterType) return false;
@@ -284,9 +309,14 @@ function FinanceApp() {
     showToast("Transação excluída");
   }
 
-  async function upsertPlanned(p) {
-    const newP = { ...p, id: p.id || Date.now() };
+  async function upsertPlanned(p, editMeta) {
     const isEdit = planned.some((x) => x.id === p.id);
+    if (isEdit && editMeta && editMeta.scope && editMeta.scope !== "all") {
+      await editSeriesOccurrence(p, editMeta);
+      setShowPlannedForm(false); setEditingPlanned(null);
+      return;
+    }
+    const newP = { ...p, id: p.id || Date.now() };
     const dbId = await syncPlannedToSupabase(newP);
     const final = { ...newP, id: dbId ?? newP.id };
     setPlanned((prev) => isEdit ? prev.map((x) => x.id === p.id ? final : x) : [...prev, final]);
@@ -296,6 +326,57 @@ function FinanceApp() {
     }
     setShowPlannedForm(false); setEditingPlanned(null);
     showToast(isEdit ? "Previsto atualizado ✓" : "Previsto salvo ✓");
+  }
+
+  // Aplica uma edição a uma ocorrência de série (recorrente/parcelada) com escopo.
+  // O histórico já consolidado (transações) nunca é apagado.
+  async function editSeriesOccurrence(p, meta) {
+    const template = planned.find((x) => x.id === p.id);
+    if (!template) { showToast("Série não encontrada"); return; }
+    const currentMonth = monthKey(meta.originalDueDate || template.dueDate);
+    const curInstallment = meta.originalInstallmentCurrent;
+
+    if (meta.scope === "this") {
+      // Pula este mês na série e cria um lançamento único com os novos dados.
+      const skipped = [...new Set([...(template.skippedMonths || []), currentMonth])];
+      const tUpd = { ...template, skippedMonths: skipped };
+      setPlanned((prev) => prev.map((x) => (x.id === template.id ? tUpd : x)));
+      await syncPlannedToSupabase(tUpd);
+
+      const newItem = { ...template, ...p, id: Date.now(), recurrence: "unica", dueDate: p.dueDate, installmentCurrent: undefined, installmentTotal: undefined, periodicity: undefined, endMonth: null, skippedMonths: [] };
+      const dbId = await syncPlannedToSupabase(newItem);
+      const final = { ...newItem, id: dbId ?? newItem.id };
+      setPlanned((prev) => [...prev, final]);
+      showToast("Alteração aplicada só a este lançamento ✓");
+    } else if (meta.scope === "future") {
+      if (template.recurrence === "parcelada") {
+        // Encerra a série antiga antes desta parcela e cria uma nova daqui em diante.
+        const newTotal = curInstallment ? Number(curInstallment) - 1 : 0;
+        if (newTotal >= (template.installmentCurrent || 1)) {
+          const tUpd = { ...template, installmentTotal: newTotal };
+          setPlanned((prev) => prev.map((x) => (x.id === template.id ? tUpd : x)));
+          await syncPlannedToSupabase(tUpd);
+        } else {
+          setPlanned((prev) => prev.filter((x) => x.id !== template.id));
+          await deletePlannedFromSupabase(template.id);
+        }
+        const newTpl = { ...template, ...p, id: Date.now(), recurrence: "parcelada", installmentCurrent: curInstallment || 1, installmentTotal: template.installmentTotal, dueDate: p.dueDate, endMonth: null, skippedMonths: [] };
+        const dbId = await syncPlannedToSupabase(newTpl);
+        const final = { ...newTpl, id: dbId ?? newTpl.id };
+        setPlanned((prev) => [...prev, final]);
+      } else {
+        // Recorrente: a série antiga termina no mês anterior; a nova começa agora.
+        const tUpd = { ...template, endMonth: addMonths(currentMonth, -1) };
+        setPlanned((prev) => prev.map((x) => (x.id === template.id ? tUpd : x)));
+        await syncPlannedToSupabase(tUpd);
+
+        const newTpl = { ...template, ...p, id: Date.now(), recurrence: "recorrente", dueDate: p.dueDate, endMonth: null, skippedMonths: [] };
+        const dbId = await syncPlannedToSupabase(newTpl);
+        const final = { ...newTpl, id: dbId ?? newTpl.id };
+        setPlanned((prev) => [...prev, final]);
+      }
+      showToast("Alteração aplicada a este e aos próximos ✓");
+    }
   }
 
   async function deletePlanned(item, scope) {
@@ -321,13 +402,47 @@ function FinanceApp() {
   }
 
   async function payPlanned(item, payload) {
-    const newTx = { id: Date.now(), date: payload.date, type: item.type, category: item.category, description: item.description, amount: payload.amount, accountId: payload.accountId, memberId: item.memberId, plannedId: item.id, fonteId: payload.fonteId, attachment: payload.attachment, attachmentMethod: payload.attachmentMethod };
+    const newTx = { id: Date.now(), date: payload.date, type: item.type, category: item.category, description: item.description, amount: payload.amount, accountId: payload.accountId, memberId: item.memberId, plannedId: item.id, fonteId: payload.fonteId, attachment: payload.attachment, attachmentMethod: payload.attachmentMethod, includeInIR: item.type === "expense" ? Boolean(item.includeInIR) : undefined };
     const dbId = await syncTransactionToSupabase(newTx);
     if (dbId == null) { showToast("Erro ao salvar pagamento no Supabase"); return; }
     const final = { ...newTx, id: dbId ?? newTx.id };
     setTransactions((prev) => [...prev, final]);
     setPayTarget(null);
     showToast(item.type === "income" ? "Recebimento registrado ✓" : "Pagamento registrado ✓");
+  }
+
+  // Registra o salário (bruto) + os descontos em folha como despesas, em um único fluxo.
+  async function registerSalaryReceipt(item, payload) {
+    const gross = Number(item.amount) || 0;
+    const deductions = payload.deductions || [];
+
+    const incomeTx = { id: Date.now(), date: payload.date, type: "income", category: item.category, description: item.description, amount: gross, accountId: payload.accountId, memberId: item.memberId, plannedId: item.id, fonteId: payload.fonteId };
+    const incomeDbId = await syncTransactionToSupabase(incomeTx);
+    if (incomeDbId == null) { showToast("Erro ao salvar o salário no Supabase"); return; }
+    const incomeFinal = { ...incomeTx, id: incomeDbId ?? incomeTx.id };
+    setTransactions((prev) => [...prev, incomeFinal]);
+
+    let n = 0;
+    for (const d of deductions) {
+      const expenseTx = { id: Date.now() + (++n), date: payload.date, type: "expense", category: d.category, description: d.label, amount: d.amount, accountId: payload.accountId, memberId: item.memberId, plannedId: item.id, deductedInPayroll: true };
+      const dbId = await syncTransactionToSupabase(expenseTx);
+      if (dbId == null) continue;
+      const final = { ...expenseTx, id: dbId ?? expenseTx.id };
+      setTransactions((prev) => [...prev, final]);
+    }
+
+    if (payload.saveModel) {
+      const template = planned.find((x) => x.id === item.id);
+      if (template) {
+        const model = deductions.map((d) => ({ id: "d-" + Date.now().toString(36), label: d.label, category: d.category, amount: d.amount }));
+        const updated = { ...template, salaryDeductions: model };
+        setPlanned((prev) => prev.map((x) => (x.id === template.id ? updated : x)));
+        await syncPlannedToSupabase(updated);
+      }
+    }
+
+    setPayTarget(null);
+    showToast("Salário e descontos registrados ✓");
   }
 
   async function realizePlanned(item) {
@@ -346,6 +461,7 @@ function FinanceApp() {
       fonteId: item.fonteId,
       attachment: item.attachment,
       attachmentMethod: item.attachmentMethod,
+      includeInIR: item.type === "expense" ? Boolean(item.includeInIR) : undefined,
     };
     const dbId = await syncTransactionToSupabase(newTx);
     if (dbId == null) { showToast("Erro ao efetivar no Supabase"); return; }
@@ -420,6 +536,52 @@ function FinanceApp() {
     await deleteSourceFromSupabase(id);
     showToast("Fonte excluída");
   }
+  function saveCategory(cat) {
+    setCategories((prev) => ({ ...prev, [cat.key]: { ...(prev[cat.key] || {}), ...cat, icon: CATEGORIES[cat.key]?.icon || prev[cat.key]?.icon } }));
+    syncCategoryToSupabase(cat);
+    showToast("Categoria salva ✓");
+  }
+  function deleteCategory(key) {
+    setCategories((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    deleteCategoryFromSupabase(key);
+    showToast("Categoria excluída");
+  }
+  function attachReceipt(t, dataUrl) {
+    if (!dataUrl) { showToast("Erro ao ler o comprovante"); return; }
+    const updated = { ...t, attachment: dataUrl };
+    setTransactions((prev) => prev.map((x) => (x.id === t.id ? updated : x)));
+    syncTransactionToSupabase(updated);
+    showToast("Comprovante anexado ✓");
+  }
+  async function saveIdea(text) {
+    const d = new Date();
+    const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const idea = { id: Date.now(), text: text.trim(), done: false, date: dateStr };
+    const dbId = await syncIdeaToSupabase(idea);
+    const final = { ...idea, id: dbId ?? idea.id };
+    setIdeas((prev) => [...prev, final]);
+    showToast("Ideia registrada ✓");
+  }
+  function toggleIdeaDone(id) {
+    const idea = ideas.find((x) => x.id === id);
+    if (!idea) return;
+    const updated = { ...idea, done: !idea.done };
+    setIdeas((prev) => prev.map((x) => (x.id === id ? updated : x)));
+    syncIdeaToSupabase(updated);
+  }
+  function deleteIdea(id) {
+    setIdeas((prev) => prev.filter((x) => x.id !== id));
+    deleteIdeaFromSupabase(id);
+    showToast("Ideia removida");
+  }
+  function updateIdea(id, text) {
+    const idea = ideas.find((x) => x.id === id);
+    if (!idea) return;
+    const updated = { ...idea, text: text.trim() };
+    setIdeas((prev) => prev.map((x) => (x.id === id ? updated : x)));
+    syncIdeaToSupabase(updated);
+    showToast("Ideia atualizada ✓");
+  }
   async function finalizePlanned(item) {
     const template = planned.find((p) => p.id === item.id);
     if (!template) return;
@@ -433,8 +595,8 @@ function FinanceApp() {
   }
   async function clearSupabase() {
     await clearSupabaseData();
-    setTransactions([]); setPlanned([]); setGoals([]); setBudgets([]); setAccounts([]); setSources([]);
-    localStorage.removeItem('gf_accounts'); localStorage.removeItem('gf_transactions'); localStorage.removeItem('gf_planned'); localStorage.removeItem('gf_goals');
+    setTransactions([]); setPlanned([]); setGoals([]); setBudgets([]); setAccounts([]); setSources([]); setCategories(CATEGORIES); setIdeas([]);
+    localStorage.removeItem('gf_accounts'); localStorage.removeItem('gf_transactions'); localStorage.removeItem('gf_planned'); localStorage.removeItem('gf_goals'); localStorage.removeItem('gf_categories'); localStorage.removeItem('gf_ideas');
     setSelectedMonth(TODAY_MONTH); setMemberFilter("todos"); setTab("inicio"); setMoreView(null);
     showToast("Base de dados do Supabase limpa ✓");
   }
@@ -455,17 +617,19 @@ function FinanceApp() {
   }
 
   function resetToSeed() {
-    setTransactions(SEED_TRANSACTIONS); setPlanned(SEED_PLANNED); setAccounts(SEED_ACCOUNTS); setGoals(SEED_GOALS); setBudgets(BUDGETS);
+    setTransactions(SEED_TRANSACTIONS); setPlanned(SEED_PLANNED); setAccounts(SEED_ACCOUNTS); setGoals(SEED_GOALS); setBudgets(BUDGETS); setCategories(CATEGORIES); setIdeas([]);
     setSelectedMonth(TODAY_MONTH); setMemberFilter("todos"); setTab("inicio"); setMoreView(null);
     localStorage.removeItem('gf_accounts');
     localStorage.removeItem('gf_transactions');
     localStorage.removeItem('gf_planned');
     localStorage.removeItem('gf_goals');
+    localStorage.removeItem('gf_categories');
+    localStorage.removeItem('gf_ideas');
     showToast("Dados de exemplo restaurados ✓");
   }
 
   function exportData() {
-    const payload = { accounts, transactions, planned, goals, exportedAt: new Date().toISOString() };
+    const payload = { accounts, transactions, planned, goals, categories: categoriesToRows(categories), ideas, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -483,6 +647,8 @@ function FinanceApp() {
         if (Array.isArray(data.transactions)) setTransactions(data.transactions);
         if (Array.isArray(data.planned)) setPlanned(data.planned);
         if (Array.isArray(data.goals)) setGoals(data.goals);
+        if (Array.isArray(data.categories) && data.categories.length) setCategories(buildCategoriesObject(data.categories));
+        if (Array.isArray(data.ideas)) setIdeas(data.ideas);
         showToast("Dados importados ✓");
       } catch (e) { showToast("Erro ao importar arquivo"); }
     };
@@ -490,14 +656,18 @@ function FinanceApp() {
   }
 
   return (
+    <CategoriesContext.Provider value={categories}>
     <div style={{ fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif", background: COLORS.paper, color: COLORS.ink, height: 700, width: "100%", maxWidth: 430, margin: "0 auto", position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid " + COLORS.line, boxShadow: "0 12px 36px rgba(0,0,0,0.15)" }}>
       <div style={{ position: "absolute", inset: 0, overflowY: "auto" }}>
         <div key={tab + (moreView || "")} className="tab-content" style={{ padding: "20px 18px 96px" }}>
-          {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={monthIncome} monthExpense={monthExpense} trend={monthlyTrend} openItems={accumulatedOpenItems} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
-          {tab === "transacoes" && <><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><TransacoesView closedList={filteredTx} openItems={accumulatedOpenItems} memberFilter={memberFilter} search={search} setSearch={setSearch} filterType={filterType} setFilterType={setFilterType} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} accounts={accounts} onEdit={(t) => { const linkedPlanned = t.plannedId ? planned.find((p) => p.id === t.plannedId) : null; if (linkedPlanned) { setEditingPlanned(linkedPlanned); setShowPlannedForm(true); } else { setEditingTx(t); setShowForm(true); } }} onDelete={deleteTransaction} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} /></>}
+          {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={monthIncome} monthExpense={monthExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={openItems} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
+          {tab === "transacoes" && <><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><TransacoesView closedList={filteredTx} openItems={openItems} memberFilter={memberFilter} search={search} setSearch={setSearch} filterType={filterType} setFilterType={setFilterType} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} accounts={accounts} onEdit={(t) => { const linkedPlanned = t.plannedId ? planned.find((p) => p.id === t.plannedId) : null; if (linkedPlanned) { setEditingPlanned(linkedPlanned); setShowPlannedForm(true); } else { setEditingTx(t); setShowForm(true); } }} onDelete={deleteTransaction} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} /></>}
           {tab === "orcamento" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><OrcamentoView budgets={budgetsWithSpent} memberFilter={memberFilter} /></>}
-          {tab === "mais" && moreView === null && <MaisMenuView onSelect={setMoreView} />}
+          {tab === "mais" && moreView === null && <MaisMenuView onSelect={setMoreView} onLogout={onLogout} userName={user?.user_metadata?.full_name || user?.email} />}
           {tab === "mais" && moreView === "contas" && <ContasView accounts={accounts} transactions={transactions} onBack={() => setMoreView(null)} onAdd={openNewAccount} onEdit={openEditAccount} onDelete={requestDeleteAccount} onViewStatements={(a) => setExtratoAccount(a)} />}
+          {tab === "mais" && moreView === "categorias" && <CategoriasView onBack={() => setMoreView(null)} onSave={saveCategory} onDelete={deleteCategory} />}
+          {tab === "mais" && moreView === "declaracao" && <DeclaracaoIRView transactions={transactions} onBack={() => setMoreView(null)} onAttach={attachReceipt} />}
+          {tab === "mais" && moreView === "ajustes" && <IdeiasView ideas={ideas} onBack={() => setMoreView(null)} onSave={saveIdea} onDelete={deleteIdea} onToggle={toggleIdeaDone} onUpdate={updateIdea} />}
           {tab === "mais" && moreView === "metas" && <><BackRow onBack={() => setMoreView(null)} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><MetasView goals={goals} memberFilter={memberFilter} accounts={accounts} onContribute={setContributeTarget} onNewGoal={() => setShowGoalForm(true)} /></>}
           {tab === "mais" && moreView === "relatorios" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><RelatoriosView month={selectedMonth} transactions={transactions} planned={planned} sources={sources} /></>}
           {tab === "mais" && moreView === "regra" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><Regra503020View income={monthIncome} expenses={currentMonthTx.filter((t) => t.type === "expense")} /></>}
@@ -523,14 +693,19 @@ function FinanceApp() {
         </div>
       )}
 
-      {showForm && <TransactionFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingTx} onClose={() => { setShowForm(false); setEditingTx(null); }} onSubmit={upsertTransaction} />}
-      {showPlannedForm && <PlannedFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingPlanned} onClose={() => { setShowPlannedForm(false); setEditingPlanned(null); }} onSubmit={upsertPlanned} />}
-      {payTarget && <PayModal item={payTarget} accounts={accounts} sources={sources} transactions={transactions} selectedMonth={selectedMonth} onClose={() => setPayTarget(null)} onSubmit={(payload) => payPlanned(payTarget, payload)} onFinalize={finalizePlanned} />}
+      {showForm && <TransactionFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingTx} onClose={() => { setShowForm(false); setEditingTx(null); }} onSubmit={upsertTransaction} onAddCategory={saveCategory} />}
+      {showPlannedForm && <PlannedFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingPlanned} onClose={() => { setShowPlannedForm(false); setEditingPlanned(null); }} onSubmit={upsertPlanned} onAddCategory={saveCategory} />}
+      {payTarget && (payTarget.type === "income" && (payTarget.salaryDeductions || []).length > 0 ? (
+        <HoleriteModal item={payTarget} accounts={accounts} sources={sources} selectedMonth={selectedMonth} onClose={() => setPayTarget(null)} onSubmit={(payload) => registerSalaryReceipt(payTarget, payload)} />
+      ) : (
+        <PayModal item={payTarget} accounts={accounts} sources={sources} transactions={transactions} selectedMonth={selectedMonth} onClose={() => setPayTarget(null)} onSubmit={(payload) => payPlanned(payTarget, payload)} onFinalize={finalizePlanned} />
+      ))}
       {contributeTarget && <ContributeModal goal={contributeTarget} accounts={accounts} onClose={() => setContributeTarget(null)} onSubmit={(payload) => contributeToGoal(contributeTarget, payload)} />}
       {showGoalForm && <GoalFormModal accounts={accounts} onClose={() => setShowGoalForm(false)} onSubmit={addGoal} />}
       {showCloseMonth && <CloseMonthModal month={selectedMonth} items={plannedWithStatus} monthIncome={monthIncome} monthExpense={monthExpense} onMove={movePlannedToNextMonth} onClose={() => setShowCloseMonth(false)} />}
       {showAccountForm && <AccountFormModal editing={editingAccount} onClose={() => { setShowAccountForm(false); setEditingAccount(null); }} onSubmit={handleAccountSubmit} />}
       {accountAction && <AccountScopeModal account={accountAction.account} action={accountAction.action} onConfirm={confirmAccountAction} onClose={() => setAccountAction(null)} />}
     </div>
+    </CategoriesContext.Provider>
   );
 }

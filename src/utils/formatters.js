@@ -1,4 +1,4 @@
-import { COLORS, CATEGORIES, PRIORITY, DEFAULT_PRIORITY } from "../constants/tokens";
+import { COLORS, PRIORITY, DEFAULT_PRIORITY } from "../constants/tokens";
 import { MEMBERS, TODAY_DATE } from "../constants/seedData";
 import { RefreshCw, Layers, CalendarClock } from "lucide-react";
 
@@ -30,26 +30,81 @@ export function monthLabelFull(month) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// Periodicidade → passo em meses (mensal/bimestral/trimestral/semestral/anual).
+const PERIOD_MONTH_STEPS = { mensal: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12 };
+// Periodicidade → passo em dias (diário/semanal/quinzenal).
+const PERIOD_DAY_STEPS = { diario: 1, semanal: 7, quinzenal: 15 };
+
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+function clampDay(y, m, day) { return Math.min(Number(day) || 1, daysInMonth(y, m)); }
+function toDateStr(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+
+// Datas de vencimento de um template dentro de um mês (YYYY-MM), respeitando
+// recorrência (única/recorrente/parcelada), periodicidade e fim opcional (endMonth).
+function occurrenceDatesInMonth(t, month) {
+  const startMonth = monthKey(t.dueDate);
+  if (month < startMonth) return [];
+  if (t.endMonth && month > t.endMonth) return [];
+
+  if (t.recurrence === "unica") {
+    return startMonth === month ? [{ dueDate: t.dueDate, installmentCurrent: t.installmentCurrent }] : [];
+  }
+
+  const periodicity = t.periodicity || "mensal";
+  let monthStep = PERIOD_MONTH_STEPS[periodicity];
+  const dayStep = PERIOD_DAY_STEPS[periodicity];
+  if (!monthStep && !dayStep) monthStep = 1; // fallback seguro
+
+  const [y, m] = month.split("-").map(Number);
+  const day = Number(t.dueDate.slice(8, 10)) || 1;
+
+  if (monthStep) {
+    const offset = monthDiff(startMonth, month);
+    if (offset % monthStep !== 0) return [];
+    const occIndex = offset / monthStep;
+    const cur = (t.installmentCurrent || 1) + occIndex;
+    if (t.recurrence === "parcelada" && cur > t.installmentTotal) return [];
+    return [{ dueDate: month + "-" + pad2(clampDay(y, m, day)), installmentCurrent: cur }];
+  }
+
+  // Períodos por dia: gera uma ou mais ocorrências dentro do mês.
+  const monthStart = new Date(y, m - 1, 1);
+  const monthEnd = new Date(y, m, 0, 23, 59, 59, 999);
+  const startDate = new Date(t.dueDate + "T00:00:00");
+  const DAY_MS = 86400000;
+  let idx0 = Math.max(0, Math.ceil((monthStart.getTime() - startDate.getTime()) / (dayStep * DAY_MS)) - 1);
+  let cur = new Date(startDate);
+  cur.setDate(cur.getDate() + idx0 * dayStep);
+  while (cur < monthStart) { cur.setDate(cur.getDate() + dayStep); idx0++; }
+  while (idx0 > 0) {
+    const prev = new Date(cur);
+    prev.setDate(prev.getDate() - dayStep);
+    if (prev >= monthStart) { cur = prev; idx0--; } else break;
+  }
+  const results = [];
+  while (cur <= monthEnd) {
+    const absInstallment = (t.installmentCurrent || 1) + idx0;
+    if (t.recurrence === "parcelada") {
+      if (absInstallment <= t.installmentTotal) {
+        results.push({ dueDate: toDateStr(cur), installmentCurrent: absInstallment });
+      }
+    } else {
+      results.push({ dueDate: toDateStr(cur), installmentCurrent: t.installmentCurrent });
+    }
+    cur.setDate(cur.getDate() + dayStep);
+    idx0++;
+  }
+  return results;
+}
+
 export function generatePlannedOccurrences(templates, month) {
   const out = [];
   templates.forEach((t) => {
     if ((t.skippedMonths || []).includes(month)) return;
     if (t.realized) return; // encerrado/efetivado não gera mais ocorrências
-    if (t.recurrence === "unica") {
-      if (monthKey(t.dueDate) === month) out.push({ ...t, occId: t.id + "-" + month });
-    } else if (t.recurrence === "recorrente") {
-      if (month < monthKey(t.dueDate)) return; // começa a partir do mês do vencimento
-      const day = t.dueDate.slice(8, 10);
-      out.push({ ...t, occId: t.id + "-" + month, dueDate: month + "-" + day });
-    } else if (t.recurrence === "parcelada") {
-      const refMonth = monthKey(t.dueDate);
-      const offset = monthDiff(refMonth, month);
-      const cur = t.installmentCurrent + offset;
-      if (cur >= 1 && cur <= t.installmentTotal) {
-        const day = t.dueDate.slice(8, 10);
-        out.push({ ...t, occId: t.id + "-" + month, dueDate: month + "-" + day, installmentCurrent: cur });
-      }
-    }
+    occurrenceDatesInMonth(t, month).forEach(({ dueDate, installmentCurrent }) => {
+      out.push({ ...t, occId: t.id + "-" + dueDate, dueDate, installmentCurrent: t.recurrence === "parcelada" ? installmentCurrent : t.installmentCurrent });
+    });
   });
   return out;
 }
@@ -83,10 +138,13 @@ export function displayStatus(item) {
   return st;
 }
 
+const PERIOD_LABELS = { diario: "Diário", semanal: "Semanal", quinzenal: "Quinzenal", mensal: "Mensal", bimestral: "Bimestral", trimestral: "Trimestral", semestral: "Semestral", anual: "Anual" };
+
 export function recurrenceLabel(item) {
   if (item.recurrence === "unica") return "Única";
-  if (item.recurrence === "recorrente") return "Recorrente";
-  return "Parcela " + item.installmentCurrent + "/" + item.installmentTotal;
+  const p = item.periodicity && item.periodicity !== "mensal" && PERIOD_LABELS[item.periodicity] ? " (" + PERIOD_LABELS[item.periodicity] + ")" : "";
+  if (item.recurrence === "recorrente") return "Recorrente" + p;
+  return "Parcela " + item.installmentCurrent + "/" + item.installmentTotal + p;
 }
 
 export function recurrenceIcon(item) {
@@ -110,4 +168,58 @@ export function memberColor(id) {
 export function inScope(memberId, filter) {
   // "Todos" mostra tudo; ao escolher um membro, mostra só o que é daquele membro.
   return filter === "todos" || memberId === filter;
+}
+
+// Saldo atual de uma conta, considerando também transferências de entrada/saída.
+export function accountBalance(account, transactions) {
+  let bal = Number(account?.initialBalance) || 0;
+  (transactions || []).forEach((t) => {
+    if (t.type === "income" && t.accountId === account.id) bal += Number(t.amount) || 0;
+    else if (t.type === "expense" && t.accountId === account.id) bal -= Number(t.amount) || 0;
+    else if (t.type === "transferencia") {
+      if (t.toAccountId === account.id) bal += Number(t.amount) || 0;
+      if (t.fromAccountId === account.id) bal -= Number(t.amount) || 0;
+    }
+  });
+  return bal;
+}
+
+function computeOccurrencePaid(o, transactions, occMonth) {
+  const linked = (transactions || []).filter((t) => t.plannedId === o.id);
+  // Compromisso único: pode ser pago/recebido em mês posterior ao vencimento.
+  if (o.recurrence === "unica") {
+    return linked.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  }
+  // Períodos por dia (diário/semanal/quinzenal): vincula pelo dia exato do vencimento.
+  if (PERIOD_DAY_STEPS[o.periodicity || "mensal"]) {
+    return linked.filter((t) => t.date === o.dueDate).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  }
+  return linked.filter((t) => monthKey(t.date) === occMonth).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+}
+
+// Contas em aberto: lançamentos previstos do mês selecionado E de meses anteriores
+// que ainda não foram totalmente pagos/recebidos (carregam como pendência).
+export function buildOpenItems(planned, transactions, selectedMonth) {
+  if (!planned || !planned.length || !selectedMonth) return [];
+  let startMonth = null;
+  planned.forEach((t) => {
+    if (!t.dueDate) return;
+    const m = monthKey(t.dueDate);
+    if (startMonth == null || m < startMonth) startMonth = m;
+  });
+  if (startMonth == null) startMonth = selectedMonth;
+
+  const out = [];
+  let m = startMonth;
+  while (m <= selectedMonth) {
+    generatePlannedOccurrences(planned, m).forEach((o) => {
+      if (o.realized) return;
+      const paid = computeOccurrencePaid(o, transactions, m);
+      const st = plannedStatus(paid, o.amount);
+      if (st.state !== "pendente" && st.state !== "parcial") return;
+      out.push({ ...o, paid });
+    });
+    m = addMonths(m, 1);
+  }
+  return out;
 }

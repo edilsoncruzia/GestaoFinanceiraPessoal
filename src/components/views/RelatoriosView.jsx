@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { COLORS, CATEGORIES, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
+import { COLORS, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
+import { useCategories } from '../../context/CategoriesContext';
 import { fmt, monthKey, addMonths, monthLabel } from '../../utils/formatters';
 import { SectionTitle } from '../ui/SectionTitle';
 import { Card } from '../ui/Card';
@@ -10,6 +11,7 @@ const PERIODS = [["mes", "Este mês"], ["3m", "3 meses"], ["6m", "6 meses"], ["1
 
 export function RelatoriosView({ month, transactions, planned, sources }) {
   const [period, setPeriod] = useState("mes");
+  const categories = useCategories();
   const tx = transactions || [];
   const plannedArr = planned || [];
 
@@ -26,7 +28,7 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
 
   const catMap = {};
   expenses.forEach((t) => { catMap[t.category] = (catMap[t.category] || 0) + t.amount; });
-  const breakdown = Object.entries(catMap).map(([category, value]) => ({ category, value, color: CATEGORIES[category]?.color || COLORS.green, name: CATEGORIES[category]?.label || category })).sort((a, b) => b.value - a.value);
+  const breakdown = Object.entries(catMap).map(([category, value]) => ({ category, value, color: categories[category]?.color || COLORS.green, name: categories[category]?.label || category })).sort((a, b) => b.value - a.value);
 
   let fixed = 0, variable = 0;
   expenses.forEach((t) => { if (FIXED_CATS.has(t.category)) fixed += t.amount; else variable += t.amount; });

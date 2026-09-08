@@ -1,20 +1,38 @@
 import React, { useState } from 'react';
-import { COLORS, CATEGORIES, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
+import { COLORS, PRIORITY, DEFAULT_PRIORITY, CATEGORY_PALETTE } from '../../constants/tokens';
+import { useCategories } from '../../context/CategoriesContext';
 import { MEMBERS, TODAY_MONTH } from '../../constants/seedData';
 import { ModalSheet } from '../ui/ModalSheet';
 import { FormField } from '../ui/FormField';
+import { Plus, Trash2 } from 'lucide-react';
 
 const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
 const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 };
 
-const PERIODICITY = [
+// Periodicidade para parcelas (com fim definido)
+const INSTALLMENT_PERIODS = [
   ["diario", "Diário"], ["semanal", "Semanal"], ["mensal", "Mensal"], ["bimestral", "Bimestral"],
   ["trimestral", "Trimestral"], ["semestral", "Semestral"], ["anual", "Anual"],
+];
+// Periodicidade para recorrentes (sem fim definido)
+const RECURRING_PERIODS = [
+  ["quinzenal", "Quinzenal"], ["mensal", "Mensal"], ["bimestral", "Bimestral"],
+  ["trimestral", "Trimestral"], ["semestral", "Semestral"], ["anual", "Anual"],
+];
+
+// Atalhos de descontos em folha (salário)
+const DEDUCTION_PRESETS = [
+  ["INSS", "contas"],
+  ["IRRF", "contas"],
+  ["Plano de saúde", "saude"],
+  ["Vale-transporte", "transporte"],
+  ["Empréstimo consignado", "contas"],
+  ["Outros", "outros"],
 ];
 
 
 
-export function PlannedFormModal({ accounts, sources, selectedMonth, editing, onClose, onSubmit }) {
+export function PlannedFormModal({ accounts, sources, selectedMonth, editing, onClose, onSubmit, onAddCategory }) {
   const [type, setType] = useState(editing ? editing.type : "expense");
   const [category, setCategory] = useState(editing ? editing.category : "alimentacao");
   const [description, setDescription] = useState(editing ? editing.description : "");
@@ -32,21 +50,54 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
   const [realized, setRealized] = useState(editing ? Boolean(editing.realized) : false);
   const [fonteId, setFonteId] = useState(editing && editing.fonteId ? String(editing.fonteId) : "");
   const [error, setError] = useState("");
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatColor, setNewCatColor] = useState(CATEGORY_PALETTE[0]);
+  const [scope, setScope] = useState("all"); // this | future | all (ao editar série)
+  const [salaryDeductions, setSalaryDeductions] = useState(editing && Array.isArray(editing.salaryDeductions) ? editing.salaryDeductions : []);
+  const [includeInIR, setIncludeInIR] = useState(editing ? Boolean(editing.includeInIR) : false);
 
-  const options = Object.entries(CATEGORIES).filter(([, c]) => c.type === type);
+  const categories = useCategories();
+  const options = Object.entries(categories).filter(([, c]) => c.type === type);
+  const expenseOptions = Object.entries(categories).filter(([, c]) => c.type === "expense");
 
   function handleTypeChange(newType) {
     setType(newType);
     if (newType !== "transferencia") {
-      const first = Object.entries(CATEGORIES).find(([, c]) => c.type === newType);
+      const first = Object.entries(categories).find(([, c]) => c.type === newType);
       setCategory(first[0]);
       setPriority(DEFAULT_PRIORITY[first[0]] || "importante");
     }
   }
 
   function handleCategoryChange(newCategory) {
+    if (newCategory === "__new__") { setShowNewCat(true); return; }
     setCategory(newCategory);
     if (!editing) setPriority(DEFAULT_PRIORITY[newCategory] || "importante");
+  }
+
+  function createCategory() {
+    const label = newCatName.trim();
+    if (!label) return;
+    const key = "cat-" + Date.now().toString(36);
+    if (onAddCategory) onAddCategory({ key, label, color: newCatColor, type });
+    setCategory(key);
+    if (!editing) setPriority(DEFAULT_PRIORITY[key] || "importante");
+    setShowNewCat(false);
+    setNewCatName("");
+  }
+
+  function updateDeduction(idx, field, value) {
+    setSalaryDeductions((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)));
+  }
+  function removeDeduction(idx) {
+    setSalaryDeductions((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function addDeduction() {
+    setSalaryDeductions((prev) => [...prev, { id: "d-" + Date.now().toString(36) + prev.length, label: "", category: "contas", amount: "" }]);
+  }
+  function addDeductionPreset(label, cat) {
+    setSalaryDeductions((prev) => [...prev, { id: "d-" + Date.now().toString(36) + prev.length, label, category: cat, amount: "" }]);
   }
 
   function handleSubmit() {
@@ -65,13 +116,18 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
       recurrence,
       memberId: memberId === "null" ? null : Number(memberId),
       priority,
-      periodicity: recurrence === "parcelada" ? periodicity : undefined,
+      periodicity: (recurrence === "parcelada" || recurrence === "recorrente") ? periodicity : undefined,
       realized,
+      salaryDeductions: (type === "income" && category === "salario") ? salaryDeductions.filter((d) => d.label.trim()) : undefined,
+      includeInIR: type === "expense" ? includeInIR : undefined,
       fonteId: fonteId ? Number(fonteId) : undefined,
     };
     if (recurrence === "parcelada") { payload.installmentCurrent = Number(installmentCurrent) || 1; payload.installmentTotal = Number(installmentTotal) || 1; }
     if (editing) payload.id = editing.id;
-    onSubmit(payload);
+    const editMeta = editing && editing.recurrence !== "unica"
+      ? { scope, originalDueDate: editing.dueDate, originalInstallmentCurrent: editing.installmentCurrent, originalRecurrence: editing.recurrence }
+      : undefined;
+    onSubmit(payload, editMeta);
   }
 
   return (
@@ -97,7 +153,27 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
         </>
       ) : (
         <>
-          <FormField label="Categoria"><select value={category} onChange={(e) => handleCategoryChange(e.target.value)} style={inputStyle}>{options.map(([key, c]) => <option key={key} value={key}>{c.label}</option>)}</select></FormField>
+          {showNewCat ? (
+            <FormField label="Nova categoria">
+              <input value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder={"Nome da categoria de " + (type === "income" ? "receita" : "despesa")} style={inputStyle} />
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                {CATEGORY_PALETTE.map((c) => (
+                  <button key={c} type="button" onClick={() => setNewCatColor(c)} aria-label="Cor" style={{ width: 26, height: 26, borderRadius: "50%", background: c, border: newCatColor === c ? "2px solid " + COLORS.ink : "2px solid transparent", cursor: "pointer" }} />
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button type="button" onClick={() => setShowNewCat(false)} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 13 }}>Cancelar</button>
+                <button type="button" onClick={createCategory} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 13, fontWeight: 500 }}>Criar categoria</button>
+              </div>
+            </FormField>
+          ) : (
+            <FormField label="Categoria">
+              <select value={category} onChange={(e) => handleCategoryChange(e.target.value)} style={inputStyle}>
+                {options.map(([key, c]) => <option key={key} value={key}>{c.label}</option>)}
+                <option value="__new__">+ Nova categoria</option>
+              </select>
+            </FormField>
+          )}
           {type === "expense" && (
             <FormField label="Prioridade de pagamento">
               <select value={priority} onChange={(e) => setPriority(e.target.value)} style={inputStyle}>
@@ -105,21 +181,61 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
               </select>
             </FormField>
           )}
+          {type === "expense" && (
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px", cursor: "pointer" }}>
+              <input type="checkbox" checked={includeInIR} onChange={(e) => setIncludeInIR(e.target.checked)} style={{ marginTop: 2 }} />
+              <span style={{ fontSize: 13, color: COLORS.ink }}>
+                Incluir na Declaração de IR
+                <span style={{ display: "block", fontSize: 11, color: COLORS.muted, marginTop: 2 }}>Quando a despesa for paga, entra na declaração do ano seguinte.</span>
+              </span>
+            </label>
+          )}
+          {type === "income" && category === "salario" && (
+            <div style={{ margin: "4px 0 14px", padding: "12px 14px", borderRadius: 12, background: COLORS.card, border: "1px solid " + COLORS.line }}>
+              <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 4px", color: COLORS.ink }}>Descontos em folha (opcional)</p>
+              <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "0 0 10px" }}>INSS, IRRF, plano de saúde etc. — são descontados automaticamente ao registrar o recebimento do salário.</p>
+              {salaryDeductions.map((d, idx) => (
+                <div key={d.id} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                  <input value={d.label} onChange={(e) => updateDeduction(idx, "label", e.target.value)} placeholder="Desconto" style={{ ...inputStyle, flex: 2, padding: "8px 10px" }} />
+                  <select value={d.category} onChange={(e) => updateDeduction(idx, "category", e.target.value)} style={{ ...inputStyle, flex: 2, padding: "8px 10px" }}>
+                    {expenseOptions.map(([key, c]) => <option key={key} value={key}>{c.label}</option>)}
+                  </select>
+                  <input value={d.amount} onChange={(e) => updateDeduction(idx, "amount", e.target.value)} type="number" min="0" step="0.01" placeholder="0,00" style={{ ...inputStyle, flex: 1, padding: "8px 10px" }} />
+                  <button type="button" onClick={() => removeDeduction(idx)} aria-label="Remover desconto" style={{ background: "none", border: "none", color: COLORS.rust, cursor: "pointer", padding: 4, flexShrink: 0 }}><Trash2 size={15} /></button>
+                </div>
+              ))}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "4px 0 8px" }}>
+                {DEDUCTION_PRESETS.map(([label, cat]) => (
+                  <button key={label} type="button" onClick={() => addDeductionPreset(label, cat)} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 14, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.green, fontWeight: 500 }}>{label}</button>
+                ))}
+              </div>
+              <button type="button" onClick={addDeduction} style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, border: "1px dashed " + COLORS.line, background: "transparent", color: COLORS.green, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
+                <Plus size={13} /> Adicionar desconto
+              </button>
+            </div>
+          )}
         </>
       )}
 
       <FormField label="Recorrência">
         <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} style={inputStyle}>
           <option value="unica">Única</option>
-          <option value="recorrente">Recorrente (mensal)</option>
-          <option value="parcelada">Parcelada</option>
+          <option value="recorrente">Recorrente (sem fim)</option>
+          <option value="parcelada">Parcelada (com fim)</option>
         </select>
       </FormField>
+      {recurrence === "recorrente" && (
+        <FormField label="Periodicidade">
+          <select value={periodicity} onChange={(e) => setPeriodicity(e.target.value)} style={inputStyle}>
+            {RECURRING_PERIODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </FormField>
+      )}
       {recurrence === "parcelada" && (
         <>
           <FormField label="Periodicidade">
             <select value={periodicity} onChange={(e) => setPeriodicity(e.target.value)} style={inputStyle}>
-              {PERIODICITY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {INSTALLMENT_PERIODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </FormField>
           <div style={{ display: "flex", gap: 10 }}>
@@ -146,6 +262,24 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
           {(sources || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </FormField>
+
+      {editing && editing.recurrence !== "unica" && (
+        <FormField label="Aplicar alteração em">
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {[
+              ["this", "Somente este lançamento"],
+              ["future", "Este e os próximos"],
+              ["all", "Toda a série"],
+            ].map(([v, l]) => (
+              <label key={v} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, border: "1px solid " + (scope === v ? COLORS.green : COLORS.line), background: scope === v ? COLORS.green + "0D" : COLORS.card, cursor: "pointer" }}>
+                <input type="radio" name="edit-scope" checked={scope === v} onChange={() => setScope(v)} />
+                <span style={{ fontSize: 13, color: COLORS.ink }}>{l}</span>
+              </label>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>O histórico já consolidado é sempre preservado.</p>
+        </FormField>
+      )}
 
       {error && <p style={{ fontSize: 13, color: COLORS.rust, margin: "0 0 10px" }}>{error}</p>}
       <button onClick={handleSubmit} style={primaryBtn}>{editing ? "Salvar alterações" : "Salvar previsto"}</button>
