@@ -129,16 +129,52 @@ function FinanceApp() {
   const sorted = useMemo(() => [...visibleTx].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id)), [visibleTx]);
   const initialBalance = useMemo(() => isSupabaseConfigured ? accounts.reduce((s, a) => s + (a.initialBalance || 0), 0) : INITIAL_BALANCE, [accounts]);
   const balance = useMemo(() => initialBalance + transactions.reduce((s, t) => s + (t.type === "income" ? t.amount : t.type === "expense" ? -t.amount : 0), 0), [transactions, initialBalance]);
+
+  // Contas marcadas como Reserva: são um controle à parte. O dinheiro nelas NÃO entra nas
+  // Receitas/Despesas normais nem no saldo projetado disponível.
+  const reservedAmount = useMemo(() => accounts.filter((a) => a.type === "conta" && a.countInAvailable === false).reduce((s, a) => s + accountBalance(a, transactions), 0), [accounts, transactions]);
+  const reservedAccountIds = useMemo(() => accounts.filter((a) => a.countInAvailable === false).map((a) => a.id), [accounts]);
+  const availableBalance = balance - reservedAmount;
+  // Saldo inicial das contas NÃO-reservadas (base da projeção, sem a reserva).
+  const nonReservedInitialBalance = useMemo(() => accounts.filter((a) => a.countInAvailable !== false).reduce((s, a) => s + (a.initialBalance || 0), 0), [accounts]);
+
   const currentMonthTx = useMemo(() => visibleTx.filter((t) => monthKey(t.date) === selectedMonth), [visibleTx, selectedMonth]);
+  const currentMonthTxNonReserved = useMemo(() => currentMonthTx.filter((t) => !reservedAccountIds.includes(t.accountId)), [currentMonthTx, reservedAccountIds]);
   const projectedMonth = useMemo(() => generatePlannedOccurrences(planned, selectedMonth).filter((o) => inScope(o.memberId, memberFilter)), [planned, selectedMonth, memberFilter]);
+
   const monthIncome = useMemo(() => {
-    if (currentMonthTx.length > 0) return currentMonthTx.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-    return projectedMonth.filter((o) => o.type === "income").reduce((s, o) => s + o.amount, 0);
-  }, [currentMonthTx, projectedMonth]);
+    if (currentMonthTxNonReserved.length > 0) return currentMonthTxNonReserved.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    return projectedMonth.filter((o) => o.type === "income" && !reservedAccountIds.includes(o.accountId)).reduce((s, o) => s + o.amount, 0);
+  }, [currentMonthTxNonReserved, projectedMonth, reservedAccountIds]);
   const monthExpense = useMemo(() => {
-    if (currentMonthTx.length > 0) return currentMonthTx.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-    return projectedMonth.filter((o) => o.type === "expense").reduce((s, o) => s + o.amount, 0);
-  }, [currentMonthTx, projectedMonth]);
+    if (currentMonthTxNonReserved.length > 0) return currentMonthTxNonReserved.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    return projectedMonth.filter((o) => o.type === "expense" && !reservedAccountIds.includes(o.accountId)).reduce((s, o) => s + o.amount, 0);
+  }, [currentMonthTxNonReserved, projectedMonth, reservedAccountIds]);
+
+  // Descontos em folha (deduções de salário): para exibir o valor LÍQUIDO na página
+  // inicial, sem inflar Receitas/Despesas com valores já embutidos no salário.
+  const payrollDeductions = useMemo(() => currentMonthTx.filter((t) => t.type === "expense" && t.deductedInPayroll).reduce((s, t) => s + t.amount, 0), [currentMonthTx]);
+
+  // Deduções declaradas no modelo do salário (valor líquido), mesmo em meses ainda não
+  // efetivados (projeção) — vale para cadastros existentes e novos.
+  const salaryDeductionModel = useMemo(() => {
+    let total = 0;
+    if (currentMonthTx.length > 0) {
+      currentMonthTx.filter((t) => t.type === "income").forEach((t) => {
+        const tmpl = planned.find((p) => p.id === t.plannedId);
+        total += (tmpl?.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+      });
+    } else {
+      projectedMonth.filter((o) => o.type === "income").forEach((o) => {
+        total += (o.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+      });
+    }
+    return total;
+  }, [currentMonthTx, projectedMonth, planned]);
+
+  const totalDeduction = salaryDeductionModel > 0 ? salaryDeductionModel : payrollDeductions;
+  const netIncome = monthIncome - totalDeduction;
+  const netExpense = monthExpense - payrollDeductions;
 
   // Saldo projetado ao final de cada mês, acumulado desde o início do histórico.
   // O valor de cada mês é FIXO (não muda conforme o mês selecionado): o filtro apenas
@@ -152,27 +188,23 @@ function FinanceApp() {
     const startMonth = earliest < selectedMonth ? earliest : selectedMonth;
     const endMonth = addMonths(selectedMonth, 11);
 
-    let running = initialBalance;
+    let running = nonReservedInitialBalance;
     const rows = [];
     let m = startMonth;
     while (m <= endMonth) {
-      const actual = transactions.filter((t) => monthKey(t.date) === m && inScope(t.memberId, memberFilter));
-      let result = 0, projected = false;
-      if (actual.length > 0) {
-        result = actual.reduce((s, t) => s + (t.type === "income" ? t.amount : t.type === "expense" ? -t.amount : 0), 0);
-      } else {
-        const occ = generatePlannedOccurrences(planned, m).filter((o) => inScope(o.memberId, memberFilter));
-        result = occ.reduce((s, o) => s + (o.type === "income" ? o.amount : o.type === "expense" ? -o.amount : 0), 0);
-        projected = result !== 0;
-      }
+      // SALDO FIM MÊS = Entrada Prevista - Saída Prevista + Saldo do mês anterior.
+      // Usa sempre os valores PREVISTOS (não os realizados), acumulando mês a mês.
+      const occ = generatePlannedOccurrences(planned, m).filter((o) => inScope(o.memberId, memberFilter) && !reservedAccountIds.includes(o.accountId));
+      const result = occ.reduce((s, o) => s + (o.type === "income" ? o.amount : o.type === "expense" ? -o.amount : 0), 0);
+      const projected = result !== 0;
       running += result;
       if (m >= selectedMonth) {
-        rows.push({ month: m, label: monthLabel(m), saldo: round2(running), result: round2(result), projected, negative: running < 0 });
+        rows.push({ month: m, label: monthLabel(m), saldo: round2(running), result: round2(result), projected, negative: running < 0, reservado: round2(reservedAmount) });
       }
       m = addMonths(m, 1);
     }
     return rows;
-  }, [selectedMonth, transactions, planned, memberFilter, initialBalance]);
+  }, [selectedMonth, transactions, planned, memberFilter, nonReservedInitialBalance, reservedAccountIds]);
 
   const categoryBreakdown = useMemo(() => {
     const map = {};
@@ -189,10 +221,13 @@ function FinanceApp() {
   const openItems = useMemo(() => buildOpenItems(planned, transactions, selectedMonth), [planned, transactions, selectedMonth]);
   const openExpenseTotal = useMemo(() => openItems.filter((i) => i.type === "expense").reduce((s, i) => s + (i.amount - i.paid), 0), [openItems]);
 
-  // Dinheiro guardado em contas de reserva (fora do saldo disponível).
-  const reservedAmount = useMemo(() => accounts.filter((a) => a.type === "conta" && a.countInAvailable === false).reduce((s, a) => s + accountBalance(a, transactions), 0), [accounts, transactions]);
-  const availableBalance = balance - reservedAmount;
   const availableNow = availableBalance - openExpenseTotal;
+
+  // Contas marcadas como reserva: não entram nas projeções (saldo futuro) nem na leitura
+  // do que está disponível para uso.
+  const nonReservedTx = useMemo(() => transactions.filter((t) => !reservedAccountIds.includes(t.accountId)), [transactions, reservedAccountIds]);
+  const nonReservedPlanned = useMemo(() => planned.filter((p) => !["accountId", "fromAccountId", "toAccountId"].some((k) => reservedAccountIds.includes(p[k]))), [planned, reservedAccountIds]);
+  const openItemsAvailable = useMemo(() => openItems.filter((i) => !["accountId", "fromAccountId", "toAccountId"].some((k) => reservedAccountIds.includes(i[k]))), [openItems, reservedAccountIds]);
 
   const health = useMemo(() => computeHealthScore({ budgetsWithSpent, monthIncome, monthExpense, currentMonthTx }), [budgetsWithSpent, monthIncome, monthExpense, currentMonthTx]);
 
@@ -204,12 +239,12 @@ function FinanceApp() {
 
   const monthProjection = useMemo(() => {
     let pendingIncome = 0, pendingExpense = 0;
-    openItems.forEach((i) => {
+    openItemsAvailable.forEach((i) => {
       if (i.type === "income") pendingIncome += (i.amount - i.paid);
       else if (i.type === "expense") pendingExpense += (i.amount - i.paid);
     });
-    return { pendingIncome, pendingExpense, endBalance: balance + pendingIncome - pendingExpense };
-  }, [openItems, balance]);
+    return { pendingIncome, pendingExpense, endBalance: availableBalance + pendingIncome - pendingExpense };
+  }, [openItemsAvailable, availableBalance]);
 
   const todayOccurrences = useMemo(() => {
     const occ = generatePlannedOccurrences(planned, TODAY_MONTH);
@@ -511,10 +546,10 @@ function FinanceApp() {
     syncTransactionToSupabase(updated);
     showToast("Comprovante anexado ✓");
   }
-  async function saveIdea(text) {
+  async function saveIdea(text, attachment, attachmentMethod) {
     const d = new Date();
     const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    const idea = { id: Date.now(), text: text.trim(), done: false, date: dateStr };
+    const idea = { id: Date.now(), text: text.trim(), done: false, date: dateStr, attachment: attachment || null, attachmentMethod: attachmentMethod || null };
     const dbId = await syncIdeaToSupabase(idea);
     const final = { ...idea, id: dbId ?? idea.id };
     setIdeas((prev) => [...prev, final]);
@@ -551,12 +586,25 @@ function FinanceApp() {
     setPayTarget(null);
     showToast("Fechado como está neste mês ✓");
   }
-  async function clearSupabase() {
-    await clearSupabaseData();
-    setTransactions([]); setPlanned([]); setGoals([]); setBudgets([]); setAccounts([]); setSources([]); setCategories(CATEGORIES); setIdeas([]);
-    localStorage.removeItem('gf_accounts'); localStorage.removeItem('gf_transactions'); localStorage.removeItem('gf_planned'); localStorage.removeItem('gf_goals'); localStorage.removeItem('gf_categories'); localStorage.removeItem('gf_ideas');
-    setSelectedMonth(TODAY_MONTH); setMemberFilter("todos"); setTab("inicio"); setMoreView(null);
-    showToast("Base de dados do Supabase limpa ✓");
+  async function clearSupabase(scope = "all") {
+    await clearSupabaseData(scope);
+    if (scope === "income" || scope === "expense") {
+      const keep = (x) => x.type !== scope;
+      const nTx = transactions.filter(keep);
+      const nPl = planned.filter(keep);
+      setTransactions(nTx);
+      setPlanned(nPl);
+      if (!isSupabaseConfigured) {
+        localStorage.setItem('gf_transactions', JSON.stringify(nTx));
+        localStorage.setItem('gf_planned', JSON.stringify(nPl));
+      }
+      showToast(scope === "income" ? "Receitas removidas ✓" : "Despesas removidas ✓");
+    } else {
+      setTransactions([]); setPlanned([]); setGoals([]); setBudgets([]); setAccounts([]); setSources([]); setCategories(CATEGORIES); setIdeas([]);
+      localStorage.removeItem('gf_accounts'); localStorage.removeItem('gf_transactions'); localStorage.removeItem('gf_planned'); localStorage.removeItem('gf_goals'); localStorage.removeItem('gf_categories'); localStorage.removeItem('gf_ideas');
+      setSelectedMonth(TODAY_MONTH); setMemberFilter("todos"); setTab("inicio"); setMoreView(null);
+      showToast("Base de dados do Supabase limpa ✓");
+    }
   }
 
   function addGoal(g) {
@@ -615,10 +663,10 @@ function FinanceApp() {
 
   return (
     <CategoriesContext.Provider value={categories}>
-    <div style={{ fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif", background: COLORS.paper, color: COLORS.ink, height: 700, width: "100%", maxWidth: 430, margin: "0 auto", position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid " + COLORS.line, boxShadow: "0 12px 36px rgba(0,0,0,0.15)" }}>
+    <div className="app-shell">
       <div style={{ position: "absolute", inset: 0, overflowY: "auto" }}>
         <div key={tab + (moreView || "")} className="tab-content" style={{ padding: "20px 18px 96px" }}>
-          {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={monthIncome} monthExpense={monthExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={openItems} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
+          {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={netIncome} monthExpense={netExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={openItems} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
           {tab === "transacoes" && <><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><TransacoesView closedList={filteredTx} openItems={openItems} memberFilter={memberFilter} search={search} setSearch={setSearch} filterType={filterType} setFilterType={setFilterType} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} accounts={accounts} onEdit={(t) => { const linkedPlanned = t.plannedId ? planned.find((p) => p.id === t.plannedId) : null; if (linkedPlanned) { setEditingPlanned(linkedPlanned); setShowPlannedForm(true); } else { setEditingTx(t); setShowForm(true); } }} onDelete={deleteTransaction} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} /></>}
           {tab === "orcamento" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><OrcamentoView budgets={budgetsWithSpent} memberFilter={memberFilter} /></>}
           {tab === "mais" && moreView === null && <MaisMenuView onSelect={setMoreView} />}
@@ -629,7 +677,7 @@ function FinanceApp() {
           {tab === "mais" && moreView === "metas" && <><BackRow onBack={() => setMoreView(null)} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><MetasView goals={goals} memberFilter={memberFilter} accounts={accounts} onContribute={setContributeTarget} onNewGoal={() => setShowGoalForm(true)} /></>}
           {tab === "mais" && moreView === "relatorios" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><RelatoriosView month={selectedMonth} transactions={transactions} planned={planned} sources={sources} /></>}
           {tab === "mais" && moreView === "regra" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><Regra503020View income={monthIncome} expenses={currentMonthTx.filter((t) => t.type === "expense")} /></>}
-          {tab === "mais" && moreView === "projecao" && <><BackRow onBack={() => setMoreView(null)} /><ProjecaoView planned={planned} transactions={transactions} balance={balance} memberFilter={memberFilter} setMemberFilter={setMemberFilter} /></>}
+          {tab === "mais" && moreView === "projecao" && <><BackRow onBack={() => setMoreView(null)} /><ProjecaoView planned={nonReservedPlanned} transactions={nonReservedTx} balance={availableBalance} memberFilter={memberFilter} setMemberFilter={setMemberFilter} /></>}
           {tab === "mais" && moreView === "dados" && <><BackRow onBack={() => setMoreView(null)} /><DadosView onExport={exportData} onImport={() => fileInputRef.current && fileInputRef.current.click()} onReset={resetToSeed} onClearSupabase={clearSupabase} /></>}
           {tab === "mais" && moreView === "fontes" && <><FontesView sources={sources} onBack={() => setMoreView(null)} onSave={saveSource} onDelete={deleteSource} /></>}
         </div>
@@ -651,8 +699,8 @@ function FinanceApp() {
         </div>
       )}
 
-      {showForm && <TransactionFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingTx} onClose={() => { setShowForm(false); setEditingTx(null); }} onSubmit={upsertTransaction} onAddCategory={saveCategory} />}
-      {showPlannedForm && <PlannedFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingPlanned} onClose={() => { setShowPlannedForm(false); setEditingPlanned(null); }} onSubmit={upsertPlanned} onAddCategory={saveCategory} />}
+      {showForm && <TransactionFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingTx} onClose={() => { setShowForm(false); setEditingTx(null); }} onSubmit={upsertTransaction} onAddCategory={saveCategory} onAddAccount={openNewAccount} />}
+      {showPlannedForm && <PlannedFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingPlanned} onClose={() => { setShowPlannedForm(false); setEditingPlanned(null); }} onSubmit={upsertPlanned} onAddCategory={saveCategory} onAddAccount={openNewAccount} />}
       {payTarget && (payTarget.type === "income" && (payTarget.salaryDeductions || []).length > 0 ? (
         <HoleriteModal item={payTarget} accounts={accounts} sources={sources} selectedMonth={selectedMonth} onClose={() => setPayTarget(null)} onSubmit={(payload) => registerSalaryReceipt(payTarget, payload)} />
       ) : (

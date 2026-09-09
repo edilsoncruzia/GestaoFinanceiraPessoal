@@ -1,6 +1,6 @@
 import { COLORS, PRIORITY, DEFAULT_PRIORITY } from "../constants/tokens";
-import { MEMBERS, TODAY_DATE } from "../constants/seedData";
-import { RefreshCw, Layers, CalendarClock } from "lucide-react";
+import { MEMBERS, TODAY_DATE, TODAY_MONTH } from "../constants/seedData";
+import { RefreshCw, Layers, CalendarClock, Landmark, CreditCard, Building2, Wallet, Smartphone, Globe, PiggyBank } from "lucide-react";
 
 export function pad2(n) {
   return String(n).padStart(2, "0");
@@ -184,6 +184,62 @@ export function accountBalance(account, transactions) {
   return bal;
 }
 
+// Ícone de uma conta/cartão, derivado do banco, bandeira ou nome.
+const BANK_ICON_KEYWORDS = [
+  { kw: "nubank", icon: Wallet },
+  { kw: "inter", icon: Smartphone },
+  { kw: "itau", icon: Building2 },
+  { kw: "itú", icon: Building2 },
+  { kw: "bradesco", icon: Building2 },
+  { kw: "santander", icon: Building2 },
+  { kw: "caixa", icon: Building2 },
+  { kw: "banco do brasil", icon: Building2 },
+  { kw: "sicoob", icon: Building2 },
+  { kw: "sicredi", icon: Building2 },
+  { kw: "c6", icon: Smartphone },
+  { kw: "pagbank", icon: Wallet },
+  { kw: "pix", icon: Globe },
+  { kw: "picpay", icon: Wallet },
+];
+
+export function accountIcon(a) {
+  if (!a) return Landmark;
+  const text = (((a.bank || "") + " " + (a.brand || "") + " " + (a.name || "")) || "").toLowerCase();
+  const hit = BANK_ICON_KEYWORDS.find((b) => text.includes(b.kw));
+  if (hit) return hit.icon;
+  return a.type === "cartao" ? CreditCard : Landmark;
+}
+
+// Cor "oficial" da marca do banco/bandeira, para um visual de logo (fallback na cor da conta).
+const BANK_BRAND_COLORS = [
+  { kw: "nubank", color: "#820AD1" },
+  { kw: "inter", color: "#FF7A00" },
+  { kw: "itau", color: "#EC7000" },
+  { kw: "itú", color: "#EC7000" },
+  { kw: "bradesco", color: "#CC092F" },
+  { kw: "santander", color: "#EC0000" },
+  { kw: "caixa", color: "#005CA9" },
+  { kw: "banco do brasil", color: "#F4D13B" },
+  { kw: "sicoob", color: "#006B3F" },
+  { kw: "sicredi", color: "#E30613" },
+  { kw: "c6", color: "#333333" },
+  { kw: "pagbank", color: "#32BCAD" },
+  { kw: "picpay", color: "#21C25E" },
+  { kw: "visa", color: "#1A1F71" },
+  { kw: "mastercard", color: "#EB001B" },
+  { kw: "master", color: "#EB001B" },
+  { kw: "elo", color: "#00A4E0" },
+  { kw: "american express", color: "#2E77BC" },
+  { kw: "hipercard", color: "#B3131B" },
+];
+
+export function accountBrandColor(a) {
+  if (!a) return COLORS.green;
+  const text = (((a.bank || "") + " " + (a.brand || "") + " " + (a.name || "")) || "").toLowerCase();
+  const hit = BANK_BRAND_COLORS.find((b) => text.includes(b.kw));
+  return hit ? hit.color : (a.color || COLORS.green);
+}
+
 function computeOccurrencePaid(o, transactions, occMonth) {
   const linked = (transactions || []).filter((t) => t.plannedId === o.id);
   // Compromisso único: pode ser pago/recebido em mês posterior ao vencimento.
@@ -197,29 +253,44 @@ function computeOccurrencePaid(o, transactions, occMonth) {
   return linked.filter((t) => monthKey(t.date) === occMonth).reduce((s, t) => s + (Number(t.amount) || 0), 0);
 }
 
-// Contas em aberto: lançamentos previstos do mês selecionado E de meses anteriores
-// que ainda não foram totalmente pagos/recebidos (carregam como pendência).
+// Contas em aberto: lançamentos do mês selecionado + atrasados (vencidos antes do mês
+// atual) que ainda não foram pagos/recebidos. Lançamentos FUTUROS (vencendo no mês
+// atual ou depois) NÃO se replicam para os meses seguintes — só aparecem no próprio mês.
 export function buildOpenItems(planned, transactions, selectedMonth) {
   if (!planned || !planned.length || !selectedMonth) return [];
+  const currentMonth = TODAY_MONTH; // mês real "hoje" (referência para atrasos)
+  const out = [];
+
+  // 1) Ocorrências do próprio mês selecionado (futuras ou atuais)
+  generatePlannedOccurrences(planned, selectedMonth).forEach((o) => {
+    if (o.realized) return;
+    const paid = computeOccurrencePaid(o, transactions, selectedMonth);
+    const st = plannedStatus(paid, o.amount);
+    if (st.state !== "pendente" && st.state !== "parcial") return;
+    out.push({ ...o, paid, overdue: false });
+  });
+
+  // 2) Atrasados: vencidos ANTES do mês atual. Carregam para o mês em visualização,
+  //    mas apenas uma vez (não ficam replicando nos meses seguintes os lançamentos futuros).
   let startMonth = null;
   planned.forEach((t) => {
     if (!t.dueDate) return;
     const m = monthKey(t.dueDate);
-    if (startMonth == null || m < startMonth) startMonth = m;
+    if (m < currentMonth && (startMonth == null || m < startMonth)) startMonth = m;
   });
-  if (startMonth == null) startMonth = selectedMonth;
-
-  const out = [];
-  let m = startMonth;
-  while (m <= selectedMonth) {
-    generatePlannedOccurrences(planned, m).forEach((o) => {
-      if (o.realized) return;
-      const paid = computeOccurrencePaid(o, transactions, m);
-      const st = plannedStatus(paid, o.amount);
-      if (st.state !== "pendente" && st.state !== "parcial") return;
-      out.push({ ...o, paid });
-    });
-    m = addMonths(m, 1);
+  if (startMonth != null && startMonth < currentMonth) {
+    let m = startMonth;
+    while (m < currentMonth) {
+      generatePlannedOccurrences(planned, m).forEach((o) => {
+        if (o.realized) return;
+        const paid = computeOccurrencePaid(o, transactions, m);
+        const st = plannedStatus(paid, o.amount);
+        if (st.state !== "pendente" && st.state !== "parcial") return;
+        out.push({ ...o, paid, overdue: true });
+      });
+      m = addMonths(m, 1);
+    }
   }
+
   return out;
 }

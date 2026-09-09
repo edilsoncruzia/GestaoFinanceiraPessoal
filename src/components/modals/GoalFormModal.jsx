@@ -11,7 +11,8 @@ export function GoalFormModal({ accounts, onClose, onSubmit }) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [memberId, setMemberId] = useState("null");
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? null);
+  const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
+  const [accountId, setAccountId] = useState(defaultAccount?.id ?? null);
   const [error, setError] = useState("");
 
   function handleSubmit() {

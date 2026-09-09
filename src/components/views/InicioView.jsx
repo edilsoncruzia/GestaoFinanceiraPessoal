@@ -4,17 +4,31 @@ import {
   HeartPulse, Bell, AlertTriangle, TrendingUp, TrendingDown, Calendar,
   Plus, Tag, CheckCircle2, MoreVertical, Pencil, Trash2, CreditCard, Download, Users, User
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Cell, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, LabelList, CartesianGrid, XAxis, YAxis, Tooltip, Cell, ReferenceLine } from 'recharts';
 import { COLORS, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
 import { useCategories } from '../../context/CategoriesContext';
 import { TODAY_DATE } from '../../constants/seedData';
-import { fmt, fmtDate, inScope, displayStatus, recurrenceIcon, recurrenceLabel, memberLabel, plannedStatus, monthLabelFull } from '../../utils/formatters';
+import { fmt, fmtDate, round2, inScope, displayStatus, recurrenceIcon, recurrenceLabel, memberLabel, plannedStatus, monthLabelFull } from '../../utils/formatters';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
 import { HealthGauge } from '../ui/HealthGauge';
 import { CategoryIcon } from '../ui/CategoryIcon';
 import { ModalSheet } from '../ui/ModalSheet';
+
+// Mostra o valor do saldo em cada barra, na vertical, apenas o número.
+const renderBarLabel = (props) => {
+  const { x, y, width, value } = props;
+  if (value == null) return null;
+  const cx = x + width / 2;
+  const cy = y - 4;
+  return (
+    <text x={cx} y={cy} textAnchor="start" fill={COLORS.muted} fontSize={8} fontWeight={600}
+      transform={'rotate(-90 ' + cx + ' ' + cy + ')'} style={{ fontVariantNumeric: "tabular-nums" }}>
+      {fmt(value)}
+    </text>
+  );
+};
 
 export function PlannedCard({ item, onPay, onEdit, onDelete }) {
   const [confirming, setConfirming] = useState(false);
@@ -24,9 +38,17 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
   const RecIcon = recurrenceIcon(item);
   const pct = Math.min(100, (item.paid / item.amount) * 100);
   const catColor = categories[item.category]?.color || COLORS.green;
+  // Fundo/borda por tipo: Receita = verde clarinho, Despesa = vermelho clarinho.
+  const typeColor = item.type === "income" ? COLORS.green : COLORS.rust;
   const prio = PRIORITY[item.priority] || PRIORITY.importante;
   const isCouple = item.memberId == null;
   const MemberIcon = isCouple ? Users : User;
+
+  // Para salários com descontos em folha, o valor que importa é o LÍQUIDO.
+  const salaryDeductions = item.category === "salario" ? (item.salaryDeductions || []) : [];
+  const deductionTotal = salaryDeductions.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+  const isSalary = item.category === "salario" && deductionTotal > 0;
+  const netAmount = round2(item.amount - deductionTotal);
 
   if (confirming) {
     return (
@@ -42,7 +64,7 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
   }
 
   return (
-    <Card style={{ borderLeft: "4px solid " + catColor, position: "relative", padding: "14px 16px" }}>
+    <Card style={{ background: typeColor + "14", border: "1px solid " + typeColor, borderLeft: "4px solid " + catColor, position: "relative", padding: "14px 16px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
         <CategoryIcon cat={item.category} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -69,10 +91,14 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
           </div>
         )}
       </div>
-      <p className="serif" style={{ fontSize: 24, fontWeight: 600, margin: "0 0 8px", color: COLORS.ink }}>{fmt(item.amount)}</p>
+      <p className="serif" style={{ fontSize: 24, fontWeight: 600, margin: "0 0 4px", color: COLORS.ink }}>
+        {isSalary ? fmt(netAmount) : fmt(item.amount)}
+        {isSalary && <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.muted }}> líquido</span>}
+      </p>
+      {isSalary && <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "0 0 8px" }}>bruto {fmt(item.amount)} · descontos {fmt(deductionTotal)} · disponível {fmt(netAmount)}</p>}
       <ProgressBar pct={pct} color={st.color} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
-        <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>{fmt(item.paid)} de {fmt(item.amount)}</p>
+        <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>{fmt(item.paid)} de {isSalary ? fmt(netAmount) : fmt(item.amount)}</p>
         {st.state !== "pago" && st.state !== "excedido" && (
           item.type === "income" ? (
             <button onClick={() => onPay(item)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, padding: "8px 14px", borderRadius: 20, border: "none", background: COLORS.green, color: "#fff", fontWeight: 600 }}>
@@ -206,7 +232,7 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
         </Card>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 18 }}>
         <Card style={{ padding: "12px 14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><TrendingUp size={14} color={COLORS.green} /><span style={{ fontSize: 12, color: COLORS.muted }}>Receitas (mês)</span></div>
           <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.green }}>{mask(monthIncome)}</p>
@@ -215,11 +241,15 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><TrendingDown size={14} color={COLORS.rust} /><span style={{ fontSize: 12, color: COLORS.muted }}>Despesas (mês)</span></div>
           <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.rust }}>{mask(monthExpense)}</p>
         </Card>
+        <Card style={{ padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><Coins size={14} color={COLORS.amber} /><span style={{ fontSize: 12, color: COLORS.muted }}>Reservado (mês)</span></div>
+          <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.amber }}>{mask(reservedAmount)}</p>
+        </Card>
       </div>
 
       <Card style={{ marginBottom: 18 }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 2px" }}>Saldo projetado — próximos 12 meses</p>
-        <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 10px" }}>Toque na barra para ver o valor · duplo toque para abrir o mês</p>
+        <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 10px" }}>Duplo toque na barra para abrir o mês</p>
         <div style={{ width: "100%", height: 175 }}>
           <ResponsiveContainer>
             <BarChart data={projectedBalance} barGap={2} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
@@ -232,13 +262,16 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
                 {projectedBalance.map((d, i) => (
                   <Cell key={i} fill={d.saldo < 0 ? COLORS.rust : COLORS.green} fillOpacity={d.projected ? 0.75 : 1} />
                 ))}
+                <LabelList dataKey="saldo" content={renderBarLabel} />
               </Bar>
+              {reservedAmount > 0 && <ReferenceLine y={reservedAmount} stroke={COLORS.amber} strokeDasharray="4 4" />}
             </BarChart>
           </ResponsiveContainer>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 10, height: 10, borderRadius: 3, background: COLORS.green }} /> Positivo</span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 10, height: 10, borderRadius: 3, background: COLORS.rust }} /> Negativo</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 12, height: 2, background: COLORS.amber }} /> Reservado</span>
           {hasProjected && <span style={{ fontSize: 11, color: COLORS.muted }}>barras claras = projeção</span>}
         </div>
         {firstNegative ? (

@@ -45,8 +45,9 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
     );
   }
 
+  const txTint = t.type === "income" ? COLORS.green : COLORS.rust;
   return (
-    <Card style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px" }}>
+    <Card style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: txTint + "12", border: "1px solid " + txTint }}>
       <CategoryIcon cat={t.category} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 14, fontWeight: 500, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.description}</p>

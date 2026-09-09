@@ -27,19 +27,32 @@ export function FontesView({ sources, onBack, onSave, onDelete }) {
       <BackRow onBack={onBack} />
       <SectionTitle title="Fontes" subtitle="Quem você paga / de quem você recebe" />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-        {sources.map((s) => (
-          <Card key={s.id}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: COLORS.green + "1E", display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={17} color={COLORS.green} /></div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{s.name}</p>
-                {s.type && <div style={{ marginTop: 2 }}><Badge color={s.type === "income" ? COLORS.green : COLORS.rust}>{s.type === "income" ? "Receita" : "Despesa"}</Badge></div>}
+        {[
+          { label: "Despesas (para quem pago)", type: "expense", color: COLORS.rust, list: sources.filter((s) => s.type === "expense").sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })) },
+          { label: "Receitas (de quem recebo)", type: "income", color: COLORS.green, list: sources.filter((s) => s.type === "income").sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })) },
+          { label: "Sem tipo", type: null, color: COLORS.muted, list: sources.filter((s) => s.type !== "income" && s.type !== "expense").sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })) },
+        ].map((g) => {
+          if (g.list.length === 0) return null;
+          return (
+            <div key={g.label} style={{ marginBottom: 6 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: g.color, margin: "0 0 6px" }}>{g.label}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {g.list.map((s) => (
+                  <Card key={s.id}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: g.color + "1E", display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={17} color={g.color} /></div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{s.name}</p>
+                      </div>
+                      <button onClick={() => openEdit(s)} aria-label="Editar" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted, padding: 6 }}><Pencil size={16} /></button>
+                      <button onClick={() => onDelete(s.id)} aria-label="Excluir" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.rust, padding: 6 }}><Trash2 size={16} /></button>
+                    </div>
+                  </Card>
+                ))}
               </div>
-              <button onClick={() => openEdit(s)} aria-label="Editar" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted, padding: 6 }}><Pencil size={16} /></button>
-              <button onClick={() => onDelete(s.id)} aria-label="Excluir" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.rust, padding: 6 }}><Trash2 size={16} /></button>
             </div>
-          </Card>
-        ))}
+          );
+        })}
         {sources.length === 0 && <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "12px 0" }}>Nenhuma fonte cadastrada ainda.</p>}
       </div>
 

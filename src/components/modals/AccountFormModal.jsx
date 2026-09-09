@@ -21,7 +21,7 @@ export function AccountFormModal({ editing, onClose, onSubmit }) {
   const [dueDay, setDueDay] = useState(editing && editing.dueDay ? String(editing.dueDay) : "");
   const [isDefault, setIsDefault] = useState(editing ? Boolean(editing.isDefault) : false);
   const [countInAvailable, setCountInAvailable] = useState(editing ? editing.countInAvailable !== false : true);
-  const [memberId, setMemberId] = useState(editing ? (editing.memberId == null ? "null" : String(editing.memberId)) : "null");
+  const [memberId, setMemberId] = useState(editing ? (editing.memberId == null ? "null" : String(editing.memberId)) : "1");
   const [error, setError] = useState("");
 
   function handleSubmit() {

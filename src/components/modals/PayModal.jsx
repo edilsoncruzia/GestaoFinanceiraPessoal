@@ -5,6 +5,7 @@ import { fmt, round2, fmtDate } from '../../utils/formatters';
 import { ModalSheet } from '../ui/ModalSheet';
 import { Card } from '../ui/Card';
 import { FormField } from '../ui/FormField';
+import { SourceSelect } from '../ui/SourceSelect';
 import { CodeScanner } from '../ui/CodeScanner';
 import { Paperclip, CheckCircle2 } from 'lucide-react';
 import { ImageViewer } from '../ui/ImageViewer';
@@ -28,7 +29,8 @@ export function PayModal({ item, accounts, sources, transactions, selectedMonth,
 
   const [amount, setAmount] = useState(String(remaining));
   const [date, setDate] = useState(item.dueDate || (selectedMonth === TODAY_MONTH ? TODAY_MONTH + "-12" : selectedMonth + "-01"));
-  const [accountId, setAccountId] = useState(item.accountId ?? accounts[0]?.id ?? null);
+  const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
+  const [accountId, setAccountId] = useState(item.accountId ?? defaultAccount?.id ?? null);
   const [fonteId, setFonteId] = useState(item.fonteId ? String(item.fonteId) : "");
   const [attachmentMethod, setAttachmentMethod] = useState("anexo");
   const [attachment, setAttachment] = useState("");
@@ -81,10 +83,7 @@ export function PayModal({ item, accounts, sources, transactions, selectedMonth,
           <FormField label="Valor (R$)"><input value={amount} onChange={(e) => { setAmount(e.target.value); setError(""); }} type="number" min="0" step="0.01" style={inputStyle} /></FormField>
           <FormField label="Conta ou cartão"><select value={accountId} onChange={(e) => setAccountId(e.target.value)} style={inputStyle}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></FormField>
           <FormField label="Fonte (de quem recebe / para quem paga)">
-            <select value={fonteId} onChange={(e) => setFonteId(e.target.value)} style={inputStyle}>
-              <option value="">Sem fonte</option>
-              {(sources || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <SourceSelect sources={sources} value={fonteId} onChange={setFonteId} />
           </FormField>
           <FormField label="Data"><input value={date} onChange={(e) => setDate(e.target.value)} type="date" style={inputStyle} /></FormField>
           <FormField label="Anexar comprovante (opcional)">

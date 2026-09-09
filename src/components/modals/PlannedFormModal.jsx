@@ -5,6 +5,7 @@ import { MEMBERS, TODAY_MONTH } from '../../constants/seedData';
 import { ModalSheet } from '../ui/ModalSheet';
 import { FormField } from '../ui/FormField';
 import { Plus, Trash2 } from 'lucide-react';
+import { SourceSelect } from '../ui/SourceSelect';
 
 const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
 const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 };
@@ -32,20 +33,22 @@ const DEDUCTION_PRESETS = [
 
 
 
-export function PlannedFormModal({ accounts, sources, selectedMonth, editing, onClose, onSubmit, onAddCategory }) {
+export function PlannedFormModal({ accounts, sources, selectedMonth, editing, onClose, onSubmit, onAddCategory, onAddAccount }) {
+  // Conta padrão = a marcada como isDefault; senão a primeira da lista.
+  const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
   const [type, setType] = useState(editing ? editing.type : "expense");
   const [category, setCategory] = useState(editing ? editing.category : "alimentacao");
   const [description, setDescription] = useState(editing ? editing.description : "");
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [dueDate, setDueDate] = useState(editing ? editing.dueDate : (selectedMonth === TODAY_MONTH ? "2026-09-01" : selectedMonth + "-01"));
-  const [accountId, setAccountId] = useState(editing ? editing.accountId : (accounts[0]?.id ?? null));
-  const [fromAccountId, setFromAccountId] = useState(editing && editing.fromAccountId ? editing.fromAccountId : (accounts[0]?.id ?? null));
-  const [toAccountId, setToAccountId] = useState(editing && editing.toAccountId ? editing.toAccountId : (accounts[1]?.id ?? accounts[0]?.id ?? null));
+  const [accountId, setAccountId] = useState(editing ? editing.accountId : (defaultAccount?.id ?? null));
+  const [fromAccountId, setFromAccountId] = useState(editing && editing.fromAccountId ? editing.fromAccountId : (defaultAccount?.id ?? null));
+  const [toAccountId, setToAccountId] = useState(editing && editing.toAccountId ? editing.toAccountId : ((accounts.find((a) => a.id !== defaultAccount?.id) || accounts[1] || defaultAccount)?.id ?? null));
   const [recurrence, setRecurrence] = useState(editing ? editing.recurrence : "unica");
   const [periodicity, setPeriodicity] = useState(editing ? (editing.periodicity || "mensal") : "mensal");
   const [installmentCurrent, setInstallmentCurrent] = useState(editing && editing.installmentCurrent ? String(editing.installmentCurrent) : "1");
   const [installmentTotal, setInstallmentTotal] = useState(editing && editing.installmentTotal ? String(editing.installmentTotal) : "2");
-  const [memberId, setMemberId] = useState(editing ? (editing.memberId == null ? "null" : String(editing.memberId)) : "null");
+  const [memberId, setMemberId] = useState(editing ? (editing.memberId == null ? "null" : String(editing.memberId)) : "1");
   const [priority, setPriority] = useState(editing ? (editing.priority || DEFAULT_PRIORITY[editing.category] || "importante") : (DEFAULT_PRIORITY["alimentacao"] || "importante"));
   const [realized, setRealized] = useState(editing ? Boolean(editing.realized) : false);
   const [fonteId, setFonteId] = useState(editing && editing.fonteId ? String(editing.fonteId) : "");
@@ -148,8 +151,18 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
 
       {type === "transferencia" ? (
         <>
-          <FormField label="De (conta origem)"><select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)} style={inputStyle}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></FormField>
-          <FormField label="Para (conta destino)"><select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)} style={inputStyle}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></FormField>
+          <FormField label="De (conta origem)">
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)} style={{ ...inputStyle, flex: 1 }}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+              <button type="button" onClick={onAddAccount} aria-label="Nova conta ou cartão" title="Nova conta ou cartão" style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid " + COLORS.green, background: COLORS.green + "12", color: COLORS.green, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Plus size={18} /></button>
+            </div>
+          </FormField>
+          <FormField label="Para (conta destino)">
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)} style={{ ...inputStyle, flex: 1 }}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+              <button type="button" onClick={onAddAccount} aria-label="Nova conta ou cartão" title="Nova conta ou cartão" style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid " + COLORS.green, background: COLORS.green + "12", color: COLORS.green, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Plus size={18} /></button>
+            </div>
+          </FormField>
         </>
       ) : (
         <>
@@ -246,7 +259,12 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
       )}
 
       {type === "transferencia" ? null : (
-        <FormField label="Conta ou cartão"><select value={accountId} onChange={(e) => setAccountId(e.target.value)} style={inputStyle}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></FormField>
+        <FormField label="Conta ou cartão">
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <select value={accountId} onChange={(e) => setAccountId(e.target.value)} style={{ ...inputStyle, flex: 1 }}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+            <button type="button" onClick={onAddAccount} aria-label="Nova conta ou cartão" title="Nova conta ou cartão" style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid " + COLORS.green, background: COLORS.green + "12", color: COLORS.green, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Plus size={18} /></button>
+          </div>
+        </FormField>
       )}
       <FormField label="Dono"><select value={memberId} onChange={(e) => setMemberId(e.target.value)} style={inputStyle}><option value="null">Casal (conjunto)</option>{MEMBERS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></FormField>
       <FormField label="Vencimento"><input value={dueDate} onChange={(e) => setDueDate(e.target.value)} type="date" style={inputStyle} /></FormField>
@@ -257,10 +275,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
       </label>
 
       <FormField label="Fonte (de quem recebe / para quem paga)">
-        <select value={fonteId} onChange={(e) => setFonteId(e.target.value)} style={inputStyle}>
-          <option value="">Sem fonte</option>
-          {(sources || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        <SourceSelect sources={sources} value={fonteId} onChange={setFonteId} />
       </FormField>
 
       {editing && editing.recurrence !== "unica" && (

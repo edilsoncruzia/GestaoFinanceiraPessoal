@@ -12,7 +12,8 @@ const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border:
 export function ContributeModal({ goal, accounts, onClose, onSubmit }) {
   const remaining = round2(goal.target - goal.saved);
   const [amount, setAmount] = useState(String(Math.min(100, remaining)));
-  const [accountId, setAccountId] = useState(goal.accountId ?? accounts[0]?.id ?? null);
+  const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
+  const [accountId, setAccountId] = useState(goal.accountId ?? defaultAccount?.id ?? null);
   const [date, setDate] = useState(TODAY_MONTH + "-" + TODAY_DATE.slice(8, 10));
   const [error, setError] = useState("");
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { COLORS } from '../../constants/tokens';
 import { useCategories } from '../../context/CategoriesContext';
 import { fmt, fmtDate, accountBalance } from '../../utils/formatters';
+import { BankIcon } from '../ui/BankIcon';
 import { Card } from '../ui/Card';
 import { ImageViewer } from '../ui/ImageViewer';
 import { BackRow } from './MaisMenuView';
@@ -17,7 +18,10 @@ export function ExtratoView({ account, transactions, sources, onBack }) {
   return (
     <div>
       <BackRow onBack={onBack} />
-      <p className="serif" style={{ fontSize: 20, fontWeight: 600, margin: "0 0 4px", color: COLORS.ink }}>{account.name}</p>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+        <BankIcon account={account} size={40} />
+        <p className="serif" style={{ fontSize: 20, fontWeight: 600, margin: 0, color: COLORS.ink }}>{account.name}</p>
+      </div>
       <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 14px" }}>
         Saldo atual: <strong style={{ color: saldo >= 0 ? COLORS.green : COLORS.rust }}>{fmt(saldo)}</strong> · {account.type === "cartao" ? "Cartão" : "Conta"}
         {account.type === "cartao" && account.limit ? " · limite " + fmt(account.limit) : ""}

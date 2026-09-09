@@ -5,6 +5,7 @@ import { fmt, round2 } from '../../utils/formatters';
 import { ModalSheet } from '../ui/ModalSheet';
 import { Card } from '../ui/Card';
 import { FormField } from '../ui/FormField';
+import { SourceSelect } from '../ui/SourceSelect';
 
 const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
 const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 };
@@ -12,7 +13,8 @@ const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border:
 export function HoleriteModal({ item, accounts, sources, selectedMonth, onClose, onSubmit }) {
   const gross = Number(item.amount) || 0;
   const [date, setDate] = useState(item.dueDate || selectedMonth + "-01");
-  const [accountId, setAccountId] = useState(item.accountId ?? accounts[0]?.id ?? null);
+  const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
+  const [accountId, setAccountId] = useState(item.accountId ?? defaultAccount?.id ?? null);
   const [fonteId, setFonteId] = useState(item.fonteId ? String(item.fonteId) : "");
   const [saveModel, setSaveModel] = useState(false);
   const [deductions, setDeductions] = useState((item.salaryDeductions || []).map((d) => ({ label: d.label, category: d.category, amount: String(d.amount || "") })));
@@ -52,10 +54,7 @@ export function HoleriteModal({ item, accounts, sources, selectedMonth, onClose,
       <FormField label="Data"><input value={date} onChange={(e) => setDate(e.target.value)} type="date" style={inputStyle} /></FormField>
       <FormField label="Conta de depósito"><select value={accountId} onChange={(e) => setAccountId(e.target.value)} style={inputStyle}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></FormField>
       <FormField label="Fonte (de quem recebe)">
-        <select value={fonteId} onChange={(e) => setFonteId(e.target.value)} style={inputStyle}>
-          <option value="">Sem fonte</option>
-          {(sources || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        <SourceSelect sources={sources} value={fonteId} onChange={setFonteId} />
       </FormField>
 
       <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.muted, margin: "12px 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Descontos em folha</p>

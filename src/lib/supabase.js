@@ -385,13 +385,13 @@ export async function seedCategories() {
 }
 
 export function mapIdeaFromDb(i) {
-  return { id: i.id, text: i.text, done: Boolean(i.done), date: i.created_at ? i.created_at.slice(0, 10) : "" };
+  return { id: i.id, text: i.text, done: Boolean(i.done), date: i.created_at ? i.created_at.slice(0, 10) : "", attachment: i.attachment || null, attachmentMethod: i.attachment_method || null };
 }
 
 export async function syncIdeaToSupabase(idea) {
   if (!isSupabaseConfigured || !supabase) return idea.id;
   try {
-    const payload = { text: idea.text, done: Boolean(idea.done) };
+    const payload = { text: idea.text, done: Boolean(idea.done), attachment: idea.attachment || null, attachment_method: idea.attachmentMethod || null };
     if (idea.id && typeof idea.id === 'number' && idea.id < 1000000000000) {
       await supabase.from('ideas').update(payload).eq('id', idea.id);
       return idea.id;
@@ -415,9 +415,23 @@ export async function deleteIdeaFromSupabase(id) {
   }
 }
 
-// Limpa TODOS os dados do Supabase (mantém os membros do casal)
-export async function clearSupabaseData() {
+// Limpa dados do Supabase mantendo os membros do casal.
+// scope: 'all' (tudo) | 'income' (apenas receitas) | 'expense' (apenas despesas)
+export async function clearSupabaseData(scope = 'all') {
   if (!isSupabaseConfigured || !supabase) return;
+
+  if (scope === 'income') {
+    await supabase.from('transactions').delete().eq('type', 'income');
+    await supabase.from('planned').delete().eq('type', 'income');
+    return;
+  }
+  if (scope === 'expense') {
+    await supabase.from('transactions').delete().eq('type', 'expense');
+    await supabase.from('planned').delete().eq('type', 'expense');
+    return;
+  }
+
+  // 'all' — apaga tudo
   const tables = ['transactions', 'planned', 'goals', 'budgets', 'accounts', 'sources'];
   for (const t of tables) {
     await supabase.from(t).delete().gte('id', 0);

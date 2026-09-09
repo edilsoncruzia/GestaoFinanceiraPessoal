@@ -82,5 +82,8 @@ export const SEED_GOALS = [
   { id: 3, name: "Tênis novo",             target: 800,   saved: 800,  memberId: 2,    accountId: 1 },
 ];
 
-export const TODAY_MONTH = "2026-09";
-export const TODAY_DATE = "2026-09-12";
+// "Hoje" é a data real (para não marcar lançamentos futuros como vencidos).
+const _now = new Date();
+const _pad = (n) => String(n).padStart(2, "0");
+export const TODAY_MONTH = _now.getFullYear() + "-" + _pad(_now.getMonth() + 1);
+export const TODAY_DATE = TODAY_MONTH + "-" + _pad(_now.getDate());

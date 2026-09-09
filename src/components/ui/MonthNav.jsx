@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { COLORS } from '../../constants/tokens';
 import { TODAY_MONTH } from '../../constants/seedData';
@@ -7,7 +7,16 @@ import { ModalSheet } from './ModalSheet';
 
 export function MonthNav({ month, onChange }) {
   const [open, setOpen] = useState(false);
+  const listRef = useRef(null);
   const isFuture = monthDiff(TODAY_MONTH, month) > 0;
+
+  // Ao abrir, centraliza a lista no MÊS ATUAL (não no mês selecionado).
+  useEffect(() => {
+    if (open && listRef.current) {
+      const el = listRef.current.querySelector('[data-month="' + TODAY_MONTH + '"]');
+      if (el) el.scrollIntoView({ block: 'center' });
+    }
+  }, [open]);
 
   // Lista deslizável de meses (24 para trás, 60 para frente) — sempre em formato mês/ano.
   const months = useMemo(() => Array.from({ length: 85 }, (_, i) => addMonths(TODAY_MONTH, i - 24)), []);
@@ -39,6 +48,7 @@ export function MonthNav({ month, onChange }) {
       {open && (
         <ModalSheet title="Selecionar mês" onClose={() => setOpen(false)}>
           <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 10px" }}>Escolha o mês/ano que será o contexto da tela.</p>
+          <div ref={listRef} style={{ maxHeight: 360, overflowY: "auto", paddingRight: 4 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {months.map((m) => {
               const active = m === month;
@@ -46,6 +56,7 @@ export function MonthNav({ month, onChange }) {
               return (
                 <button
                   key={m}
+                  data-month={m}
                   onClick={() => pick(m)}
                   style={{
                     display: "flex",
@@ -69,6 +80,7 @@ export function MonthNav({ month, onChange }) {
                 </button>
               );
             })}
+          </div>
           </div>
         </ModalSheet>
       )}
