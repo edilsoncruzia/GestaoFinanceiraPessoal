@@ -114,6 +114,56 @@ export const fmtDate = (d) => new Date(d + "T00:00:00").toLocaleDateString("pt-B
 export const monthKey = (d) => d.slice(0, 7);
 export const round2 = (v) => Math.round(v * 100) / 100;
 
+// Fluxo mensal com o salário SEMPRE pelo valor LÍQUIDO (Ajustes e Melhorias #19):
+//  • meses que já têm lançamentos REAIS (não-reservados, no filtro) usam as transações,
+//    abatendo dos recebimentos os descontos de holerite modelados no salário (e tirando
+//    das despesas os descontos pagos "em folha", já embutidos no líquido);
+//  • meses sem lançamentos usam o PREVISTO, com o salário já no líquido
+//    (bruto do previsto − descontos do holerite anotados no lançamento).
+export function monthlyCashFlow(month, transactions, planned, memberFilter, reservedAccountIds) {
+  const excluded = (reservedAccountIds || []);
+  const realized = (transactions || []).filter((t) => monthKey(t.date) === month && inScope(t.memberId, memberFilter) && !excluded.includes(t.accountId));
+  let receitas = 0;
+  let despesas = 0;
+  let projected = false;
+
+  if (realized.length > 0) {
+    let modelDed = 0;
+    let payrollDed = 0;
+    realized.forEach((t) => {
+      const amt = Number(t.amount) || 0;
+      if (t.type === "income") {
+        const tpl = (planned || []).find((p) => p.id === t.plannedId);
+        const tplGross = tpl ? Number(tpl.amount) || 0 : 0;
+        // Só desconta o holerite quando o recebimento foi lançado pelo BRUTO (igual ao
+        // previsto). Se o usuário já lançou o salário pelo líquido, nada é descontado.
+        if (tpl && tpl.salaryDeductions && Math.abs(tplGross - amt) < 0.005) {
+          modelDed += tpl.salaryDeductions.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+        }
+        receitas += amt;
+      } else if (t.type === "expense") {
+        if (t.deductedInPayroll) payrollDed += amt;
+        despesas += amt;
+      }
+    });
+    // Usa o modelo do salário quando existe; senão os descontos efetivamente lançados.
+    const ded = modelDed > 0 ? modelDed : payrollDed;
+    receitas -= ded;
+    despesas -= payrollDed;
+  } else {
+    const occ = generatePlannedOccurrences(planned, month).filter((o) => inScope(o.memberId, memberFilter) && !excluded.includes(o.accountId));
+    occ.forEach((o) => {
+      const amt = Number(o.amount) || 0;
+      const ded = (o.salaryDeductions ? o.salaryDeductions : []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+      if (o.type === "income") receitas += Math.max(0, amt - ded); // salário entra líquido
+      else if (o.type === "expense") despesas += amt;
+    });
+    projected = true;
+  }
+
+  return { receitas: round2(receitas), despesas: round2(despesas), projected };
+}
+
 export function statusFor(spent, limit) {
   spent = round2(spent); limit = round2(limit);
   if (spent === 0) return { state: "zero", color: COLORS.muted, label: "Nada gasto ainda" };

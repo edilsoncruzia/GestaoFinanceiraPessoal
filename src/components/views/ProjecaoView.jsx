@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Line } from 'recharts';
 import { COLORS } from '../../constants/tokens';
 import { TODAY_MONTH } from '../../constants/seedData';
-import { fmt, addMonths, monthKey, inScope, generatePlannedOccurrences, monthLabel, monthLabelFull } from '../../utils/formatters';
+import { fmt, addMonths, monthLabel, monthLabelFull, monthlyCashFlow } from '../../utils/formatters';
 import { SectionTitle } from '../ui/SectionTitle';
 import { MemberFilterBar } from '../ui/MemberFilterBar';
 import { Card } from '../ui/Card';
@@ -15,20 +15,10 @@ export function ProjecaoView({ planned, transactions, balance, memberFilter, set
     const months = Array.from({ length: horizon }, (_, i) => addMonths(startMonth, i));
     let acumulado = balance;
     return months.map((m) => {
-      const actual = transactions.filter((t) => monthKey(t.date) === m && inScope(t.memberId, memberFilter));
-      let receitas, despesas, projected;
-      if (actual.length > 0) {
-        receitas = actual.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-        despesas = actual.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-        projected = false;
-      } else {
-        const occ = generatePlannedOccurrences(planned, m).filter((o) => inScope(o.memberId, memberFilter));
-        receitas = occ.filter((o) => o.type === "income").reduce((s, o) => s + o.amount, 0);
-        despesas = occ.filter((o) => o.type === "expense").reduce((s, o) => s + o.amount, 0);
-        projected = true;
-      }
-      acumulado = acumulado + receitas - despesas;
-      return { month: m, label: monthLabel(m), receitas, despesas, saldoAcumulado: acumulado, projected };
+      // Salário entra sempre pelo valor LÍQUIDO (os arrays já chegam sem contas-reserva).
+      const flow = monthlyCashFlow(m, transactions, planned, memberFilter, []);
+      acumulado = acumulado + flow.receitas - flow.despesas;
+      return { month: m, label: monthLabel(m), receitas: flow.receitas, despesas: flow.despesas, saldoAcumulado: acumulado, projected: flow.projected };
     });
   }, [horizon, startMonth, planned, transactions, balance, memberFilter]);
 
@@ -37,7 +27,7 @@ export function ProjecaoView({ planned, transactions, balance, memberFilter, set
 
   return (
     <div>
-      <SectionTitle title="Projeção" subtitle={"A partir de " + monthLabelFull(startMonth) + ", com base no que já está no Previsto"} />
+      <SectionTitle title="Projeção" subtitle={"A partir de " + monthLabelFull(startMonth) + ", com base no que já está no Previsto (salário pelo valor líquido)"} />
       <MemberFilterBar value={memberFilter} onChange={setMemberFilter} />
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {[[3, "3 meses"], [6, "6 meses"], [12, "12 meses"]].map(([v, l]) => (

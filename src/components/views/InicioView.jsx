@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  Wallet, EyeOff, Eye, Coins, CalendarClock, Info, ArrowUpRight,
+  Wallet, EyeOff, Eye, Coins, CalendarClock, Info, ArrowUpRight, ArrowDownLeft, ChevronRight,
   HeartPulse, Bell, AlertTriangle, TrendingUp, TrendingDown, Calendar,
   Plus, Tag, CheckCircle2, MoreVertical, Pencil, Trash2, CreditCard, Download, Users, User
 } from 'lucide-react';
@@ -16,17 +16,38 @@ import { HealthGauge } from '../ui/HealthGauge';
 import { CategoryIcon } from '../ui/CategoryIcon';
 import { ModalSheet } from '../ui/ModalSheet';
 
-// Mostra o valor do saldo em cada barra, na vertical, apenas o número.
+// Valor sem "R$" (apenas o número) para o rótulo de cada barra.
+const fmtPlain = (v) => {
+  if (v == null) return "";
+  const n = Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 0, minimumFractionDigits: 0 });
+  return (v < 0 ? "-" : "") + n;
+};
+
+// Rótulo de cada barra, na VERTICAL — sem "R$" e com fonte maior.
 const renderBarLabel = (props) => {
   const { x, y, width, value } = props;
   if (value == null) return null;
   const cx = x + width / 2;
-  const cy = y - 4;
+  const cy = y - 6;
   return (
-    <text x={cx} y={cy} textAnchor="start" fill={COLORS.muted} fontSize={8} fontWeight={600}
-      transform={'rotate(-90 ' + cx + ' ' + cy + ')'} style={{ fontVariantNumeric: "tabular-nums" }}>
-      {fmt(value)}
+    <text x={cx} y={cy} textAnchor="start" fill={value < 0 ? COLORS.rust : COLORS.green}
+      fontSize={11} fontWeight={600} transform={'rotate(-90 ' + cx + ' ' + cy + ')'}
+      style={{ fontVariantNumeric: "tabular-nums" }}>
+      {fmtPlain(value)}
     </text>
+  );
+};
+
+// Tooltip do gráfico "Saldo no fim do mês".
+const monthBarTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div style={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, padding: "8px 12px", boxShadow: "0 4px 14px rgba(0,0,0,0.10)" }}>
+      <p style={{ fontSize: 12.5, fontWeight: 600, margin: "0 0 4px", color: COLORS.ink, textTransform: "capitalize" }}>{label}</p>
+      <p style={{ margin: 0, fontWeight: 600, color: d.saldo < 0 ? COLORS.rust : COLORS.green }}>Saldo no fim do mês: {fmt(d.saldo)}</p>
+      {d.projected && <p style={{ margin: "4px 0 0", fontSize: 11.5, color: COLORS.muted }}>projeção</p>}
+    </div>
   );
 };
 
@@ -123,6 +144,7 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
   const hasProjected = projectedBalance.some((t) => t.projected);
   const firstNegative = projectedBalance.find((t) => t.negative);
+  const hasAnyMovement = projectedBalance.some((d) => (d.receitas || 0) > 0 || (d.despesas || 0) > 0);
   const mask = (v) => (hideBalance ? "R$ • • • • •" : fmt(v));
 
   function handleBarTap(data) {
@@ -157,63 +179,66 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
     <div>
       <p style={{ fontSize: 14, color: COLORS.muted, margin: "0 0 12px" }}>{greeting}</p>
 
-      <Card style={{ marginBottom: alerts.length ? 10 : 18, padding: 0, overflow: "hidden" }}>
-        <div style={{ display: "flex" }}>
-          <div style={{ flex: "1 1 58%", padding: "18px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: COLORS.green + "1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Wallet size={19} color={COLORS.green} />
-              </div>
-              <p style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1 }}>Saldo disponível</p>
-              <button onClick={onToggleHide} aria-label={hideBalance ? "Mostrar saldo" : "Ocultar saldo"} className="icon-btn" style={{ background: "none", border: "none", padding: 2, color: COLORS.muted, display: "flex" }}>
-                {hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+      {/* Card Saldo disponível — #20: NÃO considera o reservado (só o que está de fato disponível para usar) */}
+      <Card style={{ marginBottom: 10, padding: "0 0 16px", borderLeft: "4px solid " + COLORS.green, overflow: "hidden" }}>
+        <div style={{ padding: "16px 16px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: COLORS.green + "1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Wallet size={19} color={COLORS.green} />
             </div>
-            <p className="serif" style={{ fontSize: 32, fontWeight: 600, margin: "0 0 12px", color: availableBalance >= 0 ? COLORS.green : COLORS.rust }}>{mask(availableBalance)}</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.green + "12", borderRadius: 10, padding: "8px 12px", marginBottom: 10 }}>
-              <Coins size={15} color={COLORS.green} />
-              <span style={{ fontSize: 12.5, color: COLORS.ink }}>Saldo total: <strong>{mask(balance)}</strong>{reservedAmount > 0 && <> · Reservado: <strong>{mask(reservedAmount)}</strong></>}</span>
-            </div>
-            <div style={{ background: "#3B6E8F12", borderRadius: 10, padding: "8px 12px", marginBottom: 16 }}>
-              <span style={{ fontSize: 12, color: COLORS.ink }}>Livre para usar agora: <strong>{mask(availableNow)}</strong></span>
-              <span style={{ display: "block", fontSize: 10.5, color: COLORS.muted, marginTop: 1 }}>disponível menos contas em aberto</span>
-            </div>
-
-            <div style={{ height: 1, background: COLORS.line, margin: "0 0 16px" }} />
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: "#3B6E8F1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <CalendarClock size={19} color="#3B6E8F" />
-              </div>
-              <p style={{ fontSize: 14, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1, lineHeight: 1.25 }}>Projeção para o final do mês</p>
-              <Info size={15} color={COLORS.muted} />
-            </div>
-            <p className="serif" style={{ fontSize: 26, fontWeight: 600, margin: "0 0 10px", color: endPositive ? COLORS.green : COLORS.rust }}>{mask(monthProjection.endBalance)}</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#3B6E8F12", borderRadius: 10, padding: "8px 12px" }}>
-              <ArrowUpRight size={15} color={COLORS.green} />
-              <span style={{ fontSize: 12, color: COLORS.ink }}>Faltam receber {mask(monthProjection.pendingIncome)} · Faltam pagar {mask(monthProjection.pendingExpense)}</span>
-            </div>
+            <p style={{ fontSize: 15, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1 }}>Saldo disponível</p>
+            <button onClick={onToggleHide} aria-label={hideBalance ? "Mostrar saldo" : "Ocultar saldo"} className="icon-btn" style={{ background: "none", border: "none", padding: 2, color: COLORS.muted, display: "flex" }}>
+              {hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+            <ChevronRight size={18} color={COLORS.muted} />
           </div>
-
-          <div style={{ width: 1, background: COLORS.line, margin: "16px 0" }} />
-
-          <div style={{ flex: "1 1 42%", padding: "18px 14px", background: "#3B6E8F0A", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, alignSelf: "flex-start", marginBottom: 8 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: "#3B6E8F1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <HeartPulse size={17} color="#3B6E8F" />
-              </div>
-              <p style={{ fontSize: 13.5, fontWeight: 700, margin: 0, color: COLORS.ink, lineHeight: 1.2 }}>Saúde<br />financeira</p>
-              <button onClick={() => setShowHealthInfo(true)} aria-label="Como é calculada" style={{ background: "none", border: "none", padding: 0, color: COLORS.muted, cursor: "pointer", alignSelf: "flex-start", marginLeft: 2 }}><Info size={14} /></button>
-            </div>
-            <HealthGauge score={health.score} />
-            <p className="serif" style={{ fontSize: 30, fontWeight: 600, margin: "2px 0 8px", color: COLORS.ink }}>{health.score}</p>
-            <span style={{ fontSize: 13, fontWeight: 700, padding: "5px 16px", borderRadius: 20, background: health.color + "1E", color: health.color, marginBottom: 10 }}>{health.shortLabel}</span>
-            <p style={{ fontSize: 11.5, color: COLORS.muted, margin: 0, textAlign: "center", lineHeight: 1.4 }}>
-              {health.poupancaPct >= 0 ? "guardando " + health.poupancaPct + "% da renda" : "gastando " + Math.abs(health.poupancaPct) + "% além da renda"}
-            </p>
-          </div>
+          <p className="serif" style={{ fontSize: 34, fontWeight: 600, margin: 0, color: availableBalance >= 0 ? COLORS.green : COLORS.rust }}>{mask(availableBalance)}</p>
         </div>
       </Card>
+
+      {/* Saldo projetado mês — como termina o mês */}
+      <Card style={{ marginBottom: 10, padding: "14px 16px", background: "#3B6E8F0F", border: "1px solid #3B6E8F22" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <CalendarClock size={16} color="#3B6E8F" />
+          <p style={{ fontSize: 13.5, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1 }}>Saldo projetado mês</p>
+          <Info size={14} color={COLORS.muted} />
+        </div>
+        <p className="serif" style={{ fontSize: 26, fontWeight: 600, margin: "0 0 6px", color: endPositive ? COLORS.green : COLORS.rust }}>{mask(monthProjection.endBalance)}</p>
+        <p style={{ fontSize: 11.5, color: COLORS.muted, margin: 0 }}>Com base nas movimentações atuais · Faltam receber {mask(monthProjection.pendingIncome)} · Faltam pagar {mask(monthProjection.pendingExpense)}</p>
+      </Card>
+
+      {/* Saúde financeira — abaixo dos dois valores */}
+      <Card style={{ marginBottom: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: "#3B6E8F1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <HeartPulse size={17} color="#3B6E8F" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, margin: 0, color: COLORS.ink }}>Saúde financeira</p>
+            <button onClick={() => setShowHealthInfo(true)} aria-label="Como é calculada" style={{ background: "none", border: "none", padding: 0, color: COLORS.muted, cursor: "pointer", display: "flex" }}><Info size={14} /></button>
+          </div>
+          <div style={{ height: 8, borderRadius: 6, background: COLORS.line, overflow: "hidden", marginTop: 6 }}>
+            <div style={{ height: "100%", width: Math.max(0, Math.min(100, health.score)) + "%", background: "linear-gradient(90deg, #C98A3B, " + health.color + ")", borderRadius: 6 }} />
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <p className="serif" style={{ fontSize: 24, fontWeight: 600, margin: 0, color: COLORS.ink }}>{health.score}</p>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: health.color }}>{health.shortLabel}</span>
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+        <Card style={{ padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><ArrowDownLeft size={14} color={COLORS.green} /><span style={{ fontSize: 12, color: COLORS.muted }}>A receber</span></div>
+          <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.green }}>{mask(monthProjection.pendingIncome)}</p>
+          <p style={{ fontSize: 10.5, color: COLORS.muted, margin: "2px 0 0" }}>disponível em contas em aberto</p>
+        </Card>
+        <Card style={{ padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><ArrowUpRight size={14} color={COLORS.rust} /><span style={{ fontSize: 12, color: COLORS.muted }}>A pagar</span></div>
+          <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.rust }}>{mask(monthProjection.pendingExpense)}</p>
+          <p style={{ fontSize: 10.5, color: COLORS.muted, margin: "2px 0 0" }}>em aberto</p>
+        </Card>
+      </div>
 
       {alerts.length > 0 && (
         <Card style={{ marginBottom: 18, padding: "12px 14px" }}>
@@ -232,52 +257,37 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
         </Card>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 18 }}>
-        <Card style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><TrendingUp size={14} color={COLORS.green} /><span style={{ fontSize: 12, color: COLORS.muted }}>Receitas (mês)</span></div>
-          <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.green }}>{mask(monthIncome)}</p>
-        </Card>
-        <Card style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><TrendingDown size={14} color={COLORS.rust} /><span style={{ fontSize: 12, color: COLORS.muted }}>Despesas (mês)</span></div>
-          <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.rust }}>{mask(monthExpense)}</p>
-        </Card>
-        <Card style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><Coins size={14} color={COLORS.amber} /><span style={{ fontSize: 12, color: COLORS.muted }}>Reservado (mês)</span></div>
-          <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.amber }}>{mask(reservedAmount)}</p>
-        </Card>
-      </div>
-
       <Card style={{ marginBottom: 18 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 2px" }}>Saldo projetado — próximos 12 meses</p>
-        <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 10px" }}>Duplo toque na barra para abrir o mês</p>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 2px" }}>Saldo no fim do mês — próximos 12 meses</p>
+        <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 10px" }}>Duplo toque na barra abre o mês.</p>
         <div style={{ width: "100%", height: 175 }}>
           <ResponsiveContainer>
             <BarChart data={projectedBalance} barGap={2} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={COLORS.line} />
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={0} />
               <YAxis hide />
-              <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line }} />
+              <Tooltip content={monthBarTooltip} />
               <ReferenceLine y={0} stroke={COLORS.ink} strokeOpacity={0.5} strokeDasharray="3 3" />
-              <Bar dataKey="saldo" name="Saldo" radius={[4, 4, 4, 4]} onClick={handleBarTap} maxBarSize={22}>
+              <Bar dataKey="saldo" name="Saldo no fim do mês" radius={[4, 4, 4, 4]} onClick={handleBarTap} maxBarSize={22}>
                 {projectedBalance.map((d, i) => (
                   <Cell key={i} fill={d.saldo < 0 ? COLORS.rust : COLORS.green} fillOpacity={d.projected ? 0.75 : 1} />
                 ))}
                 <LabelList dataKey="saldo" content={renderBarLabel} />
               </Bar>
-              {reservedAmount > 0 && <ReferenceLine y={reservedAmount} stroke={COLORS.amber} strokeDasharray="4 4" />}
             </BarChart>
           </ResponsiveContainer>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 10, height: 10, borderRadius: 3, background: COLORS.green }} /> Positivo</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 10, height: 10, borderRadius: 3, background: COLORS.rust }} /> Negativo</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 12, height: 2, background: COLORS.amber }} /> Reservado</span>
-          {hasProjected && <span style={{ fontSize: 11, color: COLORS.muted }}>barras claras = projeção</span>}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 10, height: 10, borderRadius: 3, background: COLORS.green }} /> Saldo positivo</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}><span style={{ width: 10, height: 10, borderRadius: 3, background: COLORS.rust }} /> Saldo negativo</span>
+          {hasProjected && <span style={{ fontSize: 11, color: COLORS.muted }}>barras claras = previsão</span>}
         </div>
-        {firstNegative ? (
-          <p style={{ fontSize: 12, color: COLORS.rust, margin: "10px 0 0" }}>Atenção: o saldo fica negativo em <strong>{monthLabelFull(firstNegative.month)}</strong>.</p>
+        {!hasAnyMovement ? (
+          <p style={{ fontSize: 12, color: COLORS.muted, margin: "10px 0 0" }}>Cadastre receitas/despesas ou compromissos no Previsto para ver o saldo de cada mês.</p>
+        ) : firstNegative ? (
+          <p style={{ fontSize: 12, color: COLORS.rust, margin: "10px 0 0" }}>Atenção: o saldo fica negativo no fim de <strong>{monthLabelFull(firstNegative.month)}</strong> ({fmt(firstNegative.saldo)}).</p>
         ) : (
-          <p style={{ fontSize: 12, color: COLORS.green, margin: "10px 0 0" }}>Nos próximos 12 meses o saldo se mantém positivo ✓</p>
+          <p style={{ fontSize: 12, color: COLORS.green, margin: "10px 0 0" }}>Em todos os meses o saldo fica positivo no fim do mês ✓</p>
         )}
       </Card>
 

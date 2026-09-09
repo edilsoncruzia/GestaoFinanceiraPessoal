@@ -6,7 +6,7 @@ import { SEED_ACCOUNTS, SEED_TRANSACTIONS, SEED_PLANNED, SEED_GOALS, BUDGETS, ME
 import {
   fmt, fmtDate, monthKey, round2, statusFor, plannedStatus, displayStatus,
   memberLabel, inScope, addMonths, monthDiff, monthLabel, generatePlannedOccurrences,
-  accountBalance, buildOpenItems
+  accountBalance, buildOpenItems, monthlyCashFlow
 } from './utils/formatters';
 import {
   loadInitialData, syncTransactionToSupabase, deleteTransactionFromSupabase,
@@ -135,8 +135,6 @@ function FinanceApp() {
   const reservedAmount = useMemo(() => accounts.filter((a) => a.type === "conta" && a.countInAvailable === false).reduce((s, a) => s + accountBalance(a, transactions), 0), [accounts, transactions]);
   const reservedAccountIds = useMemo(() => accounts.filter((a) => a.countInAvailable === false).map((a) => a.id), [accounts]);
   const availableBalance = balance - reservedAmount;
-  // Saldo inicial das contas NÃO-reservadas (base da projeção, sem a reserva).
-  const nonReservedInitialBalance = useMemo(() => accounts.filter((a) => a.countInAvailable !== false).reduce((s, a) => s + (a.initialBalance || 0), 0), [accounts]);
 
   const currentMonthTx = useMemo(() => visibleTx.filter((t) => monthKey(t.date) === selectedMonth), [visibleTx, selectedMonth]);
   const currentMonthTxNonReserved = useMemo(() => currentMonthTx.filter((t) => !reservedAccountIds.includes(t.accountId)), [currentMonthTx, reservedAccountIds]);
@@ -176,35 +174,6 @@ function FinanceApp() {
   const netIncome = monthIncome - totalDeduction;
   const netExpense = monthExpense - payrollDeductions;
 
-  // Saldo projetado ao final de cada mês, acumulado desde o início do histórico.
-  // O valor de cada mês é FIXO (não muda conforme o mês selecionado): o filtro apenas
-  // desliza a "janela" de 12 meses exibida. Assim, o saldo de fevereiro é o mesmo quer
-  // estejamos olhando a partir de setembro ou do próprio fevereiro.
-  const projectedBalance = useMemo(() => {
-    let earliest = null;
-    transactions.forEach((t) => { const m = monthKey(t.date); if (earliest == null || m < earliest) earliest = m; });
-    planned.forEach((p) => { if (p.dueDate) { const m = monthKey(p.dueDate); if (earliest == null || m < earliest) earliest = m; } });
-    if (earliest == null) earliest = selectedMonth;
-    const startMonth = earliest < selectedMonth ? earliest : selectedMonth;
-    const endMonth = addMonths(selectedMonth, 11);
-
-    let running = nonReservedInitialBalance;
-    const rows = [];
-    let m = startMonth;
-    while (m <= endMonth) {
-      // SALDO FIM MÊS = Entrada Prevista - Saída Prevista + Saldo do mês anterior.
-      // Usa sempre os valores PREVISTOS (não os realizados), acumulando mês a mês.
-      const occ = generatePlannedOccurrences(planned, m).filter((o) => inScope(o.memberId, memberFilter) && !reservedAccountIds.includes(o.accountId));
-      const result = occ.reduce((s, o) => s + (o.type === "income" ? o.amount : o.type === "expense" ? -o.amount : 0), 0);
-      const projected = result !== 0;
-      running += result;
-      if (m >= selectedMonth) {
-        rows.push({ month: m, label: monthLabel(m), saldo: round2(running), result: round2(result), projected, negative: running < 0, reservado: round2(reservedAmount) });
-      }
-      m = addMonths(m, 1);
-    }
-    return rows;
-  }, [selectedMonth, transactions, planned, memberFilter, nonReservedInitialBalance, reservedAccountIds]);
 
   const categoryBreakdown = useMemo(() => {
     const map = {};
@@ -240,11 +209,33 @@ function FinanceApp() {
   const monthProjection = useMemo(() => {
     let pendingIncome = 0, pendingExpense = 0;
     openItemsAvailable.forEach((i) => {
-      if (i.type === "income") pendingIncome += (i.amount - i.paid);
+      // Salário em aberto entra pelo LÍQUIDO (bruto − descontos do holerite).
+      const deduction = (i.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+      if (i.type === "income") pendingIncome += Math.max(0, (i.amount - i.paid) - deduction);
       else if (i.type === "expense") pendingExpense += (i.amount - i.paid);
     });
     return { pendingIncome, pendingExpense, endBalance: availableBalance + pendingIncome - pendingExpense };
   }, [openItemsAvailable, availableBalance]);
+  // Saldo no fim do mês — Melhoria #19 (Ajustes e Melhorias):
+  // Cada barra mostra o saldo projetado no FIM do mês. A 1ª barra (mês selecionado)
+  // usa a mesma projeção do card "Saldo projetado mês" (saldo disponível + a receber − a pagar);
+  // os meses seguintes acumulam o fluxo (Receitas − Despesas) de cada mês. Onde o saldo
+  // fica negativo no fim do mês a barra é vermelha (salário entra pelo valor líquido).
+  const projectedBalance = useMemo(() => {
+    const endMonth = addMonths(selectedMonth, 11);
+    const rows = [];
+    const firstSaldo = round2(monthProjection.endBalance);
+    rows.push({ month: selectedMonth, label: monthLabel(selectedMonth), saldo: firstSaldo, receitas: round2(monthProjection.pendingIncome), despesas: round2(monthProjection.pendingExpense), projected: true, negative: firstSaldo < 0 });
+    let running = firstSaldo;
+    let m = addMonths(selectedMonth, 1);
+    while (m <= endMonth) {
+      const flow = monthlyCashFlow(m, transactions, planned, memberFilter, reservedAccountIds);
+      running += flow.receitas - flow.despesas;
+      rows.push({ month: m, label: monthLabel(m), saldo: round2(running), receitas: flow.receitas, despesas: flow.despesas, projected: flow.projected, negative: running < 0 });
+      m = addMonths(m, 1);
+    }
+    return rows;
+  }, [selectedMonth, transactions, planned, memberFilter, reservedAccountIds, monthProjection]);
 
   const todayOccurrences = useMemo(() => {
     const occ = generatePlannedOccurrences(planned, TODAY_MONTH);
