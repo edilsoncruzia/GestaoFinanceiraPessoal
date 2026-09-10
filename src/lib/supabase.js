@@ -113,7 +113,8 @@ function mapTxFromDb(t) {
     attachmentMethod: t.attachment_method,
     fonteId: t.fonte_id,
     includeInIR: Boolean(t.include_in_ir),
-    deductedInPayroll: Boolean(t.deducted_in_payroll)
+    deductedInPayroll: Boolean(t.deducted_in_payroll),
+    formaPagamento: t.forma_pagamento || "normal"
   };
 }
 
@@ -141,7 +142,17 @@ function mapPlannedFromDb(p) {
     endMonth: p.end_month || null,
     salaryDeductions: p.salary_deductions ? JSON.parse(p.salary_deductions) : [],
     includeInIR: Boolean(p.include_in_ir),
-    fonteId: p.fonte_id
+    fonteId: p.fonte_id,
+    multa_fixa_porcentagem: Number(p.multa_fixa_porcentagem),
+    multa_fixa_valor: Number(p.multa_fixa_valor) || 0,
+    taxa_juros_diaria: Number(p.taxa_juros_diaria),
+    taxa_juros_mensal: Number(p.taxa_juros_mensal) || 0,
+    dias_carencia: Number(p.dias_carencia) || 0,
+    tipo_consequencia: p.tipo_consequencia,
+    dias_para_sancao: Number(p.dias_para_sancao) || 30,
+    aceita_pagamento_parcial: Boolean(p.aceita_pagamento_parcial),
+    valor_minimo: Number(p.valor_minimo) || 0,
+    formaPagamento: p.forma_pagamento || "normal"
   };
 }
 
@@ -184,7 +195,8 @@ export async function syncTransactionToSupabase(tx) {
       attachment_method: tx.attachmentMethod || null,
       fonte_id: tx.fonteId || null,
       include_in_ir: Boolean(tx.includeInIR),
-      deducted_in_payroll: Boolean(tx.deductedInPayroll)
+      deducted_in_payroll: Boolean(tx.deductedInPayroll),
+      forma_pagamento: (tx.formaPagamento && tx.formaPagamento !== "normal") ? tx.formaPagamento : undefined
     };
 
     if (tx.id && typeof tx.id === 'number' && tx.id < 1000000000000) {
@@ -236,7 +248,17 @@ export async function syncPlannedToSupabase(p) {
       end_month: p.endMonth || null,
       salary_deductions: JSON.stringify(p.salaryDeductions || []),
       include_in_ir: Boolean(p.includeInIR),
-      fonte_id: p.fonteId || null
+      fonte_id: p.fonteId || null,
+      multa_fixa_porcentagem: p.multa_fixa_porcentagem != null ? Number(p.multa_fixa_porcentagem) : null,
+      multa_fixa_valor: Number(p.multa_fixa_valor) || 0,
+      taxa_juros_diaria: p.taxa_juros_diaria != null ? Number(p.taxa_juros_diaria) : null,
+      taxa_juros_mensal: Number(p.taxa_juros_mensal) || 0,
+      dias_carencia: Number(p.dias_carencia) || 0,
+      tipo_consequencia: p.tipo_consequencia || null,
+      dias_para_sancao: Number(p.dias_para_sancao) || 30,
+      aceita_pagamento_parcial: Boolean(p.aceita_pagamento_parcial),
+      valor_minimo: Number(p.valor_minimo) || 0,
+      forma_pagamento: (p.formaPagamento && p.formaPagamento !== "normal") ? p.formaPagamento : undefined
     };
 
     if (p.id && typeof p.id === 'number' && p.id < 1000000000000) {

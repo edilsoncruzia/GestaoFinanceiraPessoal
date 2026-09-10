@@ -6,6 +6,30 @@ import { ModalSheet } from '../ui/ModalSheet';
 import { FormField } from '../ui/FormField';
 import { Plus, Trash2 } from 'lucide-react';
 import { SourceSelect } from '../ui/SourceSelect';
+import { DEFAULT_POR_CATEGORIA, DEFAULT_CATEGORIA_GENERICA } from '../../services/prioritizador/constantes.js';
+
+const CONSEQ_LABELS = {
+  CORTE_SERVICO: "Corte de serviço",
+  PERDA_BEM_MORADIA: "Perda de bem / moradia",
+  PROTESTO_JUDICIAL: "Protesto judicial",
+  NEGATIVACAO_SPC_SERASA: "Negativação SPC/Serasa",
+  BLOQUEIO_SERVICO_NAO_ESSENCIAL: "Bloqueio de serviço não essencial",
+};
+
+function defaultsPorCategoria(cat) {
+  const d = DEFAULT_POR_CATEGORIA[cat] || DEFAULT_CATEGORIA_GENERICA;
+  return {
+    multa_fixa_porcentagem: d.multa_fixa_porcentagem != null ? String(d.multa_fixa_porcentagem) : "2",
+    multa_fixa_valor: "0",
+    taxa_juros_diaria: d.taxa_juros_diaria != null ? String(d.taxa_juros_diaria) : "0.033",
+    taxa_juros_mensal: d.taxa_juros_mensal != null ? String(d.taxa_juros_mensal) : "0",
+    dias_carencia: "0",
+    tipo_consequencia: d.tipo_consequencia || "NEGATIVACAO_SPC_SERASA",
+    dias_para_sancao: d.dias_para_sancao != null ? String(d.dias_para_sancao) : "30",
+    aceita_pagamento_parcial: false,
+    valor_minimo: "0",
+  };
+}
 
 const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
 const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 };
@@ -59,6 +83,23 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
   const [scope, setScope] = useState("all"); // this | future | all (ao editar série)
   const [salaryDeductions, setSalaryDeductions] = useState(editing && Array.isArray(editing.salaryDeductions) ? editing.salaryDeductions : []);
   const [includeInIR, setIncludeInIR] = useState(editing ? Boolean(editing.includeInIR) : false);
+  const [showCustos, setShowCustos] = useState(false);
+  const [campos, setCampos] = useState(() => {
+    const d = defaultsPorCategoria(editing ? editing.category : "alimentacao");
+    return {
+      multa_fixa_porcentagem: editing && editing.multa_fixa_porcentagem != null ? String(editing.multa_fixa_porcentagem) : d.multa_fixa_porcentagem,
+      multa_fixa_valor: editing && editing.multa_fixa_valor != null ? String(editing.multa_fixa_valor) : d.multa_fixa_valor,
+      taxa_juros_diaria: editing && editing.taxa_juros_diaria != null ? String(editing.taxa_juros_diaria) : d.taxa_juros_diaria,
+      taxa_juros_mensal: editing && editing.taxa_juros_mensal != null ? String(editing.taxa_juros_mensal) : d.taxa_juros_mensal,
+      dias_carencia: editing && editing.dias_carencia != null ? String(editing.dias_carencia) : d.dias_carencia,
+      tipo_consequencia: editing && editing.tipo_consequencia ? editing.tipo_consequencia : d.tipo_consequencia,
+      dias_para_sancao: editing && editing.dias_para_sancao != null ? String(editing.dias_para_sancao) : d.dias_para_sancao,
+      aceita_pagamento_parcial: editing ? Boolean(editing.aceita_pagamento_parcial) : d.aceita_pagamento_parcial,
+      valor_minimo: editing && editing.valor_minimo != null ? String(editing.valor_minimo) : d.valor_minimo,
+    };
+  });
+  const setCampo = (k, v) => setCampos((prev) => ({ ...prev, [k]: v }));
+  const [formaPagamento, setFormaPagamento] = useState(editing ? (editing.formaPagamento || "normal") : "normal");
 
   const categories = useCategories();
   const options = Object.entries(categories).filter(([, c]) => c.type === type);
@@ -70,6 +111,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
       const first = Object.entries(categories).find(([, c]) => c.type === newType);
       setCategory(first[0]);
       setPriority(DEFAULT_PRIORITY[first[0]] || "importante");
+      if (newType === "expense" && !editing) setCampos((prev) => ({ ...prev, ...defaultsPorCategoria(first[0]) }));
     }
   }
 
@@ -77,6 +119,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
     if (newCategory === "__new__") { setShowNewCat(true); return; }
     setCategory(newCategory);
     if (!editing) setPriority(DEFAULT_PRIORITY[newCategory] || "importante");
+    if (!editing && type === "expense") setCampos((prev) => ({ ...prev, ...defaultsPorCategoria(newCategory) }));
   }
 
   function createCategory() {
@@ -86,6 +129,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
     if (onAddCategory) onAddCategory({ key, label, color: newCatColor, type });
     setCategory(key);
     if (!editing) setPriority(DEFAULT_PRIORITY[key] || "importante");
+    if (!editing && type === "expense") setCampos((prev) => ({ ...prev, ...defaultsPorCategoria(key) }));
     setShowNewCat(false);
     setNewCatName("");
   }
@@ -123,6 +167,18 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
       realized,
       salaryDeductions: (type === "income" && category === "salario") ? salaryDeductions.filter((d) => d.label.trim()) : undefined,
       includeInIR: type === "expense" ? includeInIR : undefined,
+      formaPagamento: type === "expense" ? formaPagamento : undefined,
+      ...(type === "expense" ? {
+        multa_fixa_porcentagem: campos.multa_fixa_porcentagem === "" ? null : Number(campos.multa_fixa_porcentagem),
+        multa_fixa_valor: Number(campos.multa_fixa_valor) || 0,
+        taxa_juros_diaria: campos.taxa_juros_diaria === "" ? null : Number(campos.taxa_juros_diaria),
+        taxa_juros_mensal: Number(campos.taxa_juros_mensal) || 0,
+        dias_carencia: Number(campos.dias_carencia) || 0,
+        tipo_consequencia: campos.tipo_consequencia || null,
+        dias_para_sancao: Number(campos.dias_para_sancao) || 30,
+        aceita_pagamento_parcial: campos.aceita_pagamento_parcial,
+        valor_minimo: Number(campos.valor_minimo) || 0,
+      } : {}),
       fonteId: fonteId ? Number(fonteId) : undefined,
     };
     if (recurrence === "parcelada") { payload.installmentCurrent = Number(installmentCurrent) || 1; payload.installmentTotal = Number(installmentTotal) || 1; }
@@ -195,6 +251,16 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
             </FormField>
           )}
           {type === "expense" && (
+            <FormField label="Forma de pagamento">
+              <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} style={inputStyle}>
+                <option value="normal">Normal (eu escolho quando pagar)</option>
+                <option value="debito_automatico">Débito automático</option>
+                <option value="cartao">Cartão (automático)</option>
+                <option value="pix_automatico">Pix automático</option>
+              </select>
+            </FormField>
+          )}
+          {type === "expense" && (
             <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px", cursor: "pointer" }}>
               <input type="checkbox" checked={includeInIR} onChange={(e) => setIncludeInIR(e.target.checked)} style={{ marginTop: 2 }} />
               <span style={{ fontSize: 13, color: COLORS.ink }}>
@@ -202,6 +268,50 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
                 <span style={{ display: "block", fontSize: 11, color: COLORS.muted, marginTop: 2 }}>Quando a despesa for paga, entra na declaração do ano seguinte.</span>
               </span>
             </label>
+          )}
+          {type === "expense" && (
+            <div style={{ margin: "0 0 14px" }}>
+              <button type="button" onClick={() => setShowCustos((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: COLORS.green, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                {showCustos ? "Ocultar" : "Mostrar"} custos de atraso (opcional)
+              </button>
+              {showCustos && (
+                <div style={{ marginTop: 8, padding: "12px 14px", borderRadius: 12, border: "1px solid " + COLORS.line, background: COLORS.card }}>
+                  <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "0 0 10px" }}>Pré-preenchido pela categoria (Seção 2.1). Ajuste apenas se necessário.</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <FormField label="Tipo de consequência">
+                      <select value={campos.tipo_consequencia} onChange={(e) => setCampo("tipo_consequencia", e.target.value)} style={inputStyle}>
+                        {Object.entries(CONSEQ_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select>
+                    </FormField>
+                    <FormField label="Dias para sanção">
+                      <input value={campos.dias_para_sancao} onChange={(e) => setCampo("dias_para_sancao", e.target.value)} type="number" min="0" style={inputStyle} />
+                    </FormField>
+                    <FormField label="Multa fixa (%)">
+                      <input value={campos.multa_fixa_porcentagem} onChange={(e) => setCampo("multa_fixa_porcentagem", e.target.value)} type="number" min="0" step="0.1" style={inputStyle} />
+                    </FormField>
+                    <FormField label="Multa fixa (R$)">
+                      <input value={campos.multa_fixa_valor} onChange={(e) => setCampo("multa_fixa_valor", e.target.value)} type="number" min="0" step="0.01" style={inputStyle} />
+                    </FormField>
+                    <FormField label="Juros diário (%)">
+                      <input value={campos.taxa_juros_diaria} onChange={(e) => setCampo("taxa_juros_diaria", e.target.value)} type="number" min="0" step="0.001" style={inputStyle} />
+                    </FormField>
+                    <FormField label="Juros mensal (%)">
+                      <input value={campos.taxa_juros_mensal} onChange={(e) => setCampo("taxa_juros_mensal", e.target.value)} type="number" min="0" step="0.01" style={inputStyle} />
+                    </FormField>
+                    <FormField label="Carência (dias)">
+                      <input value={campos.dias_carencia} onChange={(e) => setCampo("dias_carencia", e.target.value)} type="number" min="0" style={inputStyle} />
+                    </FormField>
+                    <FormField label="Valor mínimo (R$)">
+                      <input value={campos.valor_minimo} onChange={(e) => setCampo("valor_minimo", e.target.value)} type="number" min="0" step="0.01" style={inputStyle} />
+                    </FormField>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
+                    <input type="checkbox" checked={campos.aceita_pagamento_parcial} onChange={(e) => setCampo("aceita_pagamento_parcial", e.target.checked)} />
+                    <span style={{ fontSize: 13, color: COLORS.ink }}>Aceita pagamento parcial</span>
+                  </label>
+                </div>
+              )}
+            </div>
           )}
           {type === "income" && category === "salario" && (
             <div style={{ margin: "4px 0 14px", padding: "12px 14px", borderRadius: 12, background: COLORS.card, border: "1px solid " + COLORS.line }}>

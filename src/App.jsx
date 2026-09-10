@@ -8,6 +8,7 @@ import {
   memberLabel, inScope, addMonths, monthDiff, monthLabel, generatePlannedOccurrences,
   accountBalance, buildOpenItems, monthlyCashFlow
 } from './utils/formatters';
+import { processarContas, pacing, agruparDespesas } from './services/prioritizador/index.js';
 import {
   loadInitialData, syncTransactionToSupabase, deleteTransactionFromSupabase,
   syncPlannedToSupabase, deletePlannedFromSupabase, isSupabaseConfigured,
@@ -37,6 +38,7 @@ import { MetasView } from './components/views/MetasView';
 import { RelatoriosView } from './components/views/RelatoriosView';
 import { Regra503020View } from './components/views/Regra503020View';
 import { ProjecaoView } from './components/views/ProjecaoView';
+import { PriorizacaoView } from './components/views/PriorizacaoView';
 import { DadosView } from './components/views/DadosView';
 import { FontesView } from './components/views/FontesView';
 import { ExtratoView } from './components/views/ExtratoView';
@@ -46,6 +48,7 @@ import { TransactionFormModal } from './components/modals/TransactionFormModal';
 import { PlannedFormModal } from './components/modals/PlannedFormModal';
 import { PayModal } from './components/modals/PayModal';
 import { HoleriteModal } from './components/modals/HoleriteModal';
+import { FaturaModal } from './components/modals/FaturaModal';
 import { ContributeModal } from './components/modals/ContributeModal';
 import { GoalFormModal } from './components/modals/GoalFormModal';
 import { CloseMonthModal } from './components/modals/CloseMonthModal';
@@ -189,6 +192,60 @@ function FinanceApp() {
   // Contas em aberto: mês selecionado + meses anteriores ainda não pagos/recebidos.
   const openItems = useMemo(() => buildOpenItems(planned, transactions, selectedMonth), [planned, transactions, selectedMonth]);
   const openExpenseTotal = useMemo(() => openItems.filter((i) => i.type === "expense").reduce((s, i) => s + (i.amount - i.paid), 0), [openItems]);
+
+  // Classificação do Motor de Priorização + simulação diária (tópico #23).
+  // Recebimentos ficam primeiro; despesas seguem a fila. Despesas de cartão viram
+  // uma "Fatura <cartão>" (rotativo G4); débito/pix automático saem da fila.
+  const priorizacaoHome = useMemo(() => {
+    if (!openItems.length) return { items: openItems, postergadas: [], pacing: null, dias: [], reservaMinima: 0, autoDetalhes: [] };
+    const expenses = openItems.filter((i) => i.type === "expense").map((i) => ({ ...i, formaPagamento: i.formaPagamento || "normal" }));
+    const incomes = openItems.filter((i) => i.type !== "expense");
+    const ded = (o) => (o.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    const occ = generatePlannedOccurrences(planned, selectedMonth);
+
+    const salario = occ.filter((o) => o.type === "income" && o.category === "salario" && inScope(o.memberId, memberFilter)).reduce((s, o) => s + Math.max(0, (Number(o.amount) || 0) - ded(o)), 0)
+      + transactions.filter((t) => monthKey(t.date) === selectedMonth && t.type === "income" && t.category === "salario" && inScope(t.memberId, memberFilter)).reduce((s, t) => {
+          const tpl = planned.find((x) => x.id === t.plannedId);
+          return s + Math.max(0, (Number(t.amount) || 0) - (tpl ? ded(tpl) : 0));
+        }, 0);
+    const reservaMinima = round2(salario * 0.15);
+
+    const entradas = {};
+    occ.filter((o) => o.type === "income" && inScope(o.memberId, memberFilter)).forEach((o) => {
+      const d = Number(o.dueDate.slice(8, 10));
+      entradas[d] = (entradas[d] || 0) + Math.max(0, (Number(o.amount) || 0) - ded(o));
+    });
+
+    const g = agruparDespesas(expenses, accounts, selectedMonth);
+    const res = processarContas(g.contas, { referenciaHoje: TODAY_DATE, saldoInicial: availableBalance, salario, reservaMinima, entradas, pagamentosAgendados: g.agendados });
+
+    const meta = {};
+    res.contas.forEach((c) => { meta[c.id] = { motorRank: c.prioridade, motorG: c.G, motorS: c.S, motorStatus: c.status, motorStatusLabel: c.statusLabel, diasEmAtraso: c.diasEmAtraso, vencida: c.vencida, jurosEstimados: c.jurosEstimados }; });
+    (res.fluxoDiario?.pagas || []).forEach((p) => { if (meta[p.id]) meta[p.id].dataSugerida = p.dia; });
+
+    // Ids a excluir da lista individual (auto / cartão agrupado).
+    const autoIds = new Set(g.autoDetalhes.map((a) => a.id));
+    const cartaoIds = new Set();
+    expenses.forEach((e) => { if ((e.formaPagamento || "normal") === "cartao" && accounts.some((a) => a.id === e.accountId && a.type === "cartao")) cartaoIds.add(e.occId); });
+
+    const normais = expenses.filter((e) => !autoIds.has(e.occId) && !cartaoIds.has(e.occId)).map((e) => ({ ...e, ...(meta[e.occId] || {}) }));
+    const faturas = g.cartaoFaturas.map((f) => ({ occId: f.id, id: f.id, description: f.description, amount: f.amount, dueDate: f.dueDate, category: f.category, memberId: f.memberId, priority: f.priority, recurrence: "unica", paid: 0, salaryDeductions: [], agrupadas: f.agrupadas, itens: f.itens, ...(meta[f.id] || {}) }));
+
+    const inc = incomes.map((i) => ({ ...i, motorRank: 0 })).sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
+    const exp = [...normais, ...faturas].sort((a, b) => (a.motorRank ?? 999) - (b.motorRank ?? 999));
+
+    // Pacing de mercado.
+    const budgetMercado = budgets.find((b) => b.category === "alimentacao");
+    const gastoMercado = transactions.filter((t) => t.type === "expense" && t.category === "alimentacao" && monthKey(t.date) === selectedMonth).reduce((s, t) => s + t.amount, 0);
+    const previstoMercado = occ.filter((o) => o.type === "expense" && o.category === "alimentacao").reduce((s, o) => s + Number(o.amount || 0), 0);
+    const orcamentoMercado = (budgetMercado && budgetMercado.limit > 0) ? budgetMercado.limit : Math.max(gastoMercado, previstoMercado);
+    const diaHoje = new Date(TODAY_DATE + "T00:00:00").getDate();
+    const semanaAtual = Math.min(4, Math.ceil(diaHoje / 7));
+    const gastoSemana = transactions.filter((t) => t.type === "expense" && t.category === "alimentacao" && monthKey(t.date) === selectedMonth && Math.min(4, Math.ceil(new Date(t.date + "T00:00:00").getDate() / 7)) === semanaAtual).reduce((s, t) => s + t.amount, 0);
+    const pac = orcamentoMercado > 0 ? pacing({ orcamentoMensalMercado: orcamentoMercado, gastosSemana: gastoSemana, diasRestantesSemana: Math.max(1, 7 - ((diaHoje - 1) % 7)) }) : null;
+
+    return { items: [...inc, ...exp], postergadas: res.fluxoDiario?.postergadas || [], pacing: pac, dias: res.fluxoDiario?.dias || [], reservaMinima, autoDetalhes: g.autoDetalhes };
+  }, [openItems, transactions, planned, selectedMonth, availableBalance, budgets, memberFilter, accounts]);
 
   const availableNow = availableBalance - openExpenseTotal;
 
@@ -429,6 +486,42 @@ function FinanceApp() {
     showToast("Salário e descontos registrados ✓");
   }
 
+  // Pagar fatura do cartão: cria uma transação individual por lançamento,
+  // todas marcadas como "via cartão", e deixa os lançamentos como pagos (plannedId).
+  async function pagarFatura(fatura, payload) {
+    const lista = payload.itens || [];
+    let n = 0;
+    for (const it of lista) {
+      const tx = {
+        id: Date.now() + (++n),
+        date: it.date || payload.date,
+        type: "expense",
+        category: it.category,
+        description: it.description,
+        amount: it.amount,
+        accountId: fatura.accountId,
+        memberId: it.memberId != null ? it.memberId : fatura.memberId,
+        plannedId: it.plannedId,
+        formaPagamento: "cartao",
+      };
+      const dbId = await syncTransactionToSupabase(tx);
+      if (dbId == null) { showToast("Erro ao salvar lançamento da fatura"); return; }
+      const final = { ...tx, id: dbId ?? tx.id };
+      setTransactions((prev) => [...prev, final]);
+    }
+    setPayTarget(null);
+    showToast("Fatura paga — " + lista.length + " lançamento(s) registrado(s) ✓");
+  }
+
+  // Abre o cadastro completo (categoria, parcelas, recorrência...) de um lançamento da fatura.
+  function abrirEdicaoLancamento(plannedId) {
+    const tpl = planned.find((x) => x.id === plannedId);
+    if (!tpl) return;
+    setPayTarget(null);
+    setEditingPlanned(tpl);
+    setShowPlannedForm(true);
+  }
+
   async function realizePlanned(item) {
     const newTx = {
       id: Date.now(),
@@ -657,7 +750,7 @@ function FinanceApp() {
     <div className="app-shell">
       <div style={{ position: "absolute", inset: 0, overflowY: "auto" }}>
         <div key={tab + (moreView || "")} className="tab-content" style={{ padding: "20px 18px 96px" }}>
-          {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={netIncome} monthExpense={netExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={openItems} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
+          {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={netIncome} monthExpense={netExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={priorizacaoHome.items} postergadas={priorizacaoHome.postergadas} pacing={priorizacaoHome.pacing} dias={priorizacaoHome.dias} reservaMinima={priorizacaoHome.reservaMinima} autoDetalhes={priorizacaoHome.autoDetalhes} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
           {tab === "transacoes" && <><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><TransacoesView closedList={filteredTx} openItems={openItems} memberFilter={memberFilter} search={search} setSearch={setSearch} filterType={filterType} setFilterType={setFilterType} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} accounts={accounts} onEdit={(t) => { const linkedPlanned = t.plannedId ? planned.find((p) => p.id === t.plannedId) : null; if (linkedPlanned) { setEditingPlanned(linkedPlanned); setShowPlannedForm(true); } else { setEditingTx(t); setShowForm(true); } }} onDelete={deleteTransaction} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} /></>}
           {tab === "orcamento" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><OrcamentoView budgets={budgetsWithSpent} memberFilter={memberFilter} /></>}
           {tab === "mais" && moreView === null && <MaisMenuView onSelect={setMoreView} />}
@@ -669,6 +762,7 @@ function FinanceApp() {
           {tab === "mais" && moreView === "relatorios" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><RelatoriosView month={selectedMonth} transactions={transactions} planned={planned} sources={sources} /></>}
           {tab === "mais" && moreView === "regra" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><Regra503020View income={monthIncome} expenses={currentMonthTx.filter((t) => t.type === "expense")} /></>}
           {tab === "mais" && moreView === "projecao" && <><BackRow onBack={() => setMoreView(null)} /><ProjecaoView planned={nonReservedPlanned} transactions={nonReservedTx} balance={availableBalance} memberFilter={memberFilter} setMemberFilter={setMemberFilter} /></>}
+          {tab === "mais" && moreView === "priorizacao" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><PriorizacaoView planned={nonReservedPlanned} transactions={nonReservedTx} budgets={budgets} accounts={accounts} selectedMonth={selectedMonth} availableBalance={availableBalance} memberFilter={memberFilter} /></>}
           {tab === "mais" && moreView === "dados" && <><BackRow onBack={() => setMoreView(null)} /><DadosView onExport={exportData} onImport={() => fileInputRef.current && fileInputRef.current.click()} onReset={resetToSeed} onClearSupabase={clearSupabase} /></>}
           {tab === "mais" && moreView === "fontes" && <><FontesView sources={sources} onBack={() => setMoreView(null)} onSave={saveSource} onDelete={deleteSource} /></>}
         </div>
@@ -692,7 +786,9 @@ function FinanceApp() {
 
       {showForm && <TransactionFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingTx} onClose={() => { setShowForm(false); setEditingTx(null); }} onSubmit={upsertTransaction} onAddCategory={saveCategory} onAddAccount={openNewAccount} />}
       {showPlannedForm && <PlannedFormModal accounts={accounts} sources={sources} selectedMonth={selectedMonth} editing={editingPlanned} onClose={() => { setShowPlannedForm(false); setEditingPlanned(null); }} onSubmit={upsertPlanned} onAddCategory={saveCategory} onAddAccount={openNewAccount} />}
-      {payTarget && (payTarget.type === "income" && (payTarget.salaryDeductions || []).length > 0 ? (
+      {payTarget && (payTarget.itens && payTarget.itens.length > 0 ? (
+        <FaturaModal item={payTarget} selectedMonth={selectedMonth} onClose={() => setPayTarget(null)} onSubmit={(payload) => pagarFatura(payTarget, payload)} onEditCharge={abrirEdicaoLancamento} />
+      ) : payTarget.type === "income" && (payTarget.salaryDeductions || []).length > 0 ? (
         <HoleriteModal item={payTarget} accounts={accounts} sources={sources} selectedMonth={selectedMonth} onClose={() => setPayTarget(null)} onSubmit={(payload) => registerSalaryReceipt(payTarget, payload)} />
       ) : (
         <PayModal item={payTarget} accounts={accounts} sources={sources} transactions={transactions} selectedMonth={selectedMonth} onClose={() => setPayTarget(null)} onSubmit={(payload) => payPlanned(payTarget, payload)} onFinalize={finalizePlanned} />

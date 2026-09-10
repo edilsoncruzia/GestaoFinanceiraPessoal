@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
 import {
-  Wallet, EyeOff, Eye, Coins, CalendarClock, Info, ArrowUpRight, ArrowDownLeft, ChevronRight,
+  Wallet, EyeOff, Eye, Coins, CalendarClock, Clock, Info, ArrowUpRight, ArrowDownLeft, ChevronRight,
   HeartPulse, Bell, AlertTriangle, TrendingUp, TrendingDown, Calendar,
   Plus, Tag, CheckCircle2, MoreVertical, Pencil, Trash2, CreditCard, Download, Users, User
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, LabelList, CartesianGrid, XAxis, YAxis, Tooltip, Cell, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, LabelList, CartesianGrid, XAxis, YAxis, Tooltip, Cell, ReferenceLine, LineChart, Line } from 'recharts';
 import { COLORS, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
 import { useCategories } from '../../context/CategoriesContext';
 import { TODAY_DATE } from '../../constants/seedData';
@@ -92,8 +92,21 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
           <p className="serif" style={{ fontSize: 15.5, fontWeight: 600, margin: 0, color: COLORS.ink }}>{item.description}</p>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
             <RecIcon size={12} color={COLORS.muted} />
-            <span style={{ fontSize: 12, color: COLORS.muted }}>{recurrenceLabel(item)} · vence {fmtDate(item.dueDate)}</span>
+            <span style={{ fontSize: 12, color: COLORS.muted }}>{recurrenceLabel(item)} · vence {fmtDate(item.dueDate)}{item.dataSugerida ? " · pagar dia " + item.dataSugerida : ""}</span>
           </div>
+          {item.motorG != null && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, color: COLORS.muted }}>
+                G {item.motorG.toFixed(1)}{item.vencida ? " · atraso " + item.diasEmAtraso + "d · S " + item.motorS : ""}
+              </span>
+              {(item.motorStatus === "postergada" || item.motorStatus === "atencao_necessaria") && (
+                <Badge color={item.motorStatus === "atencao_necessaria" ? COLORS.rust : COLORS.amber}>{item.motorStatusLabel}</Badge>
+              )}
+            </div>
+          )}
+          {item.agrupadas && (
+            <p style={{ fontSize: 11, color: COLORS.muted, margin: "3px 0 0", lineHeight: 1.4 }}>Inclui: {item.agrupadas}</p>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
             <MemberIcon size={12} color={COLORS.muted} />
             <span style={{ fontSize: 12, color: COLORS.muted }}>{memberLabel(item.memberId)}</span>
@@ -136,8 +149,8 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
   );
 }
 
-export function InicioView({ balance, availableBalance, reservedAmount, availableNow, monthProjection, isCurrentMonth, health, alerts, monthIncome, monthExpense, projectedBalance, onSelectMonth, openItems: allOpenItems, memberFilter, hideBalance, onToggleHide, onSeeAll, onPay, onEditPlanned, onDeletePlanned, onNewPlanned, onCloseMonth }) {
-  const [sortBy, setSortBy] = useState("vencimento");
+export function InicioView({ balance, availableBalance, reservedAmount, availableNow, monthProjection, isCurrentMonth, health, alerts, monthIncome, monthExpense, projectedBalance, onSelectMonth, openItems: allOpenItems, memberFilter, hideBalance, onToggleHide, onSeeAll, onPay, onEditPlanned, onDeletePlanned, onNewPlanned, onCloseMonth, postergadas, pacing, dias, reservaMinima, autoDetalhes }) {
+  const [sortBy, setSortBy] = useState("prioridade");
   const [showHealthInfo, setShowHealthInfo] = useState(false);
   const lastTapRef = useRef({ month: null, time: 0 });
   const hour = new Date().getHours();
@@ -163,6 +176,10 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
     .map((i) => ({ ...i, priority: i.priority || DEFAULT_PRIORITY[i.category] || "importante" }))
     .sort((a, b) => {
       if (sortBy === "prioridade") {
+        // Motor de priorização (#23): despesas já vêm com motorRank da fila.
+        if (a.motorRank != null || b.motorRank != null) {
+          return (a.motorRank ?? 999) - (b.motorRank ?? 999);
+        }
         const pa = PRIORITY[a.priority].rank, pb = PRIORITY[b.priority].rank;
         if (pa !== pb) return pa - pb;
       }
@@ -240,6 +257,16 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
         </Card>
       </div>
 
+      {pacing && (
+        <Card style={{ marginBottom: 10, padding: "12px 16px", background: "#3B6E8F0A" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <TrendingDown size={14} color="#3B6E8F" />
+            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Mercado — pacing semanal</p>
+          </div>
+          <p style={{ fontSize: 12, color: COLORS.ink, margin: 0 }}>Envelope da semana <strong>{fmt(pacing.envelopeSemanal)}</strong> · disponível <strong>{fmt(pacing.saldoSemanalRestante)}</strong> · teto diário <strong>{fmt(pacing.tetoDiario)}</strong></p>
+        </Card>
+      )}
+
       {alerts.length > 0 && (
         <Card style={{ marginBottom: 18, padding: "12px 14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -291,7 +318,29 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
         )}
       </Card>
 
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+      {dias.length > 0 && (
+        <Card style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <CalendarClock size={15} color={COLORS.green} />
+            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Extrato de saldo — dia a dia</p>
+          </div>
+          <div style={{ width: "100%", height: 150 }}>
+            <ResponsiveContainer>
+              <LineChart data={dias} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke={COLORS.line} />
+                <XAxis dataKey="dia" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={4} />
+                <YAxis hide />
+                <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line }} />
+                <ReferenceLine y={reservaMinima} stroke={COLORS.amber} strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="saldo" stroke={COLORS.green} strokeWidth={2.5} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <p style={{ fontSize: 11, color: COLORS.muted, margin: "4px 0 0" }}>Saldo previsto ao longo do mês — sobe com receitas e cai com as despesas pagas. Linha tracejada = reserva mínima ({fmt(reservaMinima)}).</p>
+        </Card>
+      )}
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: COLORS.green + "1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Wallet size={21} color={COLORS.green} />
@@ -344,6 +393,21 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
           </Card>
         )}
         {openItems.map((item) => <PlannedCard key={item.occId} item={item} onPay={onPay} onEdit={onEditPlanned} onDelete={onDeletePlanned} />)}
+        {postergadas.length > 0 && (
+          <Card style={{ marginTop: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <Clock size={14} color={COLORS.amber} />
+              <p style={{ fontSize: 12.5, fontWeight: 500, margin: 0 }}>Postergadas taticamente para o próximo mês</p>
+            </div>
+            {postergadas.map((p) => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                <span style={{ flex: 1, color: COLORS.ink }}>{p.descricao}</span>
+                <span style={{ color: COLORS.ink }}>{fmt(p.valor)}</span>
+                {p.jurosEstimados > 0 && <span style={{ color: COLORS.rust }}>+{fmt(p.jurosEstimados)}</span>}
+              </div>
+            ))}
+          </Card>
+        )}
       </div>
 
       {showHealthInfo && (

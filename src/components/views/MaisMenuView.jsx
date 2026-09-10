@@ -1,5 +1,5 @@
 import React from 'react';
-import { Landmark, Target, PieChart as PieChartIcon, LayoutGrid, TrendingUp, FileJson, ChevronRight, ArrowLeft, Users, Tag, Receipt, Lightbulb, LogOut } from 'lucide-react';
+import { Landmark, Target, PieChart as PieChartIcon, LayoutGrid, TrendingUp, FileJson, ChevronRight, ArrowLeft, Users, Tag, Receipt, Lightbulb, LogOut, ListOrdered } from 'lucide-react';
 import { COLORS } from '../../constants/tokens';
 import { SectionTitle } from '../ui/SectionTitle';
 
@@ -20,6 +20,7 @@ export function MaisMenuView({ onSelect, onLogout, userName }) {
     ["relatorios", "Relatórios", PieChartIcon],
     ["regra", "Regra 50/30/20", LayoutGrid],
     ["projecao", "Projeção de meses futuros", TrendingUp],
+    ["priorizacao", "Priorização de contas", ListOrdered],
     ["dados", "Exportar / importar dados", FileJson],
     ["fontes", "Fontes (quem recebe/paga)", Users],
     ["ajustes", "Ajustes e Melhorias", Lightbulb],

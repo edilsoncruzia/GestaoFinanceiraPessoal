@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, AlertTriangle, ArrowLeftRight, Paperclip, Link2, Pencil, Trash2 } from 'lucide-react';
+import { Search, AlertTriangle, ArrowLeftRight, Paperclip, Link2, Pencil, Trash2 , CreditCard } from 'lucide-react';
 import { COLORS } from '../../constants/tokens';
 import { useCategories } from '../../context/CategoriesContext';
 import { fmt, fmtDate, inScope, monthKey } from '../../utils/formatters';
@@ -55,6 +55,7 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
           <span>{c ? c.label : t.category} · {fmtDate(t.date)}</span>
           {t.attachment && <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Paperclip size={11} />{t.attachment}</span>}
           {t.plannedId && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: COLORS.green }}><Link2 size={11} />Previsto</span>}
+          {t.formaPagamento === "cartao" && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "#3B6E8F" }}><CreditCard size={11} />Cartão</span>}
         </p>
         <MemberBadge memberId={t.memberId} />
         {(t.deductedInPayroll || t.includeInIR) && (
