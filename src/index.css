@@ -1,15 +1,43 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
 
+/* ============================================================================
+   FONTE DOS TOKENS: src/constants/tokens.js
+   Os valores abaixo são o espelho em CSS do objeto COLORS. Se mudar um tema,
+   mude lá e reflita aqui — os dois nomes são os mesmos de propósito.
+   ========================================================================== */
 :root {
   --color-ink: #1B2A2F;
   --color-paper: #F1EDDF;
   --color-card: #FBF9F1;
-  --color-line: #E1DAC4;
+  --color-card-sunken: #F7F3E6;
+  --color-card-raised: #EDE7D5;
+
+  --color-fg2: #4A5559;
+  --color-muted: #6E6A5C;
+
+  --color-line: #D9D1B8;
+  --color-line-soft: #E1DAC4;
+
   --color-green: #1F5D4C;
   --color-green-light: #3B8F6E;
+  --color-green-soft: #E6EDE9;
+
   --color-amber: #8A5A1F;
   --color-rust: #A6432F;
-  --color-muted: #6E6A5C;
+  --color-info: #2E6B72;
+
+  /* Geometria */
+  --radius-card: 14px;
+  --radius-control: 10px;
+
+  /* Elevação — sussurro por padrão, nunca decoração */
+  --shadow-card: 0 1px 2px rgba(27, 42, 47, 0.04);
+  --shadow-raised: 0 10px 28px rgba(27, 42, 47, 0.14);
+
+  /* Estrutura do shell — um só lugar define as alturas que a navegação usa */
+  --topbar-height: 64px;
+  --tabbar-height: 64px;
+  --sidebar-width: 264px;
 }
 
 * {
@@ -18,118 +46,260 @@
   font-variant-numeric: tabular-nums;
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
-  background-color: #e5dec9;
+  /* 100dvh resolve a barra do navegador móvel; 100% é o fallback. */
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-card-raised);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--color-ink);
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 13.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* O body NÃO centraliza mais nem tem altura fixa: quem manda no tamanho é o
+     shell. Era isso que cortava o topo/base em telas com menos de 700px. */
 }
 
 #root {
-  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  /* Paisagem no celular: o app ocupa a tela toda, com rolagem vertical normal. */
+  overflow-x: hidden;
 }
 
-.serif {
-  font-family: 'Fraunces', serif;
-}
+.serif { font-family: 'Fraunces', Georgia, serif; }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
+button { font-family: inherit; cursor: pointer; color: inherit; }
+input, select, textarea { font-family: inherit; }
 
-input, select {
-  font-family: inherit;
-}
-
-/* Transições suaves em elementos interativos */
 button, .tx-card {
-  transition: transform 0.12s ease, opacity 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
+button:active { transform: scale(0.97); }
+.fab-btn:active { transform: scale(0.92); }
 
-button:active {
-  transform: scale(0.96);
-}
-
-.fab-btn:active {
-  transform: scale(0.9);
-}
-
-/* Alvo de toque confortável para ícones de ação */
+/* Alvo de toque: 44px reais, sem margem negativa que roubava o alvo. */
 .icon-btn {
-  padding: 8px !important;
-  margin: -8px;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  flex-shrink: 0;
 }
+.icon-btn:active { background: rgba(27, 42, 47, 0.06); }
 
-.icon-btn:active {
-  background: rgba(27, 42, 47, 0.06);
-}
-
-/* Foco visível para acessibilidade */
-input:focus-visible, select:focus-visible, button:focus-visible {
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-card), 0 0 0 4px var(--color-green);
 }
 
-/* Animações de Modal e Transições de Aba */
-@keyframes sheetUp {
-  from { transform: translateY(16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+/* ── Animações ────────────────────────────────────────────────────────────── */
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheetUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.modal-backdrop { animation: backdropIn 0.18s ease; }
+.tab-content { animation: fadeIn 0.16s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-@keyframes backdropIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+/* ============================================================================
+   SHELL — mobile-first, três estados
+   mobile  : < 560px    coluna única, barra inferior, FAB
+   tablet  : 560–979px  duas colunas, barra inferior, FAB
+   desktop : >= 980px   barra lateral fixa, topbar, sem barra inferior
+   ========================================================================== */
 
-.modal-backdrop {
-  animation: backdropIn 0.18s ease;
-}
-
-.modal-sheet {
-  animation: sheetUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.tab-content {
-  animation: fadeIn 0.16s ease;
-}
-
-/* Shell do app (mobile-first) */
 .app-shell {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--color-paper);
   color: var(--color-ink);
-  width: 100%;
-  max-width: 430px;
-  margin: 0 auto;
   position: relative;
-  border-radius: 20px;
-  overflow: hidden;
-  border: 1px solid var(--color-line);
-  box-shadow: 0 12px 36px rgba(0,0,0,0.15);
-  height: 700px;
+  width: 100%;
+  min-height: 100dvh;
+  padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
 }
 
-/* Versão Desktop: adapta-se ao monitor */
-@media (min-width: 900px) {
+/* Área rolável: agora é o documento inteiro, não uma caixa de altura fixa. */
+.app-scroll {
+  min-height: 100dvh;
+}
+
+.app-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Faixa de cabeçalho dentro do conteúdo (ações contextuais da tela) */
+.screen-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.screen-title {
+  margin: 0;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+/* Conteúdo da aba: largura de leitura confortável no celular, sem teto de 720px
+   espremido no meio de uma tela de 1600px (isso agora é papel do grid). */
+.tab-content {
+  padding: 16px 16px 32px;
+  min-width: 0;
+}
+
+/* Visibilidade por dispositivo — evita duplicar estado. O MESMO componente de
+   contexto (mês, pessoa) é montado no topo da tela no celular e na topbar no
+   desktop; o que muda é só onde ele aparece. */
+.only-phone { display: block; }
+.only-desktop { display: none; }
+
+/* ============================================================================
+   NAVEGAÇÃO LATERAL (desktop)
+   ========================================================================== */
+.app-sidebar { display: none; }
+
+/* ============================================================================
+   TOPBAR (desktop): contexto global — mês e pessoa — em um só lugar
+   ========================================================================== */
+.app-topbar { display: none; }
+
+/* ============================================================================
+   BARRA INFERIOR (mobile e tablet)
+   ========================================================================== */
+.app-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: var(--color-card);
+  border-top: 1px solid var(--color-line);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--tabbar-height) + 16px + env(safe-area-inset-bottom, 0px));
+  z-index: 41;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-green);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 18px rgba(31, 93, 76, 0.4);
+}
+.app-fab:hover { background: #1A5041; }
+
+/* ============================================================================
+   TABLET — 560px+
+   ========================================================================== */
+@media (min-width: 560px) {
+  .tab-content { padding: 20px 24px 40px; }
+  /* Grades de apoio passam a duas colunas antes de virar layout de desktop. */
+  .grid-auto { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+}
+
+/* ============================================================================
+   DESKTOP — 980px+
+   ========================================================================== */
+@media (min-width: 980px) {
   .app-shell {
-    height: calc(100vh - 40px);
-    max-width: 960px;
-    border-radius: 24px;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    grid-template-rows: var(--topbar-height) minmax(0, 1fr);
+    grid-template-areas:
+      "sidebar topbar"
+      "sidebar content";
+    min-height: 100dvh;
+    padding-bottom: 0;
   }
-  .app-shell .tab-content {
-    max-width: 720px;
-    margin: 0 auto;
+
+  .app-sidebar {
+    grid-area: sidebar;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+    background: var(--color-card);
+    border-right: 1px solid var(--color-line);
+    padding: 20px 14px;
   }
+
+  .app-topbar {
+    grid-area: topbar;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: rgba(251, 249, 241, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--color-line-soft);
+    padding: 10px 32px;
+  }
+
+  .app-main {
+    grid-area: content;
+    min-width: 0;
+  }
+
+  .tab-content {
+    padding: 24px 32px 48px;
+    max-width: 1320px; /* teto de conforto; o grid é que organiza o resto */
+  }
+
+  /* Duas colunas: coluna de decisão + coluna de apoio. */
+  .grid-auto {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+    gap: 20px;
+    align-items: start;
+    max-width: none;
+  }
+
+  .app-tabbar, .app-fab { display: none; }
+
+  .only-phone { display: none; }
+  .only-desktop { display: block; }
+}
+
+/* Telas muito largas: três colunas de cartões de apoio. */
+@media (min-width: 1440px) {
+  .tab-content { max-width: 1480px; }
+  .grid-auto { grid-template-columns: minmax(0, 1.7fr) minmax(340px, 1fr); gap: 24px; }
 }
