@@ -5,10 +5,11 @@ import { computeHealthScore } from './utils/health';
 import { SEED_ACCOUNTS, SEED_TRANSACTIONS, SEED_PLANNED, SEED_GOALS, BUDGETS, MEMBERS, INITIAL_BALANCE, TODAY_MONTH, TODAY_DATE } from './constants/seedData';
 import {
   fmt, fmtDate, monthKey, round2, statusFor, plannedStatus, displayStatus,
-  memberLabel, inScope, addMonths, monthDiff, monthLabel, generatePlannedOccurrences,
-  accountBalance, buildOpenItems, monthlyCashFlow
+  memberLabel, inScope, addMonths, monthDiff, monthLabel, monthLabelFull, generatePlannedOccurrences,
+  accountBalance, buildOpenItems, monthlyCashFlow, salarioLiquidoDoMes
 } from './utils/formatters';
 import { processarContas, pacing, agruparDespesas } from './services/prioritizador/index.js';
+import { resumoReserva, entradasRestritasPorDia, saldoRestritoAcumulado, ehReceitaRestrita } from './services/prioritizador/reserva.js';
 import {
   loadInitialData, syncTransactionToSupabase, deleteTransactionFromSupabase,
   syncPlannedToSupabase, deletePlannedFromSupabase, isSupabaseConfigured,
@@ -16,7 +17,7 @@ import {
   syncSourceToSupabase, deleteSourceFromSupabase,
   syncCategoryToSupabase, deleteCategoryFromSupabase,
   syncIdeaToSupabase, deleteIdeaFromSupabase,
-  clearSupabaseData
+  saveSetting, clearSupabaseData
 } from './lib/supabase';
 
 // UI & Layout Components
@@ -42,6 +43,7 @@ import { PriorizacaoView } from './components/views/PriorizacaoView';
 import { DadosView } from './components/views/DadosView';
 import { FontesView } from './components/views/FontesView';
 import { ExtratoView } from './components/views/ExtratoView';
+import { ReservaView } from './components/views/ReservaView';
 
 // Modals
 import { TransactionFormModal } from './components/modals/TransactionFormModal';
@@ -85,6 +87,11 @@ function FinanceApp() {
   const [sources, setSources] = useState([]);
   const [categories, setCategories] = useState(CATEGORIES);
   const [ideas, setIdeas] = useState([]);
+  // Reserva mínima: teto fixo configurado em Mais › Reserva mínima.
+  // Guardado no LocalStorage (sempre) e no Supabase quando disponível.
+  const [reservaConfig, setReservaConfig] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('gf_reserva')) || { limite: 0 }; } catch (e) { return { limite: 0 }; }
+  });
   const [extratoAccount, setExtratoAccount] = useState(null);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("todos");
@@ -104,7 +111,14 @@ function FinanceApp() {
       if (data.budgets) setBudgets(data.budgets);
       if (data.sources) setSources(data.sources);
       if (Array.isArray(data.ideas)) setIdeas(data.ideas);
-      if (Array.isArray(data.categories) && data.categories.length) setCategories(buildCategoriesObject(data.categories));
+      if (data.settings && data.settings.reserva) setReservaConfig({ limite: Number(data.settings.reserva.limite) || 0 });
+      if (Array.isArray(data.categories) && data.categories.length) {
+        const obj = buildCategoriesObject(data.categories);
+        // A receita de transporte da sobra da reserva precisa da categoria própria.
+        const usaReserva = (data.planned || []).some((p) => p.category === "reserva") || (data.transactions || []).some((t) => t.category === "reserva");
+        if (usaReserva && !obj.reserva) obj.reserva = { ...CATEGORIES.reserva };
+        setCategories(obj);
+      }
     });
   }, []);
 
@@ -119,6 +133,14 @@ function FinanceApp() {
       localStorage.setItem('gf_ideas', JSON.stringify(ideas));
     }
   }, [accounts, transactions, planned, goals, categories, ideas]);
+
+  // Persistir a configuração da reserva mínima (local + Supabase).
+  const reservaSavedRef = useRef(false);
+  useEffect(() => {
+    try { localStorage.setItem('gf_reserva', JSON.stringify(reservaConfig)); } catch (e) { /* modo privado */ }
+    if (!reservaSavedRef.current) { reservaSavedRef.current = true; return; }
+    saveSetting('reserva', reservaConfig);
+  }, [reservaConfig]);
 
   useEffect(() => {
     if (!toast) return;
@@ -193,34 +215,80 @@ function FinanceApp() {
   const openItems = useMemo(() => buildOpenItems(planned, transactions, selectedMonth), [planned, transactions, selectedMonth]);
   const openExpenseTotal = useMemo(() => openItems.filter((i) => i.type === "expense").reduce((s, i) => s + (i.amount - i.paid), 0), [openItems]);
 
+  // Reserva mínima do mês: teto (valor fixo configurado ou 15% do salário
+  // líquido) menos o que foi lançado com a forma de pagamento "Reserva mínima".
+  // É o mesmo número que vira a linha tracejada do gráfico e a trava de liquidez.
+  const salarioMes = useMemo(() => salarioLiquidoDoMes(selectedMonth, planned, transactions, memberFilter), [selectedMonth, planned, transactions, memberFilter]);
+  // A reserva é MENSAL (não acumula): o saldo do mês é liquidado no fechamento
+  // e entra no mês seguinte como Receita (positivo) ou Despesa (negativo).
+  const reservaMes = useMemo(
+    () => resumoReserva({
+      planned, selectedMonth, memberFilter: "todos", config: reservaConfig,
+      salarioDoMes: (m) => salarioLiquidoDoMes(m, planned, transactions, memberFilter),
+    }),
+    [planned, selectedMonth, reservaConfig, transactions, memberFilter]
+  );
+
+  // Dinheiro restrito (cartão alimentação): só paga a categoria dele e É
+  // acumulativo — o que não foi gasto entra positivo no mês seguinte.
+  const carryRestrito = useMemo(
+    () => saldoRestritoAcumulado({ planned, selectedMonth, memberFilter: "todos" }),
+    [planned, selectedMonth]
+  );
+  const beneficioMes = useMemo(
+    () => entradasRestritasPorDia({ planned, selectedMonth, memberFilter: "todos", carryInicial: carryRestrito }),
+    [planned, selectedMonth, carryRestrito]
+  );
+
   // Classificação do Motor de Priorização + simulação diária (tópico #23).
   // Recebimentos ficam primeiro; despesas seguem a fila. Despesas de cartão viram
   // uma "Fatura <cartão>" (rotativo G4); débito/pix automático saem da fila.
   const priorizacaoHome = useMemo(() => {
-    if (!openItems.length) return { items: openItems, postergadas: [], pacing: null, dias: [], reservaMinima: 0, autoDetalhes: [] };
+    // Reserva mínima também quando não há contas em aberto (para o card da Início).
+    const reservaPayload = {
+      reservaMinima: reservaMes.limite,
+      reservaUsada: reservaMes.usado,
+      reservaDisponivel: reservaMes.disponivel,
+      reservaItens: reservaMes.itens,
+      reservaConfigurada: reservaMes.configurado,
+      reservaAporte: reservaMes.aporte,
+      reservaReceita: reservaMes.receitaDoMesAnterior,
+      reservaDespesa: reservaMes.despesaDoMesAnterior,
+      reservaSobra: reservaMes.sobra,
+      reservaDeficit: reservaMes.deficit,
+    };
+    if (!openItems.length) return { items: openItems, postergadas: [], pacing: null, dias: [], autoDetalhes: [], ...reservaPayload };
     const expenses = openItems.filter((i) => i.type === "expense").map((i) => ({ ...i, formaPagamento: i.formaPagamento || "normal" }));
     const incomes = openItems.filter((i) => i.type !== "expense");
     const ded = (o) => (o.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
     const occ = generatePlannedOccurrences(planned, selectedMonth);
 
-    const salario = occ.filter((o) => o.type === "income" && o.category === "salario" && inScope(o.memberId, memberFilter)).reduce((s, o) => s + Math.max(0, (Number(o.amount) || 0) - ded(o)), 0)
-      + transactions.filter((t) => monthKey(t.date) === selectedMonth && t.type === "income" && t.category === "salario" && inScope(t.memberId, memberFilter)).reduce((s, t) => {
-          const tpl = planned.find((x) => x.id === t.plannedId);
-          return s + Math.max(0, (Number(t.amount) || 0) - (tpl ? ded(tpl) : 0));
-        }, 0);
-    const reservaMinima = round2(salario * 0.15);
+    // Teto da reserva: valor fixo configurado ou 15% do salário líquido.
+    const reservaMinima = reservaMes.limite;
 
     const entradas = {};
-    occ.filter((o) => o.type === "income" && inScope(o.memberId, memberFilter)).forEach((o) => {
+    // Receita restrita (cartão alimentação) NÃO entra no caixa livre — ela vai
+    // para o bolso restrito do dia e só paga a categoria dela.
+    occ.filter((o) => o.type === "income" && !ehReceitaRestrita(o) && inScope(o.memberId, memberFilter)).forEach((o) => {
       const d = Number(o.dueDate.slice(8, 10));
       entradas[d] = (entradas[d] || 0) + Math.max(0, (Number(o.amount) || 0) - ded(o));
     });
 
     const g = agruparDespesas(expenses, accounts, selectedMonth);
-    const res = processarContas(g.contas, { referenciaHoje: TODAY_DATE, saldoInicial: availableBalance, salario, reservaMinima, entradas, pagamentosAgendados: g.agendados });
+    const res = processarContas(g.contas, {
+      referenciaHoje: TODAY_DATE,
+      saldoInicial: availableBalance,
+      reservaMinima,
+      // Uso da reserva por dia: faz a trava de liquidez (e a linha tracejada) cair.
+      usosReserva: reservaMes.porDia,
+      entradas,
+      entradasRestritas: beneficioMes.porDia,
+      pagamentosAgendados: g.agendados,
+    });
 
     const meta = {};
-    res.contas.forEach((c) => { meta[c.id] = { motorRank: c.prioridade, motorG: c.G, motorS: c.S, motorStatus: c.status, motorStatusLabel: c.statusLabel, diasEmAtraso: c.diasEmAtraso, vencida: c.vencida, jurosEstimados: c.jurosEstimados }; });
+    res.contas.forEach((c) => { meta[c.id] = { motorRank: c.prioridade, motorG: c.G, motorS: c.S, motorStatus: c.status, motorStatusLabel: c.statusLabel, diasEmAtraso: c.diasEmAtraso, vencida: c.vencida, jurosEstimados: c.jurosEstimados, dataIndicada: c.dataIndicada, diaVencimento: c.diaVencimento }; });
+    // A data sugerida (dia pago pelo motor) é a data indicada quando existe.
     (res.fluxoDiario?.pagas || []).forEach((p) => { if (meta[p.id]) meta[p.id].dataSugerida = p.dia; });
 
     // Ids a excluir da lista individual (auto / cartão agrupado).
@@ -231,7 +299,8 @@ function FinanceApp() {
     const normais = expenses.filter((e) => !autoIds.has(e.occId) && !cartaoIds.has(e.occId)).map((e) => ({ ...e, ...(meta[e.occId] || {}) }));
     const faturas = g.cartaoFaturas.map((f) => ({ occId: f.id, id: f.id, description: f.description, amount: f.amount, dueDate: f.dueDate, category: f.category, memberId: f.memberId, priority: f.priority, recurrence: "unica", paid: 0, salaryDeductions: [], agrupadas: f.agrupadas, itens: f.itens, ...(meta[f.id] || {}) }));
 
-    const inc = incomes.map((i) => ({ ...i, motorRank: 0 })).sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
+    // Receitas entram na lista pela DATA (o motor não calcula data para elas).
+    const inc = incomes.map((i) => ({ ...i })).sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
     const exp = [...normais, ...faturas].sort((a, b) => (a.motorRank ?? 999) - (b.motorRank ?? 999));
 
     // Pacing de mercado.
@@ -244,8 +313,8 @@ function FinanceApp() {
     const gastoSemana = transactions.filter((t) => t.type === "expense" && t.category === "alimentacao" && monthKey(t.date) === selectedMonth && Math.min(4, Math.ceil(new Date(t.date + "T00:00:00").getDate() / 7)) === semanaAtual).reduce((s, t) => s + t.amount, 0);
     const pac = orcamentoMercado > 0 ? pacing({ orcamentoMensalMercado: orcamentoMercado, gastosSemana: gastoSemana, diasRestantesSemana: Math.max(1, 7 - ((diaHoje - 1) % 7)) }) : null;
 
-    return { items: [...inc, ...exp], postergadas: res.fluxoDiario?.postergadas || [], pacing: pac, dias: res.fluxoDiario?.dias || [], reservaMinima, autoDetalhes: g.autoDetalhes };
-  }, [openItems, transactions, planned, selectedMonth, availableBalance, budgets, memberFilter, accounts]);
+    return { items: [...inc, ...exp], postergadas: res.fluxoDiario?.postergadas || [], pacing: pac, dias: res.fluxoDiario?.dias || [], autoDetalhes: g.autoDetalhes, ...reservaPayload };
+  }, [openItems, transactions, planned, selectedMonth, availableBalance, budgets, memberFilter, accounts, reservaMes, beneficioMes]);
 
   const availableNow = availableBalance - openExpenseTotal;
 
@@ -264,14 +333,19 @@ function FinanceApp() {
   }), [monthOccurrences, transactions, selectedMonth]);
 
   const monthProjection = useMemo(() => {
-    let pendingIncome = 0, pendingExpense = 0;
+    let pendingIncome = 0, pendingExpense = 0, pendingRestrito = 0;
     openItemsAvailable.forEach((i) => {
       // Salário em aberto entra pelo LÍQUIDO (bruto − descontos do holerite).
       const deduction = (i.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
-      if (i.type === "income") pendingIncome += Math.max(0, (i.amount - i.paid) - deduction);
-      else if (i.type === "expense") pendingExpense += (i.amount - i.paid);
+      if (i.type === "income") {
+        const valor = Math.max(0, (i.amount - i.paid) - deduction);
+        // Receita restrita (cartão alimentação) não paga as outras contas:
+        // fica fora do "a receber" e do saldo projetado.
+        if (ehReceitaRestrita(i)) pendingRestrito += valor;
+        else pendingIncome += valor;
+      } else if (i.type === "expense") pendingExpense += (i.amount - i.paid);
     });
-    return { pendingIncome, pendingExpense, endBalance: availableBalance + pendingIncome - pendingExpense };
+    return { pendingIncome, pendingExpense, pendingRestrito, endBalance: availableBalance + pendingIncome - pendingExpense };
   }, [openItemsAvailable, availableBalance]);
   // Saldo no fim do mês — Melhoria #19 (Ajustes e Melhorias):
   // Cada barra mostra o saldo projetado no FIM do mês. A 1ª barra (mês selecionado)
@@ -750,7 +824,7 @@ function FinanceApp() {
     <div className="app-shell">
       <div style={{ position: "absolute", inset: 0, overflowY: "auto" }}>
         <div key={tab + (moreView || "")} className="tab-content" style={{ padding: "20px 18px 96px" }}>
-          {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={netIncome} monthExpense={netExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={priorizacaoHome.items} postergadas={priorizacaoHome.postergadas} pacing={priorizacaoHome.pacing} dias={priorizacaoHome.dias} reservaMinima={priorizacaoHome.reservaMinima} autoDetalhes={priorizacaoHome.autoDetalhes} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
+          {tab === "inicio" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={netIncome} monthExpense={netExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={priorizacaoHome.items} postergadas={priorizacaoHome.postergadas} pacing={priorizacaoHome.pacing} dias={priorizacaoHome.dias} reservaMinima={priorizacaoHome.reservaMinima} reservaUsada={priorizacaoHome.reservaUsada} reservaDisponivel={priorizacaoHome.reservaDisponivel} reservaItens={priorizacaoHome.reservaItens} reservaConfigurada={priorizacaoHome.reservaConfigurada} reservaAporte={priorizacaoHome.reservaAporte} reservaReceita={priorizacaoHome.reservaReceita} reservaDespesa={priorizacaoHome.reservaDespesa} reservaSobra={priorizacaoHome.reservaSobra} reservaDeficit={priorizacaoHome.reservaDeficit} beneficio={beneficioMes} carryRestrito={carryRestrito} selectedMonth={selectedMonth} onOpenReserva={() => { setTab("mais"); setMoreView("reserva"); }} autoDetalhes={priorizacaoHome.autoDetalhes} memberFilter={memberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} /></>}
           {tab === "transacoes" && <><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><TransacoesView closedList={filteredTx} openItems={openItems} memberFilter={memberFilter} search={search} setSearch={setSearch} filterType={filterType} setFilterType={setFilterType} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} accounts={accounts} onEdit={(t) => { const linkedPlanned = t.plannedId ? planned.find((p) => p.id === t.plannedId) : null; if (linkedPlanned) { setEditingPlanned(linkedPlanned); setShowPlannedForm(true); } else { setEditingTx(t); setShowForm(true); } }} onDelete={deleteTransaction} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} /></>}
           {tab === "orcamento" && <><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><OrcamentoView budgets={budgetsWithSpent} memberFilter={memberFilter} /></>}
           {tab === "mais" && moreView === null && <MaisMenuView onSelect={setMoreView} />}
@@ -762,9 +836,10 @@ function FinanceApp() {
           {tab === "mais" && moreView === "relatorios" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><RelatoriosView month={selectedMonth} transactions={transactions} planned={planned} sources={sources} /></>}
           {tab === "mais" && moreView === "regra" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /><Regra503020View income={monthIncome} expenses={currentMonthTx.filter((t) => t.type === "expense")} /></>}
           {tab === "mais" && moreView === "projecao" && <><BackRow onBack={() => setMoreView(null)} /><ProjecaoView planned={nonReservedPlanned} transactions={nonReservedTx} balance={availableBalance} memberFilter={memberFilter} setMemberFilter={setMemberFilter} /></>}
-          {tab === "mais" && moreView === "priorizacao" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><PriorizacaoView planned={nonReservedPlanned} transactions={nonReservedTx} budgets={budgets} accounts={accounts} selectedMonth={selectedMonth} availableBalance={availableBalance} memberFilter={memberFilter} /></>}
+          {tab === "mais" && moreView === "priorizacao" && <><BackRow onBack={() => setMoreView(null)} /><MonthNav month={selectedMonth} onChange={setSelectedMonth} /><PriorizacaoView planned={nonReservedPlanned} transactions={nonReservedTx} budgets={budgets} accounts={accounts} selectedMonth={selectedMonth} availableBalance={availableBalance} memberFilter={memberFilter} reservaConfig={reservaConfig} /></>}
           {tab === "mais" && moreView === "dados" && <><BackRow onBack={() => setMoreView(null)} /><DadosView onExport={exportData} onImport={() => fileInputRef.current && fileInputRef.current.click()} onReset={resetToSeed} onClearSupabase={clearSupabase} /></>}
           {tab === "mais" && moreView === "fontes" && <><FontesView sources={sources} onBack={() => setMoreView(null)} onSave={saveSource} onDelete={deleteSource} /></>}
+          {tab === "mais" && moreView === "reserva" && <ReservaView onBack={() => setMoreView(null)} month={selectedMonth} onMonthChange={setSelectedMonth} reserva={reservaMes} config={reservaConfig} salario={salarioMes} onSaveConfig={setReservaConfig} />}
         </div>
       </div>
 
@@ -795,7 +870,7 @@ function FinanceApp() {
       ))}
       {contributeTarget && <ContributeModal goal={contributeTarget} accounts={accounts} onClose={() => setContributeTarget(null)} onSubmit={(payload) => contributeToGoal(contributeTarget, payload)} />}
       {showGoalForm && <GoalFormModal accounts={accounts} onClose={() => setShowGoalForm(false)} onSubmit={addGoal} />}
-      {showCloseMonth && <CloseMonthModal month={selectedMonth} items={plannedWithStatus} monthIncome={monthIncome} monthExpense={monthExpense} onMove={movePlannedToNextMonth} onClose={() => setShowCloseMonth(false)} />}
+      {showCloseMonth && <CloseMonthModal month={selectedMonth} items={plannedWithStatus} monthIncome={monthIncome} monthExpense={monthExpense} onMove={movePlannedToNextMonth} reserva={reservaMes} onClose={() => setShowCloseMonth(false)} />}
       {showAccountForm && <AccountFormModal editing={editingAccount} onClose={() => { setShowAccountForm(false); setEditingAccount(null); }} onSubmit={handleAccountSubmit} />}
       {accountAction && <AccountScopeModal account={accountAction.account} action={accountAction.action} onConfirm={confirmAccountAction} onClose={() => setAccountAction(null)} />}
     </div>

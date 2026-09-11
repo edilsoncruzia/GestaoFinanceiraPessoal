@@ -100,6 +100,9 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
   });
   const setCampo = (k, v) => setCampos((prev) => ({ ...prev, [k]: v }));
   const [formaPagamento, setFormaPagamento] = useState(editing ? (editing.formaPagamento || "normal") : "normal");
+  // Receita restrita (benefício): o dinheiro só pode pagar uma categoria.
+  const [restrito, setRestrito] = useState(editing ? Boolean(editing.restritoCategoria) : false);
+  const [restritoCategoria, setRestritoCategoria] = useState(editing && editing.restritoCategoria ? editing.restritoCategoria : "alimentacao");
 
   const categories = useCategories();
   const options = Object.entries(categories).filter(([, c]) => c.type === type);
@@ -168,6 +171,8 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
       salaryDeductions: (type === "income" && category === "salario") ? salaryDeductions.filter((d) => d.label.trim()) : undefined,
       includeInIR: type === "expense" ? includeInIR : undefined,
       formaPagamento: type === "expense" ? formaPagamento : undefined,
+      // Só receitas podem ser restritas (cartão alimentação / vale).
+      restritoCategoria: (type === "income" && restrito) ? restritoCategoria : undefined,
       ...(type === "expense" ? {
         multa_fixa_porcentagem: campos.multa_fixa_porcentagem === "" ? null : Number(campos.multa_fixa_porcentagem),
         multa_fixa_valor: Number(campos.multa_fixa_valor) || 0,
@@ -250,6 +255,31 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
               </select>
             </FormField>
           )}
+          {type === "income" && (
+            <div style={{ margin: "0 0 12px", padding: "12px 14px", borderRadius: 12, background: COLORS.card, border: "1px solid " + (restrito ? COLORS.amber : COLORS.line) }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={restrito} onChange={(e) => setRestrito(e.target.checked)} style={{ marginTop: 2 }} />
+                <span style={{ fontSize: 13, color: COLORS.ink }}>
+                  Uso restrito (benefício)
+                  <span style={{ display: "block", fontSize: 11, color: COLORS.muted, marginTop: 2 }}>
+                    Ex.: cartão alimentação. O valor entra no dia do vencimento, mas <strong>não</strong> conta como dinheiro livre para pagar as outras contas.
+                  </span>
+                </span>
+              </label>
+              {restrito && (
+                <div style={{ marginTop: 10 }}>
+                  <FormField label="Só pode ser usado em">
+                    <select value={restritoCategoria} onChange={(e) => setRestritoCategoria(e.target.value)} style={inputStyle}>
+                      {expenseOptions.map(([key, c]) => <option key={key} value={key}>{c.label}</option>)}
+                    </select>
+                  </FormField>
+                  <p style={{ fontSize: 11, color: COLORS.muted, margin: 0 }}>
+                    As contas dessa categoria são pagas primeiro com esse valor; nenhuma outra conta pode usá-lo.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
           {type === "expense" && (
             <FormField label="Forma de pagamento">
               <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} style={inputStyle}>
@@ -257,7 +287,13 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
                 <option value="debito_automatico">Débito automático</option>
                 <option value="cartao">Cartão (automático)</option>
                 <option value="pix_automatico">Pix automático</option>
+                <option value="reserva">Reserva mínima (uso do limite)</option>
               </select>
+              {formaPagamento === "reserva" && (
+                <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>
+                  Marque aqui o que você tirou da reserva mínima. O valor abate o limite da reserva e baixa a linha tracejada do gráfico (Início).
+                </p>
+              )}
             </FormField>
           )}
           {type === "expense" && (

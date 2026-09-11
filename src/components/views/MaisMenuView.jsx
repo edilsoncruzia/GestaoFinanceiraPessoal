@@ -1,5 +1,5 @@
 import React from 'react';
-import { Landmark, Target, PieChart as PieChartIcon, LayoutGrid, TrendingUp, FileJson, ChevronRight, ArrowLeft, Users, Tag, Receipt, Lightbulb, LogOut, ListOrdered } from 'lucide-react';
+import { Landmark, Target, PieChart as PieChartIcon, LayoutGrid, TrendingUp, FileJson, ChevronRight, ArrowLeft, Users, Tag, Receipt, Lightbulb, LogOut, ListOrdered, PiggyBank } from 'lucide-react';
 import { COLORS } from '../../constants/tokens';
 import { SectionTitle } from '../ui/SectionTitle';
 
@@ -14,6 +14,7 @@ export function BackRow({ onBack }) {
 export function MaisMenuView({ onSelect, onLogout, userName }) {
   const items = [
     ["contas", "Contas e cartões", Landmark],
+    ["reserva", "Reserva mínima", PiggyBank],
     ["categorias", "Categorias", Tag],
     ["declaracao", "Declaração de IR", Receipt],
     ["metas", "Metas", Target],

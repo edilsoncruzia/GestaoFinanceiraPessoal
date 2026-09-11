@@ -4,6 +4,9 @@
 //    "pagamento agendado" no dia do vencimento.
 //  - 'cartao': as despesas individuais somem da fila e viram UMA "Fatura <cartão>"
 //    de rotativo (G4), vencendo no dia de vencimento do cartão.
+//  - 'reserva': consome a Reserva Mínima (mesma ideia de "limite" do cartão), mas
+//    CONTINUA na fila — é uma conta a pagar de verdade; o que ela faz é abater o
+//    limite da reserva e derrubar a trava de liquidez dia a dia.
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -19,6 +22,9 @@ export function agruparDespesas(despesas, contasBancarias, selectedMonth) {
       const day = new Date((d.dueDate || d.due_date) + "T00:00:00").getDate();
       agendados[day] = (agendados[day] || 0) + (Number(d.amount) || 0);
       autoDetalhes.push({ id: d.id, description: d.description, amount: d.amount, dueDate: d.dueDate || d.due_date, forma });
+    } else if (forma === "reserva") {
+      // Uso da reserva mínima: segue na fila normalmente (o pagamento é real).
+      contas.push(d);
     } else if (forma === "cartao") {
       const acc = (contasBancarias || []).find((a) => a.id === (d.accountId ?? d.account_id));
       if (acc && acc.type === "cartao") {

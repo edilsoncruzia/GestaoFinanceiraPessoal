@@ -20,7 +20,7 @@ export const supabase = isSupabaseConfigured
 export async function loadInitialData() {
   if (isSupabaseConfigured && supabase) {
     try {
-      const [accountsRes, txRes, plannedRes, goalsRes, budgetsRes, sourcesRes, categoriesRes, ideasRes] = await Promise.all([
+      const [accountsRes, txRes, plannedRes, goalsRes, budgetsRes, sourcesRes, categoriesRes, ideasRes, settingsRes] = await Promise.all([
         supabase.from('accounts').select('*'),
         supabase.from('transactions').select('*'),
         supabase.from('planned').select('*'),
@@ -29,6 +29,7 @@ export async function loadInitialData() {
         supabase.from('sources').select('*'),
         supabase.from('categories').select('*'),
         supabase.from('ideas').select('*'),
+        supabase.from('settings').select('key, value'),
       ]);
 
       // Só cai no fallback de exemplo se as tabelas PRINCIPAIS (contas/transações) falharem.
@@ -51,6 +52,9 @@ export async function loadInitialData() {
           sources: sourcesRes.error ? [] : (sourcesRes.data || []).map(mapSourceFromDb),
           categories,
           ideas: ideasRes.error ? [] : (ideasRes.data || []).map(mapIdeaFromDb),
+          // Configurações do app (ex.: teto da Reserva mínima). Ausência da
+          // tabela não é erro — cai no que estiver salvo no LocalStorage.
+          settings: settingsRes && !settingsRes.error ? parseSettingsRows(settingsRes.data) : null,
         };
       }
     } catch (err) {
@@ -74,6 +78,25 @@ export async function loadInitialData() {
     categories: localCategories ? JSON.parse(localCategories) : null,
     ideas: localIdeas ? JSON.parse(localIdeas) : [],
   };
+}
+
+function parseSettingsRows(rows) {
+  const out = {};
+  (rows || []).forEach((r) => {
+    try { out[r.key] = JSON.parse(r.value); } catch (e) { out[r.key] = r.value; }
+  });
+  return out;
+}
+
+// Salva uma configuração do app (chave -> valor JSON). Best-effort: se a tabela
+// "settings" ainda não existir, o LocalStorage continua sendo a fonte da verdade.
+export async function saveSetting(key, value) {
+  if (!isSupabaseConfigured || !supabase) return;
+  try {
+    await supabase.from('settings').upsert({ key, value: JSON.stringify(value) }, { onConflict: 'key' });
+  } catch (e) {
+    console.warn('Configuração "' + key + '" não sincronizada com o Supabase:', e);
+  }
 }
 
 // Mapeadores DB -> Frontend
@@ -152,7 +175,8 @@ function mapPlannedFromDb(p) {
     dias_para_sancao: Number(p.dias_para_sancao) || 30,
     aceita_pagamento_parcial: Boolean(p.aceita_pagamento_parcial),
     valor_minimo: Number(p.valor_minimo) || 0,
-    formaPagamento: p.forma_pagamento || "normal"
+    formaPagamento: p.forma_pagamento || "normal",
+    restritoCategoria: p.restrito_categoria || null
   };
 }
 
@@ -258,7 +282,10 @@ export async function syncPlannedToSupabase(p) {
       dias_para_sancao: Number(p.dias_para_sancao) || 30,
       aceita_pagamento_parcial: Boolean(p.aceita_pagamento_parcial),
       valor_minimo: Number(p.valor_minimo) || 0,
-      forma_pagamento: (p.formaPagamento && p.formaPagamento !== "normal") ? p.formaPagamento : undefined
+      forma_pagamento: (p.formaPagamento && p.formaPagamento !== "normal") ? p.formaPagamento : undefined,
+      // Só vai para o banco quando existe (a coluna é criada pela migração
+      // migration_beneficio.sql; sem ela o resto do lançamento salva normal).
+      restrito_categoria: (p.type === "income" && p.restritoCategoria) ? p.restritoCategoria : undefined
     };
 
     if (p.id && typeof p.id === 'number' && p.id < 1000000000000) {

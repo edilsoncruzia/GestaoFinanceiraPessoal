@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, ShieldAlert, Gauge, TrendingDown, ListOrdered, Coins, PiggyBank, Wallet, CalendarClock, ArrowDownLeft, CreditCard } from 'lucide-react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { COLORS } from '../../constants/tokens';
 import { fmt, fmtDate, monthKey, inScope, generatePlannedOccurrences, buildOpenItems, monthLabelFull, round2 } from '../../utils/formatters';
 import { TODAY_DATE } from '../../constants/seedData';
@@ -10,7 +10,7 @@ import { SectionTitle } from '../ui/SectionTitle';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 
-export function PriorizacaoView({ planned, transactions, budgets, accounts, selectedMonth, availableBalance, memberFilter }) {
+export function PriorizacaoView({ planned, transactions, budgets, accounts, selectedMonth, availableBalance, memberFilter, reservaConfig }) {
   const inScope_ = (id) => inScope(id, memberFilter);
   const ded = (o) => (o.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
 
@@ -41,10 +41,16 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
         const tpl = (planned || []).find((x) => x.id === t.plannedId);
         return s + Math.max(0, (Number(t.amount) || 0) - (tpl ? ded(tpl) : 0));
       }, 0);
-  const reservaMinima = round2(salario * RESERVA_MINIMA_PCT);
+  // Teto da reserva: valor fixo configurado (Mais › Reserva mínima) ou, na
+  // falta dele, os 15% do salário líquido.
+  const reservaLimiteFixo = Number(reservaConfig && reservaConfig.limite) || 0;
+  const reservaBase = reservaLimiteFixo > 0 ? round2(reservaLimiteFixo) : round2(salario * RESERVA_MINIMA_PCT);
+  const reservaMinima = reservaBase;
   const saldoParaContas = round2((availableBalance != null ? availableBalance : 0) - reservaMinima);
 
   const resultado = processarDespesas(despesas, accounts || [], selectedMonth, { referenciaHoje: TODAY_DATE, saldoInicial: availableBalance != null ? availableBalance : 0, salario, reservaMinima, entradas });
+  const reservaUsada = resultado.reservaUsada || 0;
+  const reservaDisponivel = round2(reservaBase - reservaUsada);
 
   const totalOrcado = occ.filter((o) => o.type === "expense" && inScope_(o.memberId)).reduce((s, o) => s + Number(o.amount || 0), 0);
   const saidaRealCaixa = (transactions || []).filter((t) => monthKey(t.date) === selectedMonth && t.type === "expense" && inScope_(t.memberId)).reduce((s, t) => s + t.amount, 0);
@@ -93,15 +99,18 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <div>
-            <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 2px" }}>Reserva mínima (15% do salário líquido)</p>
-            <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: COLORS.ink }}>{fmt(reservaMinima)}</p>
+            <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 2px" }}>{reservaLimiteFixo > 0 ? "Reserva mínima (valor configurado)" : "Reserva mínima (15% do salário líquido)"}</p>
+            <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: COLORS.ink }}>{fmt(reservaDisponivel)}</p>
           </div>
           <div>
             <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 2px" }}>Disponível para contas</p>
             <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: saldoParaContas >= 0 ? COLORS.green : COLORS.rust }}>{fmt(saldoParaContas)}</p>
           </div>
         </div>
-        <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>Base: salário líquido do mês ({fmt(salario)}). A reserva protege transporte, pequenas despesas e imprevistos (Seção 4.1).</p>
+        <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>
+          Teto {fmt(reservaBase)} · usado na reserva {fmt(reservaUsada)} · disponível {fmt(reservaDisponivel)}.
+          Base do teto: {reservaLimiteFixo > 0 ? "valor fixo configurado em Mais › Reserva mínima" : "15% do salário líquido do mês (" + fmt(salario) + ")"} (Seção 4.1).
+        </p>
       </Card>
 
       {/* Duplo totalizador */}
@@ -235,12 +244,16 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
                 <XAxis dataKey="dia" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={4} />
                 <YAxis hide />
                 <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line }} />
-                <ReferenceLine y={reservaMinima} stroke={COLORS.amber} strokeDasharray="4 4" />
                 <Line type="monotone" dataKey="saldo" stroke={COLORS.green} strokeWidth={2.5} dot={false} />
+                {/* Reserva mínima: linha tracejada que desce conforme a reserva é usada. */}
+                <Line type="stepAfter" dataKey="reserva" stroke={COLORS.amber} strokeWidth={2} strokeDasharray="4 4" dot={false} name="Reserva mínima" />
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p style={{ fontSize: 11, color: COLORS.muted, margin: "4px 0 0" }}>Linha tracejada = reserva mínima ({fmt(reservaMinima)}). A linha verde é o saldo previsto dia a dia.</p>
+          <p style={{ fontSize: 11, color: COLORS.muted, margin: "4px 0 0" }}>
+            Linha verde = saldo previsto dia a dia. Linha tracejada = reserva mínima, que desce conforme você lança nela
+            {reservaUsada > 0 ? " (usado " + fmt(reservaUsada) + ", restam " + fmt(reservaDisponivel) + ")" : " (" + fmt(reservaMinima) + ")"}.
+          </p>
         </Card>
       )}
     </div>

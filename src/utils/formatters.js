@@ -155,13 +155,30 @@ export function monthlyCashFlow(month, transactions, planned, memberFilter, rese
     occ.forEach((o) => {
       const amt = Number(o.amount) || 0;
       const ded = (o.salaryDeductions ? o.salaryDeductions : []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
-      if (o.type === "income") receitas += Math.max(0, amt - ded); // salário entra líquido
+      // Receita restrita (cartão alimentação) não é caixa livre: não entra no fluxo.
+      if (o.type === "income") { if (!o.restritoCategoria) receitas += Math.max(0, amt - ded); }
       else if (o.type === "expense") despesas += amt;
     });
     projected = true;
   }
 
   return { receitas: round2(receitas), despesas: round2(despesas), projected };
+}
+
+// Salário LÍQUIDO do mês (previsto + realizado). É a base do teto da reserva
+// mínima quando não há um valor fixo configurado (Seção 4.1).
+export function salarioLiquidoDoMes(month, planned, transactions, memberFilter) {
+  const ded = (o) => (o.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+  const previsto = generatePlannedOccurrences(planned || [], month)
+    .filter((o) => o.type === "income" && o.category === "salario" && inScope(o.memberId, memberFilter))
+    .reduce((s, o) => s + Math.max(0, (Number(o.amount) || 0) - ded(o)), 0);
+  const realizado = (transactions || [])
+    .filter((t) => monthKey(t.date) === month && t.type === "income" && t.category === "salario" && inScope(t.memberId, memberFilter))
+    .reduce((s, t) => {
+      const tpl = (planned || []).find((x) => x.id === t.plannedId);
+      return s + Math.max(0, (Number(t.amount) || 0) - (tpl ? ded(tpl) : 0));
+    }, 0);
+  return round2(previsto + realizado);
 }
 
 export function statusFor(spent, limit) {

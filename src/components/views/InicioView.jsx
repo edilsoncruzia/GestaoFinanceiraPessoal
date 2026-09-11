@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   Wallet, EyeOff, Eye, Coins, CalendarClock, Clock, Info, ArrowUpRight, ArrowDownLeft, ChevronRight,
   HeartPulse, Bell, AlertTriangle, TrendingUp, TrendingDown, Calendar,
-  Plus, Tag, CheckCircle2, MoreVertical, Pencil, Trash2, CreditCard, Download, Users, User
+  Plus, Tag, CheckCircle2, MoreVertical, Pencil, Trash2, CreditCard, Download, Users, User, PiggyBank, ShoppingCart, CalendarDays
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, LabelList, CartesianGrid, XAxis, YAxis, Tooltip, Cell, ReferenceLine, LineChart, Line } from 'recharts';
 import { COLORS, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
@@ -51,7 +51,16 @@ const monthBarTooltip = ({ active, payload, label }) => {
   );
 };
 
-export function PlannedCard({ item, onPay, onEdit, onDelete }) {
+const ehDespesaItem = (i) => i.type === "expense" || i.type === "transferencia";
+const pad = (n) => String(n).padStart(2, "0");
+// Data curta (dd/mm) para o chip de calendário dos cards de despesa.
+const dataCurta = (iso) => {
+  if (!iso) return "--/--";
+  const d = new Date(iso + "T00:00:00");
+  return Number.isFinite(d.getTime()) ? pad(d.getDate()) + "/" + pad(d.getMonth() + 1) : "--/--";
+};
+
+export function PlannedCard({ item, selectedMonth, onPay, onEdit, onDelete }) {
   const [confirming, setConfirming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const categories = useCategories();
@@ -64,6 +73,22 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
   const prio = PRIORITY[item.priority] || PRIORITY.importante;
   const isCouple = item.memberId == null;
   const MemberIcon = isCouple ? Users : User;
+
+  // Data indicada (quando o motor indica pagar) x data de vencimento real.
+  // As duas aparecem sempre que o motor já calculou a classificação da despesa;
+  // quando o caixa não cobre o valor no mês, a indicada repete o vencimento e
+  // fica em âmbar (o selo POSTERGADO / ATENÇÃO NECESSÁRIA mostra o risco).
+  // Se o motor achou um dia melhor, mostra ele; senão a indicada repete o dia
+  // do vencimento (e fica em âmbar). Para contas atrasadas a indicada é sempre
+  // a do mês selecionado — é ela que dá a posição delas na lista.
+  const diaIndicado = item.dataIndicada != null
+    ? item.dataIndicada
+    : (item.diaVencimento != null ? item.diaVencimento : null);
+  const temDataIndicada = ehDespesaItem(item) && Boolean(selectedMonth) && diaIndicado != null;
+  const dataIndicadaISO = selectedMonth + "-" + pad(diaIndicado || 1);
+  const dataIndicadaAjustada = item.dataIndicada != null
+    ? item.dataIndicada !== item.diaVencimento
+    : true;
 
   // Para salários com descontos em folha, o valor que importa é o LÍQUIDO.
   const salaryDeductions = item.category === "salario" ? (item.salaryDeductions || []) : [];
@@ -90,9 +115,22 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
         <CategoryIcon cat={item.category} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p className="serif" style={{ fontSize: 15.5, fontWeight: 600, margin: 0, color: COLORS.ink }}>{item.description}</p>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
             <RecIcon size={12} color={COLORS.muted} />
-            <span style={{ fontSize: 12, color: COLORS.muted }}>{recurrenceLabel(item)} · vence {fmtDate(item.dueDate)}{item.dataSugerida ? " · pagar dia " + item.dataSugerida : ""}</span>
+            <span style={{ fontSize: 12, color: COLORS.muted }}>{recurrenceLabel(item)}</span>
+            {temDataIndicada ? (
+              // DV = Data de Vencimento · DI = Data Indicada (calculada pelo motor)
+              <span title="DV = data de vencimento · DI = data indicada pelo motor" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 9px", borderRadius: 20, border: "1px solid " + COLORS.line, background: COLORS.card }}>
+                <CalendarDays size={13} color={COLORS.muted} />
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.muted }}>DV</span>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.ink }}>{dataCurta(item.dueDate)}</span>
+                <span style={{ color: COLORS.line }}>|</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.muted }}>DI</span>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: dataIndicadaAjustada ? COLORS.amber : COLORS.ink }}>{dataCurta(dataIndicadaISO)}</span>
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: COLORS.muted }}>· vence {fmtDate(item.dueDate)}</span>
+            )}
           </div>
           {item.motorG != null && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
@@ -112,6 +150,16 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
             <span style={{ fontSize: 12, color: COLORS.muted }}>{memberLabel(item.memberId)}</span>
             <span style={{ color: COLORS.line }}>|</span>
             <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: prio.color + "1A", color: prio.color }}>{prio.label}</span>
+            {(item.formaPagamento || "normal") === "reserva" && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: COLORS.amber + "1A", color: COLORS.amber }}>
+                <PiggyBank size={11} />Sai da reserva
+              </span>
+            )}
+            {item.type === "income" && item.restritoCategoria && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: "#C98A3B1A", color: "#8A5A1F" }}>
+                <ShoppingCart size={11} />Só {categories[item.restritoCategoria]?.label || item.restritoCategoria}
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
@@ -149,8 +197,8 @@ export function PlannedCard({ item, onPay, onEdit, onDelete }) {
   );
 }
 
-export function InicioView({ balance, availableBalance, reservedAmount, availableNow, monthProjection, isCurrentMonth, health, alerts, monthIncome, monthExpense, projectedBalance, onSelectMonth, openItems: allOpenItems, memberFilter, hideBalance, onToggleHide, onSeeAll, onPay, onEditPlanned, onDeletePlanned, onNewPlanned, onCloseMonth, postergadas, pacing, dias, reservaMinima, autoDetalhes }) {
-  const [sortBy, setSortBy] = useState("prioridade");
+export function InicioView({ balance, availableBalance, reservedAmount, availableNow, monthProjection, isCurrentMonth, health, alerts, monthIncome, monthExpense, projectedBalance, onSelectMonth, openItems: allOpenItems, memberFilter, hideBalance, onToggleHide, onSeeAll, onPay, onEditPlanned, onDeletePlanned, onNewPlanned, onCloseMonth, postergadas, pacing, dias, reservaMinima, reservaUsada, reservaDisponivel, reservaConfigurada, reservaAporte, reservaReceita, reservaDespesa, reservaSobra, reservaDeficit, beneficio, carryRestrito, selectedMonth, onOpenReserva, autoDetalhes }) {
+  const [sortBy, setSortBy] = useState("indicada");
   const [showHealthInfo, setShowHealthInfo] = useState(false);
   const lastTapRef = useRef({ month: null, time: 0 });
   const hour = new Date().getHours();
@@ -171,20 +219,68 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
       lastTapRef.current = { month, time: now };
     }
   }
-  const openItems = allOpenItems
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const ehDespesa = (i) => i.type === "expense" || i.type === "transferencia";
+
+  // DATA INDICADA — quando o motor indica pagar. É ela que ordena a lista.
+  // TODAS as despesas entram na MESMA linha do tempo do mês selecionado,
+  // inclusive as atrasadas de meses anteriores: o atraso NÃO promove a conta
+  // para o topo. Ele pesa na classificação (motorRank, que já considera o tempo
+  // de atraso) — e essa classificação só decide quando as datas empatam.
+  const diaDoVencimento = (i) => {
+    const d = i.diaVencimento != null
+      ? Number(i.diaVencimento)
+      : new Date((i.dueDate || "") + "T00:00:00").getDate();
+    return Number.isFinite(d) && d > 0 ? d : 1;
+  };
+  const chaveData = (i) => {
+    if (!ehDespesa(i)) return i.dueDate || "";
+    // Data indicada quando o motor calculou; senão o dia do vencimento real
+    // colocado no mês selecionado (assim o dia 20 vem antes do dia 23).
+    const dia = i.dataIndicada != null ? i.dataIndicada : diaDoVencimento(i);
+    return selectedMonth + "-" + pad2(dia);
+  };
+  // Empate de data → critério de criticidade calculado pelo motor (motorRank).
+  const criticidade = (a, b) => (a.motorRank ?? 999) - (b.motorRank ?? 999);
+
+  const baseItems = allOpenItems
     .filter((i) => inScope(i.memberId, memberFilter))
-    .map((i) => ({ ...i, priority: i.priority || DEFAULT_PRIORITY[i.category] || "importante" }))
-    .sort((a, b) => {
-      if (sortBy === "prioridade") {
-        // Motor de priorização (#23): despesas já vêm com motorRank da fila.
-        if (a.motorRank != null || b.motorRank != null) {
-          return (a.motorRank ?? 999) - (b.motorRank ?? 999);
-        }
-        const pa = PRIORITY[a.priority].rank, pb = PRIORITY[b.priority].rank;
-        if (pa !== pb) return pa - pb;
-      }
-      return a.dueDate < b.dueDate ? -1 : 1;
-    });
+    .map((i) => ({ ...i, priority: i.priority || DEFAULT_PRIORITY[i.category] || "importante" }));
+
+  const despesas = baseItems.filter(ehDespesa);
+  const receitas = baseItems.filter((i) => !ehDespesa(i));
+
+  const despesasOrdenadas = sortBy === "indicada"
+    ? [...despesas].sort((a, b) => {
+        const ka = chaveData(a), kb = chaveData(b);
+        if (ka !== kb) return ka < kb ? -1 : 1;
+        return criticidade(a, b);
+      })
+    : [...despesas].sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
+
+  // As receitas entram na sequência das despesas pela data determinada delas.
+  // Empate de dia → a RECEITA vem primeiro (primeiro recebo, depois eu pago),
+  // por isso a procura é pelo primeiro item com data >= a da receita.
+  const openItems = (() => {
+    const lista = [...despesasOrdenadas];
+    [...receitas]
+      .sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0))
+      .forEach((r) => {
+        const kr = r.dueDate || "";
+        const idx = lista.findIndex((d) => chaveData(d) >= kr);
+        lista.splice(idx < 0 ? lista.length : idx, 0, r);
+      });
+    return lista;
+  })();
+  // Dias/categorias do dinheiro restrito (cartão alimentação) do mês.
+  const diasBeneficio = beneficio && beneficio.porDia
+    ? Object.keys(beneficio.porDia).map(Number).sort((a, b) => a - b).join(", ")
+    : "";
+  const categoriasBeneficio = beneficio && beneficio.itens && beneficio.itens.length
+    ? [...new Set(beneficio.itens.map((i) => i.category))].join(", ")
+    : "mercado";
+  const temRestrito = Boolean(beneficio && beneficio.total > 0) || (dias || []).some((d) => (d.restrito || 0) > 0);
+
   const endPositive = monthProjection.endBalance >= 0;
   const openTotal = openItems.reduce((s, i) => s + (i.amount - i.paid), 0);
   const dueThisWeek = openItems.filter((i) => {
@@ -212,6 +308,63 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
           <p className="serif" style={{ fontSize: 34, fontWeight: 600, margin: 0, color: availableBalance >= 0 ? COLORS.green : COLORS.rust }}>{mask(availableBalance)}</p>
         </div>
       </Card>
+
+      {/* Reserva mínima — mesma lógica do limite do cartão: conforme você lança nela,
+          o disponível cai e a linha tracejada do gráfico desce. */}
+      <Card style={{ marginBottom: 10, padding: "14px 16px", borderLeft: "4px solid " + COLORS.amber, background: COLORS.amber + "0A" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: COLORS.amber + "1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <PiggyBank size={17} color={COLORS.amber} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, margin: 0, color: COLORS.ink }}>Reserva mínima disponível</p>
+            <p style={{ fontSize: 11, color: COLORS.muted, margin: 0 }}>{reservaConfigurada ? "aporte mensal configurado" : "15% do salário líquido"}</p>
+          </div>
+          <button onClick={onOpenReserva} aria-label="Configurar reserva mínima" className="icon-btn" style={{ background: "none", border: "none", padding: 2, color: COLORS.muted, display: "flex" }}>
+            <Pencil size={15} />
+          </button>
+          <ChevronRight size={18} color={COLORS.muted} onClick={onOpenReserva} style={{ cursor: "pointer" }} />
+        </div>
+        <p className="serif" style={{ fontSize: 28, fontWeight: 600, margin: "0 0 8px", color: reservaDisponivel >= 0 ? COLORS.ink : COLORS.rust }}>{mask(reservaDisponivel)}</p>
+        <ProgressBar pct={reservaMinima > 0 ? Math.min(100, (reservaUsada / reservaMinima) * 100) : 0} color={reservaDisponivel < 0 ? COLORS.rust : COLORS.amber} />
+        <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "8px 0 0" }}>
+          Aporte do mês {mask(reservaAporte)} · usado {mask(reservaUsada)} · reserva <strong style={{ color: COLORS.ink }}>{mask(reservaMinima)}</strong>
+        </p>
+        <p style={{ fontSize: 11, color: COLORS.muted, margin: "2px 0 0" }}>
+          {reservaDeficit > 0
+            ? "Fechou negativa em " + mask(reservaDeficit) + " — esse valor entra como Despesa no mês seguinte."
+            : "Sobrou " + mask(reservaSobra) + " — esse valor entra como Receita no mês seguinte."}
+          {" A reserva não acumula: no mês seguinte vale o aporte cheio."}
+        </p>
+        {(reservaReceita > 0 || reservaDespesa > 0) && (
+          <p style={{ fontSize: 11, color: COLORS.muted, margin: "2px 0 0" }}>
+            Neste mês entrou {reservaReceita > 0 ? "como Receita " + mask(reservaReceita) : "como Despesa " + mask(reservaDespesa)} do fechamento anterior.
+          </p>
+        )}
+      </Card>
+
+      {/* Dinheiro restrito (cartão alimentação) — NÃO conta no saldo disponível */}
+      {beneficio && beneficio.total > 0 && (
+        <Card style={{ marginBottom: 10, padding: "12px 16px", borderLeft: "4px solid #C98A3B", background: "#C98A3B0A" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: "#C98A3B1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ShoppingCart size={17} color="#8A5A1F" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13.5, fontWeight: 700, margin: 0, color: COLORS.ink }}>Cartão alimentação</p>
+              <p style={{ fontSize: 11, color: COLORS.muted, margin: 0 }}>
+                entra dia {diasBeneficio} · só {categoriasBeneficio}
+              </p>
+            </div>
+            <Badge color="#8A5A1F">fora do disponível</Badge>
+          </div>
+          <p className="serif" style={{ fontSize: 22, fontWeight: 600, margin: 0, color: COLORS.ink }}>{mask(beneficio.total)}</p>
+          <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "4px 0 0" }}>
+            {carryRestrito > 0 ? "Inclui " + mask(carryRestrito) + " que sobrou do mês anterior (o cartão acumula). " : ""}
+            Este valor não pode pagar as outras contas — no cálculo da data de pagamento ele fica num bolso separado.
+          </p>
+        </Card>
+      )}
 
       {/* Saldo projetado mês — como termina o mês */}
       <Card style={{ marginBottom: 10, padding: "14px 16px", background: "#3B6E8F0F", border: "1px solid #3B6E8F22" }}>
@@ -331,12 +484,22 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
                 <XAxis dataKey="dia" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={4} />
                 <YAxis hide />
                 <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line }} />
-                <ReferenceLine y={reservaMinima} stroke={COLORS.amber} strokeDasharray="4 4" />
                 <Line type="monotone" dataKey="saldo" stroke={COLORS.green} strokeWidth={2.5} dot={false} />
+                {/* Reserva mínima: a linha tracejada desce conforme você lança e
+                    liquida o que tirou da reserva. */}
+                <Line type="stepAfter" dataKey="reserva" stroke={COLORS.amber} strokeWidth={2} strokeDasharray="4 4" dot={false} name="Reserva mínima disponível" />
+                {temRestrito && (
+                  <Line type="stepAfter" dataKey="restrito" stroke="#C98A3B" strokeWidth={1.5} strokeDasharray="2 3" dot={false} name="Cartão alimentação" />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p style={{ fontSize: 11, color: COLORS.muted, margin: "4px 0 0" }}>Saldo previsto ao longo do mês — sobe com receitas e cai com as despesas pagas. Linha tracejada = reserva mínima ({fmt(reservaMinima)}).</p>
+          <p style={{ fontSize: 11, color: COLORS.muted, margin: "4px 0 0" }}>
+            Saldo previsto ao longo do mês — sobe com receitas e cai com as despesas pagas.
+            Linha tracejada = reserva mínima disponível: começa em {fmt(reservaMinima)} e vai baixando conforme você usa
+            {reservaUsada > 0 ? " (" + fmt(reservaUsada) + " usados, restam " + fmt(reservaDisponivel) + ")" : ""}.
+            {temRestrito ? " A linha pontilhada clara é o cartão alimentação, que só paga " + categoriasBeneficio + "." : ""}
+          </p>
         </Card>
       )}
 
@@ -377,7 +540,7 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
       )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {[["vencimento", "Vencimento", CalendarClock], ["prioridade", "Prioridade", Tag]].map(([v, l, Icon]) => (
+        {[["indicada", "Data indicada", CalendarClock], ["vencimento", "Vencimento", Calendar]].map(([v, l, Icon]) => (
           <button key={v} onClick={() => setSortBy(v)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 13, fontWeight: 500, padding: "9px 0", borderRadius: 20, border: "1px solid " + (sortBy === v ? COLORS.green : COLORS.line), background: sortBy === v ? COLORS.green : "transparent", color: sortBy === v ? "#fff" : COLORS.muted }}>
             <Icon size={14} />{l}
           </button>
@@ -392,7 +555,7 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
             <p style={{ fontSize: 13, margin: 0 }}>Tudo em dia por aqui — nada pendente.</p>
           </Card>
         )}
-        {openItems.map((item) => <PlannedCard key={item.occId} item={item} onPay={onPay} onEdit={onEditPlanned} onDelete={onDeletePlanned} />)}
+        {openItems.map((item) => <PlannedCard key={item.occId} item={item} selectedMonth={selectedMonth} onPay={onPay} onEdit={onEditPlanned} onDelete={onDeletePlanned} />)}
         {postergadas.length > 0 && (
           <Card style={{ marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>

@@ -9,6 +9,7 @@ import { getGravidade, resolveCamposFinanceiros } from './gravidade.js';
 import { simularFluxoDiario } from './fluxoDiario.js';
 import { pacing } from './pacing.js';
 import { agruparDespesas } from './agrupamento.js';
+import { usosPorDiaDeDespesas, entradasRestritasPorDia } from './reserva.js';
 
 const STATUS_LABEL = {
   postergada: "POSTERGADO",
@@ -59,9 +60,15 @@ export function processarContas(contas, opcoes = {}) {
       contas: enriquecidas,
       saldoInicial: opcoes.saldoInicial,
       entradas: opcoes.entradas || {},
+      // Dinheiro restrito (ex.: cartão alimentação): só paga a categoria dele.
+      entradasRestritas: opcoes.entradasRestritas || {},
       pagamentosAgendados: opcoes.pagamentosAgendados || {},
       salario: opcoes.salario,
+      // Teto da reserva (valor fixo configurado ou 15% do salário líquido).
       reservaMinima: opcoes.reservaMinima,
+      // Quanto da reserva já foi lançado em cada dia do mês — faz a trava de
+      // liquidez (e a linha tracejada) descer conforme a reserva é usada.
+      usosReserva: opcoes.usosReserva || {},
       referenciaHoje,
     });
   }
@@ -75,11 +82,21 @@ export function processarContas(contas, opcoes = {}) {
   const postergadas = new Set((fluxoDiario?.postergadas || []).map((p) => p.id));
   const criticas = new Set((fluxoDiario?.alertasCriticos || []).flatMap((a) => a.contas.map((c) => c.id)));
 
+  // Data indicada = o dia que o motor indica pagar (não é o vencimento).
+  const indicadas = (fluxoDiario && fluxoDiario.dataIndicada) || {};
+
   const comStatus = enriquecidas.map((c) => {
     let status = c.vencida ? "vencida" : "a_vencer";
     if (criticas.has(c.id)) status = "atencao_necessaria";
     else if (postergadas.has(c.id)) status = "postergada";
-    return { ...c, status, statusLabel: STATUS_LABEL[status] };
+    return {
+      ...c,
+      status,
+      statusLabel: STATUS_LABEL[status],
+      // dia do vencimento real e dia indicado pelo motor (1..30 ou null)
+      diaVencimento: c.dueDate ? new Date(c.dueDate + "T00:00:00").getDate() : 1,
+      dataIndicada: indicadas[c.id] != null ? indicadas[c.id] : null,
+    };
   });
 
   const ordenadas = ordenarContas(comStatus).map((c, i) => ({ ...c, prioridade: i + 1 }));
@@ -102,8 +119,19 @@ export function processarContas(contas, opcoes = {}) {
 // débito/pix automático vira pagamento agendado) antes de rodar a simulação.
 export function processarDespesas(despesas, contasBancarias, selectedMonth, opcoes = {}) {
   const { contas, agendados, autoDetalhes, cartaoFaturas } = agruparDespesas(despesas, contasBancarias, selectedMonth);
-  const res = processarContas(contas, { ...opcoes, pagamentosAgendados: { ...(opcoes.pagamentosAgendados || {}), ...agendados } });
-  return { ...res, agendados, autoDetalhes, cartaoFaturas };
+  // Se o chamador não informar o uso da reserva, deduzimos das próprias despesas
+  // marcadas como "Reserva mínima".
+  const usosReserva = opcoes.usosReserva || usosPorDiaDeDespesas(despesas, selectedMonth);
+  const reservaUsada = round2(Object.values(usosReserva).reduce((s, v) => s + (Number(v) || 0), 0));
+  const restritas = opcoes.entradasRestritasPorDia
+    || entradasRestritasPorDia({ planned: opcoes.planned || [], selectedMonth, memberFilter: opcoes.memberFilter || "todos" }).porDia;
+  const res = processarContas(contas, {
+    ...opcoes,
+    usosReserva,
+    entradasRestritas: opcoes.entradasRestritas || restritas,
+    pagamentosAgendados: { ...(opcoes.pagamentosAgendados || {}), ...agendados },
+  });
+  return { ...res, agendados, autoDetalhes, cartaoFaturas, usosReserva, reservaUsada, entradasRestritas: opcoes.entradasRestritas || restritas };
 }
 
 // Re-exporta utilitários para uso no front-end.
@@ -112,6 +140,11 @@ export { calcularScore, custoAtraso30d } from './score.js';
 export { simularFluxoDiario } from './fluxoDiario.js';
 export { pacing, verbaSemanal, tetoDiario } from './pacing.js';
 export { agruparDespesas } from './agrupamento.js';
+export {
+  FORMA_RESERVA, limiteReserva, calcularUsoReserva, resumoReserva,
+  entradasRestritasPorDia, saldoRestritoAcumulado, ehReceitaRestrita,
+  categoriaRestrita, categoriasRestritas,
+} from './reserva.js';
 export { DEFAULT_POR_CATEGORIA, DEFAULT_CAMPOS, GRAVIDADE_POR_CONSEQUENCIA } from './constantes.js';
 
 const round2 = (v) => Math.round(v * 100) / 100;

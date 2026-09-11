@@ -29,6 +29,9 @@ export const CATEGORIES = {
   salario:      { label: "Salário",        color: "#1F5D4C", icon: Wallet,          type: "income"  },
   freelance:    { label: "Freelance",      color: "#3B8F6E", icon: Briefcase,       type: "income"  },
   investimentos:{ label: "Investimentos",  color: "#2E6B72", icon: TrendingUp,      type: "income"  },
+  // Receita criada automaticamente ao fechar o mês: a sobra da Reserva Mínima
+  // entra no mês seguinte como receita.
+  reserva:      { label: "Reserva mínima", color: "#8A5A1F", icon: PiggyBank,       type: "income"  },
 };
 
 // Paleta de cores para novas categorias (gerenciamento + criação inline)
