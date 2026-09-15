@@ -325,6 +325,7 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
           onAbrirSaude={() => setShowHealthInfo(true)}
           alertas={alerts.length}
           onAbrirAlertas={() => setShowAlerts(true)}
+          onAbrirPrevisto={onCloseMonth}
         />
 
         {/* 2. Faixa de apoio — os três KPIs saíram do topo para não disputar

@@ -102,13 +102,14 @@ export function BalanceHero({
 
   return (
     <section
+      className="hero-bleed"
       data-od-id="hero-saldo"
       aria-label="Saldo disponível"
       style={{
         position: "relative",
         color: "#fff",
         borderRadius: "0 0 32px 32px",
-        margin: "0 0 16px",
+        marginBottom: 16,
         padding: "12px 20px 20px",
         background: HERO_BG,
         boxShadow: "0 26px 50px -18px rgba(46,16,101,.55)",
