@@ -48,7 +48,7 @@ export function ReservaView({ onBack, month, onMonthChange, reserva, config, sal
           <p style={{ fontSize: 13.5, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1 }}>Disponível em {monthLabelFull(month)}</p>
           {reserva.estourou && <Badge color={COLORS.rust}>Acima do teto</Badge>}
         </div>
-        <p className="serif" style={{ fontSize: 30, fontWeight: 600, margin: "0 0 8px", color: reserva.disponivel >= 0 ? COLORS.green : COLORS.rust }}>{fmt(reserva.disponivel)}</p>
+        <p className="serif" style={{ fontSize: 30, fontWeight: 600, margin: "0 0 8px", color: reserva.disponivel >= 0 ? COLORS.income : COLORS.rust }}>{fmt(reserva.disponivel)}</p>
         <ProgressBar pct={pctUso} color={corUso} />
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
           <span style={{ fontSize: 12, color: COLORS.muted }}>Usado {fmt(reserva.usado)}</span>
@@ -65,7 +65,7 @@ export function ReservaView({ onBack, month, onMonthChange, reserva, config, sal
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, color: COLORS.muted }}>Saldo do mês</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: reserva.saldo < 0 ? COLORS.rust : COLORS.green }}>{fmt(reserva.saldo)}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: reserva.saldo < 0 ? COLORS.rust : COLORS.income }}>{fmt(reserva.saldo)}</span>
           </div>
           {(reserva.receitaDoMesAnterior > 0 || reserva.despesaDoMesAnterior > 0) && (
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>

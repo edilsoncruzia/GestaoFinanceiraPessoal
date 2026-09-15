@@ -1,6 +1,7 @@
 import React from "react";
+import { Plus } from "lucide-react";
 import { ROUTES, MAIN_TABS, NAV_GROUPS } from "../../constants/tokens";
-import { COLORS, TOUCH } from "../../constants/tokens";
+import { COLORS, TOUCH, RADIUS, SHADOW } from "../../constants/tokens";
 
 // ============================================================================
 // AppShell — a caixa que prendia nav e modais
@@ -11,22 +12,22 @@ import { COLORS, TOUCH } from "../../constants/tokens";
 //     <BottomNav position:absolute bottom:0>               <- presa no shell
 //     modais position:absolute inset:0                     <- presos no shell
 //
-// Três problemas que vinham de uma decisão só:
-//   1. height:700px fixo + overflow:hidden: em viewport < 700px o topo e a base
-//      eram cortados em vez de o app ocupar a tela.
-//   2. Tudo em position:absolute relativo ao shell: nada podia escapar da caixa.
-//   3. A faixa 431–899px não era tratada.
-//
 // Agora o shell é um grid declarado no index.css (.app-shell), a rolagem é a do
 // documento, e a navegação é escolhida pelo estado do dispositivo:
-//   phone/tablet -> AppTabBar (fixa, respeitando safe-area) + FAB
+//   phone/tablet -> AppTabBar (pílula flutuante, ação central) 
 //   desktop      -> AppSidebar (sticky, 100dvh) + AppTopbar
 //
+// v3 — o que mudou nesta rodada: a barra inferior virou a pílula flutuante do
+// modelo aprovado, com a ação principal no meio (onde o polegar chega) e um
+// recorte na máscara em volta dela. O FAB solto no canto inferior direito
+// deixou de existir: duas ações primárias na mesma tela era uma a mais.
+//
 // Nenhuma funcionalidade mudou: as mesmas abas, os mesmos itens de "Mais",
-// agora vindos de um registro único (ROUTES) em vez de duas listas soltas.
+// vindos do registro único (ROUTES) em vez de duas listas soltas.
 // ============================================================================
 
-const labelStyle = { fontSize: 11.5, fontWeight: 500, lineHeight: 1.1 };
+const labelStyle = { fontSize: 11, fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.01em" };
+const itemLabelStyle = { fontSize: 13.5, lineHeight: 1.2 };
 
 export function AppSidebar({ activeRoute, onNavigate, userName }) {
   const Item = ({ routeKey }) => {
@@ -42,10 +43,12 @@ export function AppSidebar({ activeRoute, onNavigate, userName }) {
         style={{
           display: "flex", alignItems: "center", gap: 10, width: "100%",
           minHeight: TOUCH.min, padding: "0 10px", textAlign: "left",
-          borderRadius: 10, border: "none",
-          background: active ? COLORS.greenSoft : "transparent",
-          color: active ? COLORS.green : COLORS.fg2,
-          fontWeight: active ? 600 : 500, fontSize: 13.5,
+          borderRadius: RADIUS.control, border: "none",
+          background: active ? COLORS.accentSoft : "transparent",
+          color: active ? COLORS.accent : COLORS.fg2,
+          fontFamily: "var(--font-body)",
+          fontWeight: active ? 600 : 500,
+          ...itemLabelStyle,
         }}
       >
         <Icon size={17} strokeWidth={active ? 2.1 : 1.9} />
@@ -56,14 +59,16 @@ export function AppSidebar({ activeRoute, onNavigate, userName }) {
 
   return (
     <nav className="app-sidebar" aria-label="Navegação principal">
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 6px 16px", borderBottom: "1px solid " + COLORS.lineSoft }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 6px 16px", borderBottom: "1px solid " + COLORS.borderSoft }}>
         <span style={{
-          width: 34, height: 34, borderRadius: 10, background: COLORS.green, color: "#fff",
+          width: 34, height: 34, borderRadius: 11, color: "#fff",
+          background: "linear-gradient(135deg," + COLORS.accentBright + "," + COLORS.accentDeep + ")",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: "'Fraunces', Georgia, serif", fontSize: 17, fontWeight: 600,
+          fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800,
+          boxShadow: "0 4px 12px -3px rgba(109,40,217,.5)",
         }}>G</span>
         <div style={{ minWidth: 0 }}>
-          <p className="serif" style={{ margin: 0, fontSize: 15.5, fontWeight: 600 }}>Gestão Financeira</p>
+          <p className="serif" style={{ margin: 0, fontSize: 15.5, fontWeight: 800 }}>Finanças</p>
           <span style={{ fontSize: 11.5, color: COLORS.muted }}>{userName || "uso pessoal e do casal"}</span>
         </div>
       </div>
@@ -83,47 +88,39 @@ export function AppSidebar({ activeRoute, onNavigate, userName }) {
 }
 
 export function AppTabBar({ activeRoute, onNavigate, onAdd }) {
-  // Cinco colunas: quatro abas + a ação principal. O FAB central antigo tinha
-  // 54px e labels de 9.5px; agora a ação é uma coluna de altura confortável.
+  // Quatro abas + o vão da ação central. O vão existe como trilha do grid (e
+  // não como padding) para que o rótulo de "Transações" nunca encoste no botão.
   const slots = [MAIN_TABS[0], MAIN_TABS[1], null, MAIN_TABS[2], MAIN_TABS[4]];
   return (
-    <nav className="app-tabbar" aria-label="Navegação principal"
-      style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", alignItems: "end" }}>
-      {slots.map((key) => {
-        if (key === null) {
-          return (
-            <button key="add" onClick={onAdd} aria-label="Novo previsto" data-od-id="tab-add"
-              style={{ background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, minHeight: TOUCH.min, color: COLORS.green }}>
-              <span style={{
-                width: 40, height: 40, borderRadius: "50%", background: COLORS.green, color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 6px 14px rgba(31,93,76,0.35)",
-              }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" aria-hidden="true">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              </span>
-              <span style={labelStyle}>Novo</span>
-            </button>
-          );
-        }
+    <nav className="app-tabbar" aria-label="Navegação principal">
+      <span className="app-tabbar-bg" aria-hidden="true" />
+      {slots.map((key, i) => {
+        const col = i < 2 ? i + 1 : i + 2; // pula a trilha do botão central
+        if (key === null) return null;
         const r = ROUTES[key];
-        if (!r) return null; // rota ausente não derruba a navegação inteira
         const Icon = r.icon;
         const active = activeRoute === key;
         return (
-          <button key={key} onClick={() => onNavigate(key)} aria-current={active ? "page" : undefined}
+          <button
+            key={key}
+            onClick={() => onNavigate(key)}
+            aria-current={active ? "page" : undefined}
             data-od-id={"tab-" + key}
-            style={{
-              background: "none", border: "none", minHeight: TOUCH.min,
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
-              color: active ? COLORS.green : COLORS.muted,
-            }}>
-            <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-            <span style={{ ...labelStyle, fontWeight: active ? 600 : 500 }}>{r.short}</span>
+            style={{ gridColumn: col }}
+          >
+            <Icon size={22} strokeWidth={active ? 2.4 : 1.9} />
+            <span style={labelStyle}>{r.short}</span>
           </button>
         );
       })}
+      <button
+        className="tab-fab"
+        onClick={onAdd}
+        aria-label="Novo lançamento"
+        data-od-id="tab-add"
+      >
+        <Plus size={26} strokeWidth={2.3} aria-hidden="true" />
+      </button>
     </nav>
   );
 }
@@ -145,11 +142,6 @@ export function AppShell({ activeRoute, onNavigate, onAdd, topbar, userName, chi
         </div>
       </div>
       <AppTabBar activeRoute={activeRoute} onNavigate={onNavigate} onAdd={onAdd} />
-      <button className="app-fab" onClick={onAdd} aria-label="Novo previsto" data-od-id="fab-novo-previsto">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-      </button>
     </div>
   );
 }

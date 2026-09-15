@@ -104,7 +104,7 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
           </div>
           <div>
             <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 2px" }}>Disponível para contas</p>
-            <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: saldoParaContas >= 0 ? COLORS.green : COLORS.rust }}>{fmt(saldoParaContas)}</p>
+            <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: saldoParaContas >= 0 ? COLORS.income : COLORS.rust }}>{fmt(saldoParaContas)}</p>
           </div>
         </div>
         <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>
@@ -244,7 +244,7 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
                 <XAxis dataKey="dia" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={4} />
                 <YAxis hide />
                 <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line }} />
-                <Line type="monotone" dataKey="saldo" stroke={COLORS.green} strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="saldo" stroke={COLORS.income} strokeWidth={2.5} dot={false} />
                 {/* Reserva mínima: linha tracejada que desce conforme a reserva é usada. */}
                 <Line type="stepAfter" dataKey="reserva" stroke={COLORS.amber} strokeWidth={2} strokeDasharray="4 4" dot={false} name="Reserva mínima" />
               </LineChart>

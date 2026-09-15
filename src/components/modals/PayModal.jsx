@@ -70,7 +70,7 @@ export function PayModal({ item, accounts, sources, transactions, selectedMonth,
                     {fonte && <p style={{ fontSize: 12, color: COLORS.green, margin: "2px 0 0" }}>Fonte: {fonte.name}</p>}
                     {t.attachment && !isImage && <p style={{ fontSize: 11, color: COLORS.muted, margin: "4px 0 0" }}><Paperclip size={11} /> {t.attachment}</p>}
                   </div>
-                  <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.green : COLORS.rust }}>{t.type === "income" ? "+" : "−"}{fmt(t.amount)}</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.income : COLORS.rust }}>{t.type === "income" ? "+" : "−"}{fmt(t.amount)}</p>
                 </div>
                 {isImage && <button onClick={() => setPreview(t.attachment)} style={{ background: "none", border: "none", padding: 0, marginTop: 6, display: "inline-block", cursor: "zoom-in" }}><img src={t.attachment} alt="Comprovante" style={{ maxWidth: 80, borderRadius: 8, border: "1px solid " + COLORS.line }} /></button>}
               </Card>

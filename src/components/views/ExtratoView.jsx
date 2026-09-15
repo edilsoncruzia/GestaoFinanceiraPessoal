@@ -23,7 +23,7 @@ export function ExtratoView({ account, transactions, sources, onBack }) {
         <p className="serif" style={{ fontSize: 20, fontWeight: 600, margin: 0, color: COLORS.ink }}>{account.name}</p>
       </div>
       <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 14px" }}>
-        Saldo atual: <strong style={{ color: saldo >= 0 ? COLORS.green : COLORS.rust }}>{fmt(saldo)}</strong> · {account.type === "cartao" ? "Cartão" : "Conta"}
+        Saldo atual: <strong style={{ color: saldo >= 0 ? COLORS.income : COLORS.rust }}>{fmt(saldo)}</strong> · {account.type === "cartao" ? "Cartão" : "Conta"}
         {account.type === "cartao" && account.limit ? " · limite " + fmt(account.limit) : ""}
         {account.type === "conta" && account.countInAvailable === false ? " · Reserva (fora do disponível)" : ""}
       </p>
@@ -42,7 +42,7 @@ export function ExtratoView({ account, transactions, sources, onBack }) {
                   {fonte && <p style={{ fontSize: 12, color: COLORS.green, margin: "0 0 2px" }}>Fonte: {fonte.name}</p>}
                   {t.attachment && !isImage && <p style={{ fontSize: 11, color: COLORS.muted, margin: 0 }}>📎 {t.attachment}</p>}
                 </div>
-                <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.green : (t.type === "transferencia" ? "#3B6E8F" : COLORS.rust), whiteSpace: "nowrap" }}>{t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}{fmt(t.amount)}</p>
+                <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.income : (t.type === "transferencia" ? "#3B6E8F" : COLORS.rust), whiteSpace: "nowrap" }}>{t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}{fmt(t.amount)}</p>
               </div>
               {isImage && (
                 <button onClick={() => setPreview(t.attachment)} style={{ background: "none", border: "none", padding: 0, marginTop: 8, display: "block", cursor: "zoom-in" }}>

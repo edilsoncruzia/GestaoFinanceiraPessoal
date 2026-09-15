@@ -45,7 +45,7 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
     );
   }
 
-  const txTint = t.type === "income" ? COLORS.green : COLORS.rust;
+  const txTint = t.type === "income" ? COLORS.income : COLORS.rust;
   return (
     <Card style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: txTint + "12", border: "1px solid " + txTint }}>
       <CategoryIcon cat={t.category} />
@@ -65,7 +65,7 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
           </span>
         )}
       </div>
-      <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.green : COLORS.rust, whiteSpace: "nowrap" }}>{t.type === "income" ? "+" : "−"} {fmt(t.amount)}</p>
+      <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.income : COLORS.rust, whiteSpace: "nowrap" }}>{t.type === "income" ? "+" : "−"} {fmt(t.amount)}</p>
       {onEdit && <button onClick={() => onEdit(t)} aria-label="Editar" className="icon-btn" style={{ background: "none", border: "none", padding: 4, color: COLORS.muted }}><Pencil size={15} /></button>}
       {onDelete && <button onClick={() => setConfirming(true)} aria-label="Excluir" className="icon-btn" style={{ background: "none", border: "none", padding: 4, color: COLORS.muted }}><Trash2 size={16} /></button>}
     </Card>

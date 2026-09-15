@@ -136,13 +136,13 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} />
               <YAxis hide />
               <Tooltip formatter={(v) => fmt(v)} contentStyle={tooltip} />
-              <Line type="monotone" dataKey="receitas" stroke={COLORS.green} strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="receitas" stroke={COLORS.income} strokeWidth={2.5} dot={false} />
               <Line type="monotone" dataKey="despesas" stroke={COLORS.rust} strokeWidth={2.5} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
         <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
-          <span style={{ fontSize: 11, color: COLORS.green, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 3, background: COLORS.green, display: "inline-block" }} /> Receitas</span>
+          <span style={{ fontSize: 11, color: COLORS.income, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 3, background: COLORS.income, display: "inline-block" }} /> Receitas</span>
           <span style={{ fontSize: 11, color: COLORS.rust, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 3, background: COLORS.rust, display: "inline-block" }} /> Despesas</span>
         </div>
       </Card>
@@ -168,7 +168,7 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
             {Object.entries(donoMap).map(([d, v]) => (
               <div key={d} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 13, flex: 1 }}>{d}</span>
-                <span style={{ fontSize: 12, color: COLORS.green }}>+{fmt(v.income)}</span>
+                <span style={{ fontSize: 12, color: COLORS.income }}>+{fmt(v.income)}</span>
                 <span style={{ fontSize: 12, color: COLORS.rust }}>−{fmt(v.expense)}</span>
               </div>
             ))}
@@ -185,7 +185,7 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
             {Object.entries(fonteMap).sort((a, b) => (b[1].expense + b[1].income) - (a[1].expense + a[1].income)).map(([f, v]) => (
               <div key={f} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 13, flex: 1 }}>{f}</span>
-                <span style={{ fontSize: 12, color: COLORS.green }}>+{fmt(v.income)}</span>
+                <span style={{ fontSize: 12, color: COLORS.income }}>+{fmt(v.income)}</span>
                 <span style={{ fontSize: 12, color: COLORS.rust }}>−{fmt(v.expense)}</span>
               </div>
             ))}

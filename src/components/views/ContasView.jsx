@@ -69,7 +69,7 @@ export function ContasView({ accounts, transactions, onBack, onAdd, onEdit, onDe
               {a.type === "conta" && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 8, borderTop: "1px solid " + COLORS.line }}>
                   <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>{a.countInAvailable === false ? "Saldo (fora do disponível)" : "Saldo"}</p>
-                  <p style={{ fontSize: 13, margin: 0, color: saldo >= 0 ? COLORS.green : COLORS.rust }}>{fmt(saldo)}</p>
+                  <p style={{ fontSize: 13, margin: 0, color: saldo >= 0 ? COLORS.income : COLORS.rust }}>{fmt(saldo)}</p>
                 </div>
               )}
 

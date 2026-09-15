@@ -74,7 +74,7 @@ export function HoleriteModal({ item, accounts, sources, selectedMonth, onClose,
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>Salário líquido</span>
-        <span className="serif" style={{ fontSize: 22, fontWeight: 600, color: net >= 0 ? COLORS.green : COLORS.rust }}>{fmt(net)}</span>
+        <span className="serif" style={{ fontSize: 22, fontWeight: 600, color: net >= 0 ? COLORS.income : COLORS.rust }}>{fmt(net)}</span>
       </div>
 
       <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 14px", cursor: "pointer" }}>

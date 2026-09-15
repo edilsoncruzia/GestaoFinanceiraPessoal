@@ -19,7 +19,7 @@ export function CloseMonthModal({ month, items, monthIncome, monthExpense, onMov
       <Card style={{ marginBottom: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <span style={{ fontSize: 13, color: COLORS.muted }}>Receita do mês</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.green }}>{fmt(monthIncome)}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.income }}>{fmt(monthIncome)}</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <span style={{ fontSize: 13, color: COLORS.muted }}>Despesa do mês</span>
@@ -27,7 +27,7 @@ export function CloseMonthModal({ month, items, monthIncome, monthExpense, onMov
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6, borderTop: "1px solid " + COLORS.line }}>
           <span style={{ fontSize: 13, fontWeight: 500 }}>Saldo do mês</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: monthIncome - monthExpense >= 0 ? COLORS.green : COLORS.rust }}>{fmt(monthIncome - monthExpense)}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: monthIncome - monthExpense >= 0 ? COLORS.income : COLORS.rust }}>{fmt(monthIncome - monthExpense)}</span>
         </div>
       </Card>
 
@@ -81,7 +81,7 @@ export function CloseMonthModal({ month, items, monthIncome, monthExpense, onMov
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6, borderTop: "1px solid " + COLORS.line }}>
             <span style={{ fontSize: 13, fontWeight: 500 }}>Saldo da reserva no mês</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: reserva.saldo < 0 ? COLORS.rust : reserva.saldo > 0 ? COLORS.green : COLORS.muted }}>{fmt(reserva.saldo)}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: reserva.saldo < 0 ? COLORS.rust : reserva.saldo > 0 ? COLORS.income : COLORS.muted }}>{fmt(reserva.saldo)}</span>
           </div>
 
           {temSobra ? (

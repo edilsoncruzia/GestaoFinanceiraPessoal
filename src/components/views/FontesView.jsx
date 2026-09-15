@@ -29,7 +29,7 @@ export function FontesView({ sources, onBack, onSave, onDelete }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
         {[
           { label: "Despesas (para quem pago)", type: "expense", color: COLORS.rust, list: sources.filter((s) => s.type === "expense").sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })) },
-          { label: "Receitas (de quem recebo)", type: "income", color: COLORS.green, list: sources.filter((s) => s.type === "income").sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })) },
+          { label: "Receitas (de quem recebo)", type: "income", color: COLORS.income, list: sources.filter((s) => s.type === "income").sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })) },
           { label: "Sem tipo", type: null, color: COLORS.muted, list: sources.filter((s) => s.type !== "income" && s.type !== "expense").sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })) },
         ].map((g) => {
           if (g.list.length === 0) return null;

@@ -57,7 +57,7 @@ export function CategoriasView({ onBack, onSave, onDelete }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{c.label}</p>
-                    <div style={{ marginTop: 2 }}><Badge color={c.type === "income" ? COLORS.green : COLORS.rust}>{c.type === "income" ? "Receita" : "Despesa"}</Badge></div>
+                    <div style={{ marginTop: 2 }}><Badge color={c.type === "income" ? COLORS.income : COLORS.rust}>{c.type === "income" ? "Receita" : "Despesa"}</Badge></div>
                   </div>
                   <button onClick={() => openEdit(key, c)} aria-label="Editar" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted, padding: 6 }}><Pencil size={16} /></button>
                   <button onClick={() => setConfirming(key)} aria-label="Excluir" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.rust, padding: 6 }}><Trash2 size={16} /></button>
