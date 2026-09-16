@@ -127,7 +127,10 @@ export function PlannedCard({ item, selectedMonth, onPay, onEdit, onDelete }) {
       recorrencia={recurrenceLabel(item)}
       vencimentoDia={vencimentoDia}
       indicadaDia={diaIndicado}
-      mes={Number(selectedMonth.slice(5, 7))}
+      // Sem `selectedMonth` o cartão ainda desenha: cai no mês corrente em vez
+      // de estourar. Era o "Cannot read properties of undefined (reading
+      // 'slice')" que aparecia ao abrir Transações.
+      mes={selectedMonth ? Number(selectedMonth.slice(5, 7)) : (new Date().getMonth() + 1)}
       hoje={hojeDia}
       Icone={categories[item.category]?.icon || Tag}
       onAbrir={() => onEdit(item)}

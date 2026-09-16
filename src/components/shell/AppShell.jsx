@@ -95,7 +95,12 @@ export function AppTabBar({ activeRoute, onNavigate, onAdd }) {
     <nav className="app-tabbar" aria-label="Navegação principal">
       <span className="app-tabbar-bg" aria-hidden="true" />
       {slots.map((key, i) => {
-        const col = i < 2 ? i + 1 : i + 2; // pula a trilha do botão central
+        // O vão central É a trilha 3 do grid: o slot nulo ocupa essa trilha
+        // (rendendo nada) e as quatro abas caem em 1, 2, 4 e 5. A fórmula
+        // anterior (i < 2 ? i+1 : i+2) valia para uma lista de QUATRO itens;
+        // com o nulo no meio ela jogava "Orçamento" na 5 e "Mais" na 6 — uma
+        // coluna implícita —, deixando um vão vazio e desalinhando a barra.
+        const col = i + 1;
         if (key === null) return null;
         const r = ROUTES[key];
         const Icon = r.icon;

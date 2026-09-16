@@ -106,7 +106,7 @@ export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilt
         <div style={{ marginBottom: showClosed ? 18 : 0 }}>
           <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.amber, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Em aberto ({openItems.length})</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {openItems.map((item) => <PlannedCard key={item.occId} item={item} onPay={onPay} onEdit={onEditPlanned} onDelete={onDeletePlanned} />)}
+            {openItems.map((item) => <PlannedCard key={item.occId} item={item} selectedMonth={selectedMonth} onPay={onPay} onEdit={onEditPlanned} onDelete={onDeletePlanned} />)}
           </div>
         </div>
       )}

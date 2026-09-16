@@ -79,12 +79,13 @@
   --shadow-nav: 0 10px 30px -12px rgba(21, 19, 42, 0.3);
 
   /* Estrutura do shell.
-     --tabbar-height é o que a navegação OCUPA de verdade: a pílula (68px) mais
-     o que o botão central sobe acima dela (24px). Quem reserva espaço abaixo do
-     conteúdo e quem posiciona o toast usam esta variável — mudar a barra aqui
-     não deixa buraco nem sobreposição em nenhum dos dois. */
+     --tabbar-height é o que a navegação OCUPA de verdade: a pílula (70px), o
+     respiro do fundo (8px) e o que a pastilha central sobe acima dela (31px).
+     Quem reserva espaço abaixo do conteúdo e quem posiciona o toast usam esta
+     variável — mudar a barra aqui não deixa buraco nem sobreposição em nenhum
+     dos dois. */
   --topbar-height: 64px;
-  --tabbar-height: 92px;
+  --tabbar-height: 112px;
   --sidebar-width: 264px;
 }
 
@@ -399,11 +400,21 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .app-topbar { display: none; }
 
 /* ============================================================================
-   BARRA INFERIOR (mobile e tablet) — a pílula flutuante da v3
-   Antes: faixa colada nas laterais, divisória em cima, cinco colunas iguais e
-   um FAB solto no canto inferior direito. Agora: pílula solta (12px das
-   laterais, 8px do fundo), sem divisória, com a ação principal no MEIO — que é
-   onde o polegar chega — e um recorte na máscara em volta dela.
+   BARRA INFERIOR (mobile e tablet) — pílula violeta flutuante
+   Modelo aprovado: a barra é uma pílula de violeta escuro (sangrando do mesmo
+   degradê do herói), com quatro abas brancas, a aba ativa em LARANJA e a ação
+   principal numa pastilha violeta mais clara no MEIO, dentro de um recorte.
+
+   Três decisões que sustentam o desenho:
+     · o fundo é um IRMÃO (`.app-tabbar-bg`), não o próprio <nav> — a máscara
+       que abre o recorte cortaria a ação central se ela fosse filha dele;
+     · botão e furo saem das MESMAS duas variáveis (--fab-d e --fab-r), então o
+       vão entre eles é constante em qualquer largura;
+     · o vão do botão é uma TRILHA do grid (não padding), para o rótulo de
+       "Transações" nunca encostar na pastilha.
+
+   O fundo é OPACO de propósito: era translúcido com backdrop-filter, e o
+   backdrop-filter + mask deixava um retângulo claro vazando atrás da pastilha.
    ========================================================================== */
 .app-tabbar {
   --fab-d: 62px;                     /* diâmetro da ação central */
@@ -415,21 +426,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   width: min(calc(100% - 24px), 496px);
   z-index: 40;
   display: grid;
-  grid-template-columns: 1fr 1fr calc(var(--fab-d) + 6px) 1fr 1fr;
-  padding: 8px 4px;
+  grid-template-columns: 1fr 1fr calc(var(--fab-d) + 8px) 1fr 1fr;
+  align-items: stretch;
+  padding: 8px 6px;
 }
 
-/* O fundo é um irmão, não o próprio <nav>: a máscara que abre o recorte
-   cortaria a ação central se ela fosse filha dele. */
+/* O fundo: pílula violeta, com o furo circular no topo do centro. */
 .app-tabbar-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(18px) saturate(1.3);
-  -webkit-backdrop-filter: blur(18px) saturate(1.3);
-  box-shadow: 0 -1px 0 rgba(21, 19, 42, 0.04), var(--shadow-nav);
+  border-radius: 28px;
+  background: linear-gradient(165deg, #6D28D9 0%, #4C1D95 52%, #3B0764 100%);
+  box-shadow: 0 14px 34px -14px rgba(46, 16, 101, 0.7), 0 2px 8px -3px rgba(21, 19, 42, 0.35);
   -webkit-mask: radial-gradient(circle var(--fab-r) at 50% 0, transparent calc(var(--fab-r) - 1px), #000 var(--fab-r));
   mask: radial-gradient(circle var(--fab-r) at 50% 0, transparent calc(var(--fab-r) - 1px), #000 var(--fab-r));
 }
@@ -442,24 +451,27 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-height: 52px;
+  min-height: 54px;
   min-width: 0;
   padding: 0;
   border: none;
   background: none;
   border-radius: 18px;
-  color: var(--color-fg2);
+  color: rgba(255, 255, 255, 0.82);   /* abas inativas: branco */
   font-family: var(--font-display);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 .app-tabbar button > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-tabbar button:hover { color: var(--color-accent-deep); background: var(--color-accent-soft); }
-.app-tabbar button[aria-current="page"] { color: var(--color-accent); }
+.app-tabbar button:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.app-tabbar button[aria-current="page"] { color: #FB923C; }   /* aba ativa: laranja */
+.app-tabbar button[aria-current="page"]:hover { color: #FDBA74; }
 .app-tabbar button[aria-current="page"] svg { stroke-width: 2.4; }
 
-/* Ação central: metade para fora da barra, dentro do recorte da máscara. */
+/* Ação central: metade para fora da barra, dentro do recorte da máscara.
+   Mais clara que a pílula, para destacar do fundo. */
 .app-tabbar .tab-fab {
   position: absolute;
   left: 50%;
@@ -470,18 +482,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   min-height: 0;
   border-radius: 50%;
   gap: 0;
-  background: linear-gradient(158deg, var(--color-accent-bright), var(--color-accent-deep));
+  background: linear-gradient(158deg, #8B5CF6, #6D28D9);
   color: #fff;
-  box-shadow: 0 10px 20px -6px rgba(76, 29, 149, 0.5), 0 3px 8px -2px rgba(21, 19, 42, 0.22);
+  box-shadow: 0 12px 24px -6px rgba(46, 16, 101, 0.75), 0 3px 8px -2px rgba(21, 19, 42, 0.35);
 }
 .app-tabbar .tab-fab:hover {
   transform: translateX(-50%) scale(1.06);
-  background: linear-gradient(158deg, var(--color-accent-bright), var(--color-accent-deep));
+  background: linear-gradient(158deg, #A78BFA, #7C3AED);
   color: #fff;
+  box-shadow: 0 16px 30px -6px rgba(46, 16, 101, 0.8), 0 4px 10px -2px rgba(21, 19, 42, 0.38);
 }
 .app-tabbar .tab-fab:active { transform: translateX(-50%) scale(0.96); }
 .app-tabbar .tab-fab:focus-visible {
-  box-shadow: 0 10px 20px -6px rgba(76, 29, 149, 0.5), 0 0 0 3px #fff, 0 0 0 6px var(--color-accent);
+  box-shadow: 0 12px 24px -6px rgba(46, 16, 101, 0.75), 0 0 0 3px #fff, 0 0 0 6px var(--color-accent);
 }
 
 /* Telas estreitas: a barra tem quatro colunas e um vão — sem encolher o
