@@ -234,7 +234,10 @@ export function memberColor(id) {
 
 export function inScope(memberId, filter) {
   // "Todos" mostra tudo; ao escolher um membro, mostra só o que é daquele membro.
-  return filter === "todos" || memberId === filter;
+  // String() nos dois lados: MemberFilterIcon passa String(id) e MemberFilterBar
+  // passa Number(id) — sem isso o filtro quebrava ao alternar entre os dois.
+  if (filter === "todos") return true;
+  return String(memberId) === String(filter);
 }
 
 // Saldo atual de uma conta, considerando também transferências de entrada/saída.

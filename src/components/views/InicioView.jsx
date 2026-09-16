@@ -4,7 +4,6 @@ import {
   HeartPulse, Bell, AlertTriangle, TrendingUp, TrendingDown, Calendar,
   Plus, CheckCircle2, MoreVertical, Pencil, Trash2, CreditCard, Download, Users, User, PiggyBank, ShoppingCart, CalendarDays, BarChart3, Tag
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, LabelList, CartesianGrid, XAxis, YAxis, Tooltip, Cell, ReferenceLine, LineChart, Line } from 'recharts';
 import { COLORS, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
 import { useCategories } from '../../context/CategoriesContext';
 import { TODAY_DATE, TODAY_MONTH } from '../../constants/seedData';
@@ -16,6 +15,9 @@ import { CategoryIcon } from '../ui/CategoryIcon';
 import { ModalSheet } from '../ui/ModalSheet';
 import { BalanceHero } from '../ui/BalanceHero';
 import { BillCard } from '../ui/BillCard';
+import { MemberFilterIcon } from '../ui/MemberFilterIcon';
+import { ResumoCards } from '../ui/ResumoCards';
+import { MonthAnalysis } from '../ui/MonthAnalysis';
 
 // ============================================================================
 // INÍCIO — o que mudou e por quê
@@ -51,38 +53,6 @@ import { BillCard } from '../ui/BillCard';
 //   Coluna de apoio     → saúde, reserva, cartão alimentação.
 //   Análise do mês      → os dois gráficos e o pacing, atrás de um disclosure.
 // ============================================================================
-
-const fmtPlain = (v) => {
-  if (v == null) return "";
-  const n = Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 0, minimumFractionDigits: 0 });
-  return (v < 0 ? "-" : "") + n;
-};
-
-// Rótulo de cada barra do gráfico mensal. Antes era rotacionado −90° sobre a
-// barra (ilegível e sempre cortado no topo); agora é o valor curto acima dela.
-const renderBarLabel = (props) => {
-  const { x, y, width, value } = props;
-  if (value == null) return null;
-  const cx = x + width / 2;
-  return (
-    <text x={cx} y={y - 6} textAnchor="middle" fill={value < 0 ? COLORS.rust : COLORS.income}
-      fontSize={11} fontWeight={600} style={{ fontVariantNumeric: "tabular-nums" }}>
-      {fmtPlain(value)}
-    </text>
-  );
-};
-
-const monthBarTooltip = ({ active, payload, label }) => {
-  if (!active || !payload || !payload.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div style={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, padding: "8px 12px", boxShadow: "0 4px 14px rgba(0,0,0,0.10)" }}>
-      <p style={{ fontSize: 12.5, fontWeight: 600, margin: "0 0 4px", color: COLORS.ink, textTransform: "capitalize" }}>{label}</p>
-      <p style={{ margin: 0, fontWeight: 600, color: d.saldo < 0 ? COLORS.rust : COLORS.income }}>Saldo no fim do mês: {fmt(d.saldo)}</p>
-      {d.projected && <p style={{ margin: "4px 0 0", fontSize: 11.5, color: COLORS.muted }}>projeção</p>}
-    </div>
-  );
-};
 
 const ehDespesaItem = (i) => i.type === "expense" || i.type === "transferencia";
 const pad = (n) => String(n).padStart(2, "0");
@@ -221,29 +191,12 @@ function SupportCard({ icon: Icon, color, title, subtitle, children, action }) {
   );
 }
 
-export function InicioView({ balance, availableBalance, reservedAmount, availableNow, monthProjection, isCurrentMonth, health, alerts, monthIncome, monthExpense, projectedBalance, onSelectMonth, openItems: allOpenItems, memberFilter, hideBalance, onToggleHide, onSeeAll, onPay, onEditPlanned, onDeletePlanned, onNewPlanned, onCloseMonth, postergadas, pacing, dias, reservaMinima, reservaUsada, reservaDisponivel, reservaConfigurada, reservaAporte, reservaReceita, reservaDespesa, reservaSobra, reservaDeficit, beneficio, carryRestrito, selectedMonth, onOpenReserva, autoDetalhes }) {
+export function InicioView({ balance, availableBalance, reservedAmount, availableNow, monthProjection, isCurrentMonth, health, alerts, monthIncome, monthExpense, projectedBalance, onSelectMonth, openItems: allOpenItems, memberFilter, onChangeMemberFilter, hideBalance, onToggleHide, onSeeAll, onPay, onEditPlanned, onDeletePlanned, onNewPlanned, onCloseMonth, postergadas, pacing, dias, reservaMinima, reservaUsada, reservaDisponivel, reservaConfigurada, reservaAporte, reservaReceita, reservaDespesa, reservaSobra, reservaDeficit, beneficio, carryRestrito, selectedMonth, onOpenReserva, autoDetalhes }) {
   const [sortBy, setSortBy] = useState("indicada");
   const [showHealthInfo, setShowHealthInfo] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
-  const lastTapRef = useRef({ month: null, time: 0 });
   const categories = useCategories();
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-  const firstNegative = projectedBalance.find((t) => t.negative);
-  const hasAnyMovement = projectedBalance.some((d) => (d.receitas || 0) > 0 || (d.despesas || 0) > 0);
   const mask = (v) => (hideBalance ? "R$ • • • • •" : fmt(v));
-
-  function handleBarTap(data) {
-    const month = (data && (data.payload || data).month) || null;
-    if (!month) return;
-    const now = Date.now();
-    if (lastTapRef.current.month === month && now - lastTapRef.current.time < 400) {
-      lastTapRef.current = { month: null, time: 0 };
-      if (onSelectMonth) onSelectMonth(month);
-    } else {
-      lastTapRef.current = { month, time: now };
-    }
-  }
 
   const pad2 = (n) => String(n).padStart(2, "0");
   const ehDespesa = (i) => i.type === "expense" || i.type === "transferencia";
@@ -302,6 +255,9 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
     const diff = Math.round((new Date(i.dueDate + "T00:00:00") - new Date(TODAY_DATE + "T00:00:00")) / 86400000);
     return diff >= 0 && diff <= 7;
   }).length;
+  const restanteDoItem = (i) => Math.max(0, (i.amount || 0) - (i.paid || 0));
+  const openPagar = openItems.filter(ehDespesaItem).reduce((s, i) => s + restanteDoItem(i), 0);
+  const openReceber = openItems.filter((i) => !ehDespesaItem(i)).reduce((s, i) => s + restanteDoItem(i), 0);
 
   // Quanto do orçamento do mês já foi usado — o dado que dá sentido ao número
   // de saúde financeira, que antes aparecia sem contexto nenhum.
@@ -326,20 +282,23 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
           alertas={alerts.length}
           onAbrirAlertas={() => setShowAlerts(true)}
           onAbrirPrevisto={onCloseMonth}
+          topo={<MemberFilterIcon value={memberFilter} onChange={onChangeMemberFilter} />}
         />
 
-        {/* 2. Faixa de apoio — os três KPIs saíram do topo para não disputar
-            com o saldo, e seguem logo abaixo do herói. */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
-          <Kpi icon={CalendarClock} color={COLORS.info} value={mask(monthProjection.endBalance)} label="saldo no fim do mês" />
-          <Kpi icon={ArrowDownLeft} color={COLORS.income} value={mask(monthProjection.pendingIncome)} label="a receber" hint={dueThisWeek ? "vencem " + dueThisWeek + " esta semana" : undefined} />
-          <Kpi icon={ArrowUpRight} color={COLORS.rust} value={mask(monthProjection.pendingExpense)} label="a pagar" />
-        </div>
-        {!endPositive && (
-          <p style={{ fontSize: 12.5, color: COLORS.rust, margin: 0, fontWeight: 600 }}>
-            No ritmo atual, o mês fecha negativo. Veja o que pode ser postergado em Priorização.
-          </p>
-        )}
+        {/* 2. Reserva e mercado — dois quadros pequenos, lado a lado. */}
+        <ResumoCards
+          moeda={mask}
+          reserva={temReserva ? {
+            disponivel: reservaDisponivel,
+            total: reservaMinima,
+            usado: reservaUsada,
+            onAbrir: onOpenReserva,
+          } : null}
+          mercado={pacing ? {
+            restante: pacing.saldoSemanalRestante,
+            total: pacing.envelopeSemanal,
+          } : null}
+        />
 
         {/* 3. LISTA DE TRABALHO — promovida para logo depois do saldo. */}
         <section aria-labelledby="titulo-contas-abertas" style={{ marginTop: 4 }}>
@@ -347,16 +306,6 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
             <h2 id="titulo-contas-abertas" className="serif" style={{ fontSize: 21, fontWeight: 500, margin: 0 }}>
               Contas em aberto
             </h2>
-            {openItems.length > 0 && (
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.green, background: COLORS.green + "1E", borderRadius: 20, padding: "2px 10px" }}>
-                {openItems.length}
-              </span>
-            )}
-            {openItems.length > 0 && (
-              <span style={{ fontSize: 12.5, color: COLORS.muted }}>
-                {mask(openTotal)} em aberto{dueThisWeek > 0 ? " · " + dueThisWeek + " vencem esta semana" : ""}
-              </span>
-            )}
             <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
               {[["indicada", "Data indicada"], ["vencimento", "Vencimento"]].map(([v, l]) => (
                 <button key={v} onClick={() => setSortBy(v)} aria-pressed={sortBy === v}
@@ -370,6 +319,21 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
             </div>
           </div>
 
+          {openItems.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 11px", minHeight: 30,
+                borderRadius: 999, background: COLORS.surface, border: "1px solid " + COLORS.border,
+                fontSize: 12, fontWeight: 600, color: COLORS.fg2 }}>
+                <b className="num" style={{ color: COLORS.expense }}>{mask(openPagar)}</b> a pagar
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 11px", minHeight: 30,
+                borderRadius: 999, background: COLORS.surface, border: "1px solid " + COLORS.border,
+                fontSize: 12, fontWeight: 600, color: COLORS.fg2 }}>
+                <b className="num" style={{ color: COLORS.income }}>{mask(openReceber)}</b> a receber
+              </span>
+            </div>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {openItems.length === 0 && (
               <Card style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -377,9 +341,19 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
                 <p style={{ fontSize: 13.5, margin: 0 }}>Tudo em dia por aqui — nada pendente.</p>
               </Card>
             )}
-            {openItems.map((item) => (
+            {openItems.slice(0, 5).map((item) => (
               <PlannedCard key={item.occId} item={item} selectedMonth={selectedMonth} onPay={onPay} onEdit={onEditPlanned} onDelete={onDeletePlanned} />
             ))}
+
+            {openItems.length > 5 && (
+              <button onClick={onSeeAll} style={{
+                width: "100%", minHeight: 48, marginTop: 4, borderRadius: 12,
+                border: "1px solid " + COLORS.line, background: COLORS.card,
+                color: COLORS.accent, fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13.5,
+              }}>
+                Ver todas as {openItems.length} contas em aberto
+              </button>
+            )}
 
             {postergadas.length > 0 && (
               <Card>
@@ -412,61 +386,6 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
 
       {/* ─────────────── coluna de apoio ─────────────── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-        {/* Saúde financeira agora diz de onde vem a nota. */}
-        <SupportCard
-          icon={HeartPulse}
-          color={COLORS.info}
-          title="Saúde financeira"
-          subtitle={isCurrentMonth ? "como o mês está se comportando" : "mês encerrado"}
-          action={
-            <button onClick={() => setShowHealthInfo(true)} aria-label="Como a nota é calculada" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted }}>
-              <Info size={16} />
-            </button>
-          }
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <p className="serif" style={{ fontSize: 30, fontWeight: 600, margin: 0, color: health.color }}>{health.score}</p>
-            <div style={{ flex: 1 }}>
-              <div style={{ height: 8, borderRadius: 6, background: COLORS.cardRaised, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: Math.max(0, Math.min(100, health.score)) + "%", background: health.color, borderRadius: 6 }} />
-              </div>
-              <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "6px 0 0" }}>
-                <strong style={{ color: COLORS.ink }}>{health.shortLabel}</strong> · {usoDaRenda}% da renda do mês já usada
-              </p>
-            </div>
-          </div>
-          {health.factors.length > 0 && (
-            <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "10px 0 0" }}>
-              {health.factors.length === 1 ? "1 fator está descontando pontos" : health.factors.length + " fatores estão descontando pontos"} — toque no ⓘ para ver.
-            </p>
-          )}
-        </SupportCard>
-
-        {temReserva && (
-          <SupportCard
-            icon={PiggyBank}
-            color={COLORS.amber}
-            title="Reserva mínima"
-            subtitle={reservaConfigurada ? "aporte mensal configurado" : "15% do salário líquido"}
-            action={
-              <button onClick={onOpenReserva} aria-label="Configurar reserva mínima" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted }}>
-                <Pencil size={15} />
-              </button>
-            }
-          >
-            <p className="serif" style={{ fontSize: 26, fontWeight: 600, margin: "0 0 8px", color: reservaDisponivel >= 0 ? COLORS.ink : COLORS.rust }}>
-              {mask(reservaDisponivel)}
-            </p>
-            <ProgressBar pct={reservaMinima > 0 ? Math.min(100, (reservaUsada / reservaMinima) * 100) : 0} color={reservaDisponivel < 0 ? COLORS.rust : COLORS.amber} />
-            <p style={{ fontSize: 12, color: COLORS.muted, margin: "9px 0 0", lineHeight: 1.5 }}>
-              Usado {mask(reservaUsada)} de {mask(reservaMinima)} · aporte do mês {mask(reservaAporte)}.
-              {" "}{reservaDeficit > 0
-                ? "Fecha negativa em " + mask(reservaDeficit) + ", que entra como despesa no mês seguinte."
-                : "Sobra " + mask(reservaSobra) + ", que entra como receita no mês seguinte."}
-              {" "}A reserva não acumula.
-            </p>
-          </SupportCard>
-        )}
 
         {temRestrito && (
           <SupportCard
@@ -475,78 +394,11 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
             title="Cartão alimentação"
             subtitle={"entra " + (diasBeneficio ? "nos dias " + diasBeneficio : "no mês") + " · só " + categoriasBeneficio}
           >
-            <p className="serif" style={{ fontSize: 24, fontWeight: 600, margin: "0 0 6px", color: COLORS.ink }}>{mask(beneficio.total)}</p>
-            <p style={{ fontSize: 12, color: COLORS.muted, margin: 0, lineHeight: 1.5 }}>
-              Fora do saldo disponível — este valor não pode pagar as outras contas.
-              {carryRestrito > 0 ? " Inclui " + mask(carryRestrito) + " que sobrou do mês anterior." : ""}
-            </p>
+            <p className="serif" style={{ fontSize: 24, fontWeight: 600, margin: 0, color: COLORS.ink }}>{mask(beneficio.total)}</p>
           </SupportCard>
         )}
 
-        {/* 5. DETALHE SOB DEMANDA — os gráficos e o pacing. */}
-        <Card data-od-id="card-analise-do-mes">
-          <details>
-            <summary style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", listStyle: "none", minHeight: 44 }}>
-              <span style={{ width: 34, height: 34, borderRadius: 10, background: COLORS.info + "1E", color: COLORS.info, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <BarChart3 size={16} />
-              </span>
-              <span style={{ flex: 1 }}>
-                <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: COLORS.ink }}>Análise do mês</span>
-                <span style={{ display: "block", fontSize: 11.5, color: COLORS.muted }}>saldo mês a mês, dia a dia e ritmo de gasto</span>
-              </span>
-              <ChevronRight size={16} color={COLORS.muted} />
-            </summary>
-
-            <div style={{ marginTop: 14 }}>
-              <p className="eyebrow" style={{ marginBottom: 6 }}>Saldo no fim do mês — próximos 12 meses</p>
-              <div style={{ width: "100%", height: 175 }}>
-                <ResponsiveContainer>
-                  <BarChart data={projectedBalance} barGap={2} margin={{ top: 18, right: 4, left: 4, bottom: 0 }}>
-                    <CartesianGrid vertical={false} stroke={COLORS.lineSoft} />
-                    <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={0} />
-                    <YAxis hide />
-                    <Tooltip content={monthBarTooltip} />
-                    <ReferenceLine y={0} stroke={COLORS.ink} strokeOpacity={0.5} strokeDasharray="3 3" />
-                    <Bar dataKey="saldo" name="Saldo no fim do mês" radius={[4, 4, 4, 4]} onClick={handleBarTap} maxBarSize={22}>
-                      {projectedBalance.map((d, i) => (
-                        <Cell key={i} fill={d.saldo < 0 ? COLORS.rust : COLORS.income} fillOpacity={d.projected ? 0.55 : 1} />
-                      ))}
-                      <LabelList dataKey="saldo" content={renderBarLabel} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "6px 0 0" }}>
-                Barras mais claras são previsão. Toque duas vezes em uma barra para abrir o mês.
-              </p>
-              {!hasAnyMovement ? (
-                <p style={{ fontSize: 12.5, color: COLORS.muted, margin: "6px 0 0" }}>Cadastre receitas, despesas ou compromissos no Previsto para ver o saldo de cada mês.</p>
-              ) : firstNegative ? (
-                <p style={{ fontSize: 12.5, color: COLORS.rust, margin: "6px 0 0" }}>
-                  Atenção: o saldo fica negativo no fim de <strong>{monthLabelFull(firstNegative.month)}</strong> ({fmt(firstNegative.saldo)}).
-                </p>
-              ) : (
-                <p style={{ fontSize: 12.5, color: COLORS.income, margin: "6px 0 0" }}>Em todos os meses o saldo fecha positivo.</p>
-              )}
-
-              {pacing && (
-                <>
-                  <p className="eyebrow" style={{ margin: "18px 0 6px" }}>Ritmo de gasto do mercado</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
-                    <Kpi icon={Coins} color={COLORS.info} value={fmt(pacing.envelopeSemanal)} label="envelope da semana" />
-                    <Kpi icon={TrendingUp} color={pacing.saldoSemanalRestante < 0 ? COLORS.rust : COLORS.income} value={fmt(pacing.saldoSemanalRestante)} label="disponível na semana" />
-                    <Kpi icon={Calendar} color={COLORS.muted} value={fmt(pacing.tetoDiario)} label="teto por dia" />
-                  </div>
-                </>
-              )}
-
-            </div>
-          </details>
-        </Card>
-
-        <button onClick={onSeeAll} style={{ minHeight: 44, padding: "0 16px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, color: COLORS.fg2, fontWeight: 600, fontSize: 13 }}>
-          Ver todas as transações
-        </button>
+        <MonthAnalysis meses={projectedBalance} moeda={mask} />
       </div>
 
       {showHealthInfo && (

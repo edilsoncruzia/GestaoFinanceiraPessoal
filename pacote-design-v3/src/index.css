@@ -224,17 +224,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   min-width: 0;
 }
 
-/* O herói é a única superfície que sangra: no celular e no tablet ele encosta
-   nas laterais, como no protótipo. No desktop ele fica dentro da coluna, que é
-   onde o app já tem barra lateral. O topo NÃO sangra enquanto o mês e o filtro
-   estiverem acima dele — sangrar ali puxaria o bloco por cima dos dois. */
-@media (max-width: 979px) {
-  .hero-bleed { margin-left: -16px; margin-right: -16px; }
-}
-@media (min-width: 560px) and (max-width: 979px) {
-  .hero-bleed { margin-left: -24px; margin-right: -24px; }
-}
-
 /* Visibilidade por dispositivo — evita duplicar estado. O MESMO componente de
    contexto (mês, pessoa) é montado no topo da tela no celular e na topbar no
    desktop; o que muda é só onde ele aparece. */

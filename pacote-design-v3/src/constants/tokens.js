@@ -151,10 +151,6 @@ export const ROUTES = {
   declaracao:  { label: "Declaração de IR",           short: "IR",           icon: Receipt,     group: "Analisar" },
   dados:       { label: "Exportar / importar dados",  short: "Dados",        icon: FileJson,    group: "Manter" },
   ajustes:     { label: "Ajustes e Melhorias",        short: "Ajustes",      icon: Lightbulb,   group: "Manter" },
-  // "Mais" é a quinta aba da barra inferior (celular/tablet) — o menu que reúne
-  // tudo o que já está na barra lateral. group: null de propósito: a barra
-  // lateral filtra por NAV_GROUPS, então esta rota nunca aparece lá.
-  mais:        { label: "Mais",                       short: "Mais",         icon: MoreHorizontal, group: null },
 };
 
 // Abas principais do celular — a ordem define a barra inferior.
