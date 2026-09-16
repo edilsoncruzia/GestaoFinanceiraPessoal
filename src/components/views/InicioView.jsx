@@ -75,7 +75,6 @@ const dataCurta = (iso) => {
    lado do título, que não rouba a leitura da borda do card. */
 export function PlannedCard({ item, selectedMonth, onPay, onEdit, onDelete }) {
   const [confirming, setConfirming] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const categories = useCategories();
   const st = displayStatus(item);
   const RecIcon = recurrenceIcon(item);
@@ -135,6 +134,10 @@ export function PlannedCard({ item, selectedMonth, onPay, onEdit, onDelete }) {
       Icone={categories[item.category]?.icon || Tag}
       onAbrir={() => onEdit(item)}
       onPagar={() => onPay(item)}
+      // Editar e excluir saíram do menu de "três pontinhos" e viraram os dois
+      // ícones que ladeiam o botão de registro.
+      onEditar={() => onEdit(item)}
+      onExcluir={() => setConfirming(true)}
       acoes={
         <div>
           {item.motorStatus === "atencao_necessaria" && (
@@ -148,17 +151,6 @@ export function PlannedCard({ item, selectedMonth, onPay, onEdit, onDelete }) {
             </p>
           )}
           {item.agrupadas && <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "6px 0 0" }}>inclui {item.agrupadas}</p>}
-          <div style={{ position: "relative", marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => setMenuOpen((v) => !v)} aria-label="Mais opções" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted }}>
-              <MoreVertical size={16} />
-            </button>
-            {menuOpen && (
-              <div style={{ position: "absolute", top: 40, right: 0, background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 10, boxShadow: "0 6px 18px rgba(0,0,0,0.12)", zIndex: 3, overflow: "hidden" }}>
-                <button onClick={() => { setMenuOpen(false); onEdit(item); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minHeight: 44, padding: "0 14px", background: "none", border: "none", fontSize: 13, color: COLORS.ink, whiteSpace: "nowrap" }}><Pencil size={14} />Editar</button>
-                <button onClick={() => { setMenuOpen(false); setConfirming(true); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minHeight: 44, padding: "0 14px", background: "none", border: "none", borderTop: "1px solid " + COLORS.line, fontSize: 13, color: COLORS.rust, whiteSpace: "nowrap" }}><Trash2 size={14} />Excluir</button>
-              </div>
-            )}
-          </div>
         </div>
       }
     />

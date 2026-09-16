@@ -1,5 +1,5 @@
 import React from "react";
-import { Calendar, Check, Sparkle, Target, ArrowDownToLine, CreditCard, AlertTriangle, Zap } from "lucide-react";
+import { Calendar, Check, Sparkle, Target, ArrowDownToLine, CreditCard, AlertTriangle, Zap, Pencil, Trash2 } from "lucide-react";
 import { COLORS, RADIUS, SHADOW } from "../../constants/tokens";
 
 // ============================================================================
@@ -66,7 +66,9 @@ export function BillCard({
   Icone,              // componente de ícone da categoria
   onPagar,
   onAbrir,
-  acoes,              // nó de ações secundárias (menu de editar/excluir)
+  onEditar,           // abre o formulário do lançamento
+  onExcluir,          // pede a confirmação de exclusão
+  acoes,              // nó de ações secundárias (avisos do motor)
 }) {
   const receita = tipo === "income";
   const pagoReal = Math.max(0, Math.min(pago || 0, valor));
@@ -104,7 +106,9 @@ export function BillCard({
         border: "1px solid " + COLORS.border,
         borderRadius: RADIUS.card,
         padding: 16,
-        boxShadow: quitada ? "-8px 8px 0 " + COLORS.border : "-8px 8px 0 " + accent + ", " + SHADOW.card,
+        // A faixa colorida é SÓ na lateral esquerda (o deslocamento vertical
+        // pintava a base do cartão, que o modelo não tem).
+        boxShadow: quitada ? "-8px 0 0 " + COLORS.border : "-8px 0 0 " + accent + ", " + SHADOW.card,
       }}
     >
       <button
@@ -251,30 +255,68 @@ export function BillCard({
         </div>
       </button>
 
-      {quitada ? (
-        <span style={{
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", marginTop: 14,
-          minHeight: 52, borderRadius: 20, fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 13.5,
-          background: receita ? COLORS.incomeSoft : COLORS.surface2,
-          color: receita ? COLORS.income : COLORS.fg2,
-        }}>
-          <Check size={16} /> {receita ? "Recebimento concluído" : "Pagamento concluído"}
-        </span>
-      ) : (
-        <button
-          onClick={onPagar}
-          style={{
-            width: "100%", marginTop: 14, minHeight: 52, borderRadius: 20, border: "none",
-            background: accent, color: "#fff", fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 14.5,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-            boxShadow: "0 10px 22px -12px rgba(21,19,42,.5)",
-          }}
-        >
-          {receita
-            ? <><ArrowDownToLine size={17} /> Registrar recebimento</>
-            : <><CreditCard size={17} /> Registrar pagamento</>}
-        </button>
-      )}
+      {/* Linha de ação: editar à esquerda, a ação do dinheiro no meio (com a
+          largura reduzida para abrir espaço) e excluir à direita. */}
+      <div style={{ display: "flex", alignItems: "stretch", gap: 8, marginTop: 14 }}>
+        {onEditar && (
+          <button
+            type="button"
+            onClick={onEditar}
+            aria-label={"Editar " + titulo}
+            style={{
+              flexShrink: 0, width: 52, minHeight: 52, borderRadius: 20,
+              border: "1px solid " + COLORS.border, background: COLORS.surface2, color: COLORS.fg2,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <Pencil size={18} />
+          </button>
+        )}
+
+        {quitada ? (
+          <span style={{
+            flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            minHeight: 52, borderRadius: 20, fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 13.5,
+            background: receita ? COLORS.incomeSoft : COLORS.surface2,
+            color: receita ? COLORS.income : COLORS.fg2,
+          }}>
+            <Check size={16} /> {receita ? "Recebimento concluído" : "Pagamento concluído"}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={onPagar}
+            style={{
+              flex: 1, minWidth: 0, minHeight: 52, borderRadius: 20, border: "none",
+              background: receita
+                ? "linear-gradient(158deg, #059669, #065F46)"
+                : "linear-gradient(158deg, " + COLORS.expense + ", #7F1D1D)",
+              color: "#fff", fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 14.5,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
+              boxShadow: "0 10px 22px -12px rgba(21,19,42,.5)",
+            }}
+          >
+            {receita
+              ? <><ArrowDownToLine size={17} /> Registrar recebimento</>
+              : <><CreditCard size={17} /> Registrar pagamento</>}
+          </button>
+        )}
+
+        {onExcluir && (
+          <button
+            type="button"
+            onClick={onExcluir}
+            aria-label={"Excluir " + titulo}
+            style={{
+              flexShrink: 0, width: 52, minHeight: 52, borderRadius: 20,
+              border: "1px solid " + COLORS.expenseBorder, background: COLORS.expenseSoft, color: COLORS.expense,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <Trash2 size={18} />
+          </button>
+        )}
+      </div>
 
       {acoes}
     </div>
