@@ -15,6 +15,7 @@ import { CategoryIcon } from '../ui/CategoryIcon';
 import { ModalSheet } from '../ui/ModalSheet';
 import { BalanceHero } from '../ui/BalanceHero';
 import { BillCard } from '../ui/BillCard';
+import { MonthNav } from '../ui/MonthNav';
 import { MemberFilterIcon } from '../ui/MemberFilterIcon';
 import { ResumoCards } from '../ui/ResumoCards';
 import { MonthAnalysis } from '../ui/MonthAnalysis';
@@ -263,6 +264,8 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
   // de saúde financeira, que antes aparecia sem contexto nenhum.
   const usoDaRenda = monthIncome > 0 ? Math.round((monthExpense / monthIncome) * 100) : 0;
   const temReserva = reservaMinima > 0 || reservaConfigurada;
+  // Nome da pessoa filtrada (a pílula do herói) — null quando o filtro é "Todos".
+  const pessoa = memberFilter != null && String(memberFilter) !== "todos" ? memberLabel(Number(memberFilter)) : null;
 
   return (
     <div className="grid-auto">
@@ -283,6 +286,8 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
           onAbrirAlertas={() => setShowAlerts(true)}
           onAbrirPrevisto={onCloseMonth}
           topo={<MemberFilterIcon value={memberFilter} onChange={onChangeMemberFilter} />}
+          contexto={<MonthNav month={selectedMonth} onChange={onSelectMonth} tom="escuro" />}
+          pessoa={pessoa}
         />
 
         {/* 2. Reserva e mercado — dois quadros pequenos, lado a lado. */}

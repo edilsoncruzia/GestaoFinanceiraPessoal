@@ -849,9 +849,8 @@ function FinanceApp() {
       >
           {tab === "inicio" && (
           <>
-            <div className="only-phone" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-              <MonthNav month={selectedMonth} onChange={setSelectedMonth} />
-            </div>
+            {/* O mês e o filtro agora vivem DENTRO do herói (InicioView) — não
+                há faixa acima dele. */}
             <InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={netIncome} monthExpense={netExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={priorizacaoHome.items} postergadas={priorizacaoHome.postergadas} pacing={priorizacaoHome.pacing} dias={priorizacaoHome.dias} reservaMinima={priorizacaoHome.reservaMinima} reservaUsada={priorizacaoHome.reservaUsada} reservaDisponivel={priorizacaoHome.reservaDisponivel} reservaItens={priorizacaoHome.reservaItens} reservaConfigurada={priorizacaoHome.reservaConfigurada} reservaAporte={priorizacaoHome.reservaAporte} reservaReceita={priorizacaoHome.reservaReceita} reservaDespesa={priorizacaoHome.reservaDespesa} reservaSobra={priorizacaoHome.reservaSobra} reservaDeficit={priorizacaoHome.reservaDeficit} beneficio={beneficioMes} carryRestrito={carryRestrito} selectedMonth={selectedMonth} onOpenReserva={() => { setTab("mais"); setMoreView("reserva"); }} autoDetalhes={priorizacaoHome.autoDetalhes} memberFilter={memberFilter} onChangeMemberFilter={setMemberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} />
           </>
         )}

@@ -225,14 +225,161 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 
 /* O herói é a única superfície que sangra: no celular e no tablet ele encosta
-   nas laterais, como no protótipo. No desktop ele fica dentro da coluna, que é
-   onde o app já tem barra lateral. O topo NÃO sangra enquanto o mês e o filtro
-   estiverem acima dele — sangrar ali puxaria o bloco por cima dos dois. */
+   nas laterais E no topo, como no protótipo — o mês e o filtro agora vivem
+   dentro dele, então não há mais nada acima para atropelar. No desktop ele fica
+   dentro da coluna, que é onde o app já tem barra lateral. */
 @media (max-width: 979px) {
-  .hero-bleed { margin-left: -16px; margin-right: -16px; }
+  .hero-bleed { margin: -16px -16px 0; }
 }
 @media (min-width: 560px) and (max-width: 979px) {
-  .hero-bleed { margin-left: -24px; margin-right: -24px; }
+  .hero-bleed { margin: -20px -24px 0; }
+}
+
+/* ============================================================================
+   HERÓI DA INÍCIO — portado do protótipo `home-mobile-hero-v3.html`.
+   Marca, filtro, anel de saúde, sino, mês, saldo, previsto e o gráfico dentro
+   de UM bloco violeta que sangra até a borda. Os nomes de classe são os do
+   protótipo; as variáveis foram remapeadas para as do app.
+   ========================================================================== */
+.herofull{position:relative;color:#fff;overflow:hidden;
+  background:
+    radial-gradient(130% 70% at 88% -12%,rgba(56,189,248,.30),rgba(56,189,248,0) 60%),
+    radial-gradient(110% 60% at 6% 112%,rgba(217,70,239,.26),rgba(217,70,239,0) 62%),
+    radial-gradient(90% 55% at 50% 42%,rgba(124,58,237,.50),rgba(124,58,237,0) 72%),
+    linear-gradient(180deg,#2A0A63 0%,#3B1483 26%,#4C1D95 52%,#5B21B6 78%,#6D28D9 100%);
+  border-radius:0 0 32px 32px;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 20px 20px;
+  margin-bottom:16px;
+  box-shadow:0 26px 50px -18px rgba(46,16,101,.55)}
+.herofull::after{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.14),rgba(255,255,255,0) 68%);pointer-events:none}
+.herofull::before{content:"";position:absolute;left:-60px;top:120px;width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle,rgba(167,139,250,.30),rgba(167,139,250,0) 70%);pointer-events:none}
+.herofull .inner{position:relative;z-index:1}
+
+.toprow{display:flex;align-items:center;gap:9px;min-height:44px}
+.brandmark{display:flex;align-items:center;gap:9px;margin-right:auto}
+.brandmark .dot{width:30px;height:30px;border-radius:11px;
+  background:linear-gradient(135deg,var(--color-accent-bright),var(--color-accent-deep));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);
+  font-weight:800;font-size:14px;box-shadow:0 4px 12px -3px rgba(109,40,217,.5)}
+.brandmark span{font-family:var(--font-display);font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+
+.iconbtn{width:44px;height:44px;border-radius:14px;background:var(--color-surface);border:1px solid var(--color-border);
+  display:flex;align-items:center;justify-content:center;color:var(--color-ink);position:relative;
+  transition:transform .12s ease,background .15s}
+.iconbtn:active{transform:scale(.93)}
+.iconbtn.plain{background:transparent;border-color:transparent}
+.iconbtn.plain:hover{background:var(--color-surface)}
+.iconbtn:not(.plain):hover{background:var(--color-surface-2)}
+
+.badge{position:absolute;top:3px;right:3px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;
+  background:var(--color-expense);color:#fff;font-size:10.5px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;border:2px solid var(--color-surface)}
+
+/* no herói, os controles do topo ficam translúcidos */
+.herofull .brandmark span{color:#fff}
+.herofull .brandmark .dot{background:rgba(255,255,255,.18);box-shadow:none;backdrop-filter:blur(6px)}
+.herofull .iconbtn{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.22);color:#fff}
+.herofull .iconbtn:hover{background:rgba(255,255,255,.26)}
+.herofull .iconbtn.plain{background:transparent;border-color:transparent;color:#fff}
+.herofull .iconbtn.plain:hover{background:rgba(255,255,255,.14)}
+.herofull .badge{background:#FB7185;border-color:#4C1D95;color:#2A0A38}
+
+/* seletor de mês */
+.monthnav{display:flex;align-items:center;justify-content:center;gap:2px;margin:14px 0 2px;position:relative}
+.monthnav .lab{display:flex;align-items:baseline;gap:7px;padding:6px 10px;border-radius:12px;background:none;border:none}
+.monthnav .lab strong{font-family:var(--font-display);font-size:16.5px;font-weight:700;letter-spacing:-.02em;text-transform:capitalize}
+.monthnav .lab em{font-style:normal;font-size:11.5px;font-weight:600;color:var(--color-muted)}
+.monthnav .chev{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+  color:var(--color-muted);transition:background .15s;background:none;border:none}
+.monthnav .chev:hover{background:var(--color-surface-2)}
+.herofull .monthnav{margin:10px 0 0}
+.herofull .monthnav .lab strong{color:#fff}
+.herofull .monthnav .lab em{color:#EDE9FE;background:rgba(255,255,255,.15);padding:2.5px 9px;border-radius:999px;
+  font-size:10.5px;font-weight:700;letter-spacing:.02em}
+.herofull .monthnav .chev{color:#DDD6FE}
+.herofull .monthnav .chev:hover{background:rgba(255,255,255,.14)}
+
+/* anel de saúde no topo do herói (tocável: abre os detalhes) */
+.hf-ring{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.22);border-radius:14px;
+  transition:background .15s,transform .12s ease}
+.hf-ring:hover{background:rgba(255,255,255,.26)}
+.hf-ring:active{transform:scale(.93)}
+.hf-ring svg{position:absolute;inset:4px;transform:rotate(-90deg)}
+.hf-ring b{position:relative;font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-.04em;color:#fff}
+.hf-ring .go{position:absolute;bottom:-3px;right:-3px;width:15px;height:15px;border-radius:50%;
+  background:#fff;color:var(--color-accent-deep);display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--color-accent-deep)}
+
+/* pílula de "pessoa filtrada": altura reservada sempre, pra não empurrar o saldo */
+.hf-who{min-height:24px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.hf-who span{display:inline-block;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.16);
+  font-size:11px;font-weight:700;color:#EDE9FE}
+
+/* saldo disponível: cartão translúcido, rótulo com ícone, valor grande à esquerda */
+.hf-core{margin-top:16px}
+.hf-balance{min-width:0;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.17);
+  border-radius:22px;padding:15px 17px;display:flex;align-items:center;gap:12px;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 14px 30px -14px rgba(10,4,30,.55)}
+.hf-balance .bcol{flex:1;min-width:0;text-align:left}
+.hf-balance .lbl{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#DDD6FE;margin:0}
+.hf-balance .lbl i{width:26px;height:26px;border-radius:9px;background:rgba(255,255,255,.14);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;font-style:normal}
+.hf-balance .val{font-family:var(--font-display);font-size:clamp(31px,9.6vw,38px);font-weight:800;letter-spacing:-.03em;
+  line-height:1.04;margin:8px 0 0}
+
+/* selo circular verde de tendência: no protótipo é decorativo; aqui é o botão
+   que revela/oculta o saldo (a mesma função que o app já tinha). */
+.hf-trend{position:relative;flex-shrink:0;width:50px;height:50px;border-radius:50%;z-index:0;padding:0;border:none;cursor:pointer;
+  background:linear-gradient(160deg,#34D399,#059669);display:flex;align-items:center;justify-content:center;color:#fff;
+  box-shadow:0 0 0 5px rgba(52,211,153,.16),0 8px 22px -4px rgba(5,150,105,.65),inset 0 1px 0 rgba(255,255,255,.35)}
+.hf-trend:active{transform:scale(.96)}
+.hf-trend::before{content:"";position:absolute;inset:-7px;border-radius:50%;z-index:-1;
+  background:rgba(52,211,153,.38);filter:blur(11px)}
+.hf-trend .spark{position:absolute;color:#A7F3D0;opacity:.9}
+.hf-trend .s1{top:-7px;left:2px;transform:rotate(-12deg)}
+.hf-trend .s2{top:-2px;right:-9px;transform:rotate(18deg) scale(.75)}
+.hf-trend .s3{bottom:-8px;left:-6px;transform:rotate(6deg) scale(.6)}
+
+/* saldo previsto para o fim do mês: cartão próprio, mesmo idioma do saldo */
+.hf-proj{margin-top:10px;width:100%;display:flex;align-items:center;gap:12px;text-align:left;color:inherit;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.17);border-radius:18px;padding:12px 16px;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 12px 26px -14px rgba(10,4,30,.5);
+  transition:background .15s,transform .12s ease}
+.hf-proj:hover{background:rgba(255,255,255,.17)}
+.hf-proj:active{transform:scale(.985)}
+.hf-proj-ic{flex-shrink:0;width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.15);
+  display:flex;align-items:center;justify-content:center;color:#fff}
+.hf-proj-txt{flex:1;min-width:0}
+.hf-proj-lbl{display:block;font-size:12px;font-weight:600;color:#DDD6FE}
+.hf-proj b{display:block;font-family:var(--font-display);font-size:21px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+.hf-proj b.pos{color:#6EE7B7}
+.hf-proj b.neg{color:#FCA5A5}
+
+/* gráfico embutido no herói: sangra de ponta a ponta do bloco */
+.hf-chart{margin:14px -20px -20px;position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none;
+  cursor:crosshair;border-radius:16px}
+.hf-chart svg{display:block;width:100%;height:auto;position:relative;z-index:1}
+.hf-chart:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(255,255,255,.8)}
+.hf-wave{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:auto;pointer-events:none;z-index:0}
+.hf-tip{position:absolute;z-index:3;pointer-events:none;white-space:nowrap;display:flex;flex-direction:column;gap:1px;
+  padding:7px 11px;border-radius:12px;background:rgba(18,6,48,.86);border:1px solid rgba(255,255,255,.24);
+  box-shadow:0 12px 26px -10px rgba(6,2,26,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transform:translate(-50%,calc(-100% - 12px));animation:fadeIn .14s ease}
+.hf-tip.abaixo{transform:translate(-50%,12px)}
+.hf-tip span{font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#DDD6FE}
+.hf-tip b{font-family:var(--font-display);font-size:13.5px;font-weight:800;letter-spacing:-.02em;color:#fff}
+
+/* No desktop o herói vive dentro da coluna (sem sangria), então os cantos de
+   cima também arredondam — o protótipo é mobile e usa topo reto porque encosta
+   na borda da tela. */
+@media (min-width: 980px) {
+  .herofull { border-radius: 24px; }
+  .hf-chart { margin: 14px -20px -20px; }
 }
 
 /* Visibilidade por dispositivo — evita duplicar estado. O MESMO componente de

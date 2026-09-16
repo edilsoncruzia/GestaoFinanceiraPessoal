@@ -9,16 +9,16 @@ import { ModalSheet } from './ModalSheet';
 // ============================================================================
 // MonthNav — o seletor de contexto do app inteiro
 //
-// Mudanças desta rodada:
-//  1. Alvos de toque de 36px -> 44px. Em um app usado no ônibus, 36px erra o
-//     toque, e as duas setas são o controle mais usado da tela.
-//  2. O dropdown usava el.scrollIntoView, que rola o container errado em
-//     preview embutido. Trocado por scrollTop calculado — comportamento
-//     idêntico (centraliza no mês atual ao abrir) sem o efeito colateral.
-//  3. No desktop a lista vira um popover ancorado; no celular continua sendo
-//     a gaveta, que é o padrão certo para a mão.
-//  4. O estado do mês ("mês atual" / "mês projetado") estava em 11px solto
-//     embaixo do título; agora é um selo com cor + texto.
+// Duas apresentações, o MESMO estado e os MESMOS controles:
+//   tom="claro"  (padrão) — topbar do desktop e telas de fundo claro;
+//   tom="escuro" — dentro do herói da Início, com a estrutura do protótipo
+//                  `home-mobile-hero-v3.html`: setas sem caixa, rótulo grande
+//                  centralizado e o selo do mês ao lado.
+//
+// O rótulo continua sendo um botão (abre a lista de meses) — no protótipo ele
+// é um <div>, aqui precisa continuar clicável porque é o único caminho para
+// escolher um mês distante. No desktop a lista é um popover ancorado; no
+// celular, a gaveta, que é o padrão certo para a mão.
 // ============================================================================
 
 const arrowStyle = {
@@ -34,7 +34,7 @@ const arrowStyle = {
   flexShrink: 0,
 };
 
-export function MonthNav({ month, onChange, compact }) {
+export function MonthNav({ month, onChange, compact, tom = 'claro' }) {
   const [open, setOpen] = useState(false);
   const listRef = useRef(null);
   const { isDesktop } = useDevice();
@@ -63,6 +63,7 @@ export function MonthNav({ month, onChange, compact }) {
     : isFuture
       ? { label: "mês projetado", color: COLORS.amber, bg: COLORS.amber + "1A" }
       : { label: "mês encerrado", color: COLORS.muted, bg: COLORS.cardRaised };
+  const statusCurto = month === TODAY_MONTH ? 'atual' : isFuture ? 'projetado' : 'encerrado';
 
   const listContent = (
     <>
@@ -75,6 +76,7 @@ export function MonthNav({ month, onChange, compact }) {
             return (
               <button
                 key={m}
+                type="button"
                 data-month={m}
                 onClick={() => pick(m)}
                 aria-current={active ? "true" : undefined}
@@ -103,13 +105,68 @@ export function MonthNav({ month, onChange, compact }) {
     </>
   );
 
+  // ── tom escuro: o seletor dentro do herói da Início ──────────────────────
+  if (tom === 'escuro') {
+    return (
+      <div className="monthnav">
+        <button type="button" className="chev" onClick={() => onChange(addMonths(month, -1))}
+          aria-label="Mês anterior" data-od-id="mes-anterior">
+          <ChevronLeft size={18} />
+        </button>
+
+        <button
+          type="button"
+          className="lab"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Selecionar mês"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          data-od-id="seletor-de-mes"
+        >
+          <strong>{monthLabelFull(month)}</strong>
+          <em>{statusCurto}</em>
+        </button>
+
+        <button type="button" className="chev" onClick={() => onChange(addMonths(month, 1))}
+          aria-label="Próximo mês" data-od-id="proximo-mes">
+          <ChevronRight size={18} />
+        </button>
+
+        {/* Desktop: popover ancorado, sem escurecer a tela inteira. */}
+        {open && isDesktop && (
+          <>
+            <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 55 }} aria-hidden="true" />
+            <div
+              role="dialog"
+              aria-label="Selecionar mês"
+              style={{
+                position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 56, width: 320,
+                background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 14,
+                boxShadow: "0 18px 48px rgba(21,19,42,0.28)", padding: 14,
+              }}
+            >
+              {listContent}
+            </div>
+          </>
+        )}
+
+        {/* Celular e tablet: gaveta. */}
+        {open && !isDesktop && (
+          <ModalSheet title="Selecionar mês" onClose={() => setOpen(false)}>{listContent}</ModalSheet>
+        )}
+      </div>
+    );
+  }
+
+  // ── tom claro: topbar e demais telas ─────────────────────────────────────
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
-      <button onClick={() => onChange(addMonths(month, -1))} aria-label="Mês anterior" data-od-id="mes-anterior" style={arrowStyle}>
+      <button type="button" onClick={() => onChange(addMonths(month, -1))} aria-label="Mês anterior" data-od-id="mes-anterior" style={arrowStyle}>
         <ChevronLeft size={17} />
       </button>
 
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Selecionar mês"
         aria-haspopup="dialog"
@@ -133,7 +190,7 @@ export function MonthNav({ month, onChange, compact }) {
         }}>{status.label}</span>
       </button>
 
-      <button onClick={() => onChange(addMonths(month, 1))} aria-label="Próximo mês" data-od-id="proximo-mes" style={arrowStyle}>
+      <button type="button" onClick={() => onChange(addMonths(month, 1))} aria-label="Próximo mês" data-od-id="proximo-mes" style={arrowStyle}>
         <ChevronRight size={17} />
       </button>
 
@@ -147,7 +204,7 @@ export function MonthNav({ month, onChange, compact }) {
             style={{
               position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 56, width: 320,
               background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 14,
-              boxShadow: "0 18px 48px rgba(27,42,47,0.22)", padding: 14,
+              boxShadow: "0 18px 48px rgba(21,19,42,0.28)", padding: 14,
             }}
           >
             {listContent}
