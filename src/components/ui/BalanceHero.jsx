@@ -1,5 +1,5 @@
 import React from "react";
-import { Wallet, TrendingUp, Bell, Sparkle, ArrowUpRight, Star } from "lucide-react";
+import { Wallet, TrendingUp, Bell, Star, Eye, EyeOff } from "lucide-react";
 import BalanceChart from "./BalanceChart";
 
 // ============================================================================
@@ -104,6 +104,21 @@ export function BalanceHero({
         <div className="toprow">
           <div className="brandmark"><span className="dot">G</span><span>Finanças</span></div>
           {topo}
+          {/* Ocultar/mostrar valores: o olho mora aqui no topo, junto do filtro.
+              Antes era o selo verde do cartão de saldo — que saiu para o saldo
+              poder ficar centralizado. */}
+          {onAlternarVisao && (
+            <button
+              type="button"
+              className="iconbtn plain"
+              onClick={onAlternarVisao}
+              aria-label={escondido ? "Mostrar valores" : "Ocultar valores"}
+              aria-pressed={escondido}
+              data-od-id="alternar-valores"
+            >
+              {escondido ? <EyeOff size={19} /> : <Eye size={19} />}
+            </button>
+          )}
           {saude != null && <AnelSaude score={saude} onAbrir={onAbrirSaude} />}
           {alertas != null && (
             <button
@@ -127,19 +142,6 @@ export function BalanceHero({
               <p className="lbl" id="t-saldo"><i><Wallet size={13} /></i> Saldo disponível</p>
               <p className="val num">{mask(disponivel)}</p>
             </div>
-            {onAlternarVisao && (
-              <button
-                type="button"
-                className="hf-trend"
-                onClick={onAlternarVisao}
-                aria-label={escondido ? "Mostrar saldo" : "Ocultar saldo"}
-              >
-                <span className="spark s1" aria-hidden="true"><Sparkle size={9} /></span>
-                <span className="spark s2" aria-hidden="true"><Sparkle size={7} /></span>
-                <span className="spark s3" aria-hidden="true"><Sparkle size={6} /></span>
-                <ArrowUpRight size={20} aria-hidden="true" />
-              </button>
-            )}
           </div>
         </div>
 

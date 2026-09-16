@@ -7,7 +7,7 @@ import {
 import { COLORS, PRIORITY, DEFAULT_PRIORITY } from '../../constants/tokens';
 import { useCategories } from '../../context/CategoriesContext';
 import { TODAY_DATE, TODAY_MONTH } from '../../constants/seedData';
-import { fmt, fmtDate, round2, inScope, displayStatus, recurrenceIcon, recurrenceLabel, memberLabel, plannedStatus, monthLabelFull } from '../../utils/formatters';
+import { fmt, fmtDate, round2, inScope, displayStatus, recurrenceIcon, recurrenceLabel, memberLabel, plannedStatus, monthLabelFull, addMonths } from '../../utils/formatters';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -259,11 +259,37 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
   // de saúde financeira, que antes aparecia sem contexto nenhum.
   const usoDaRenda = monthIncome > 0 ? Math.round((monthExpense / monthIncome) * 100) : 0;
   const temReserva = reservaMinima > 0 || reservaConfigurada;
+
+  // Arrastar a tela para o lado troca o mês — o mesmo que os chevrons do
+  // seletor fazem, com o gesto que a mão já conhece. Só dispara quando o
+  // arrasto é claramente horizontal e curto no tempo, para não roubar a
+  // rolagem vertical; e não dispara a partir do gráfico, onde o arrasto é a
+  // leitura do ponto.
+  const toqueRef = useRef({ x: 0, y: 0, t: 0 });
+  function aoIniciarToque(e) {
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+    const alvo = e.target;
+    if (alvo && alvo.closest && alvo.closest(".hf-chart")) { toqueRef.current = { x: 0, y: 0, t: 0 }; return; }
+    toqueRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  }
+  function aoSoltarToque(e) {
+    const s = toqueRef.current;
+    if (!s.t) return;
+    const t = e.changedTouches && e.changedTouches[0];
+    toqueRef.current = { x: 0, y: 0, t: 0 };
+    if (!t || !onSelectMonth) return;
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Date.now() - s.t > 1000) return;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    onSelectMonth(addMonths(selectedMonth, dx < 0 ? 1 : -1));
+  }
   // Nome da pessoa filtrada (a pílula do herói) — null quando o filtro é "Todos".
   const pessoa = memberFilter != null && String(memberFilter) !== "todos" ? memberLabel(Number(memberFilter)) : null;
 
   return (
-    <div className="grid-auto">
+    <div className="grid-auto" onTouchStart={aoIniciarToque} onTouchEnd={aoSoltarToque}>
       {/* ─────────────── coluna de decisão ─────────────── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
         {/* 1. HERÓI — marca, saldo, saldo previsto e o gráfico dia a dia. */}

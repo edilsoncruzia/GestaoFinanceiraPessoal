@@ -319,34 +319,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .hf-who span{display:inline-block;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.16);
   font-size:11px;font-weight:700;color:#EDE9FE}
 
-/* saldo disponível: cartão translúcido, rótulo com ícone, valor grande à esquerda */
+/* saldo disponível: cartão translúcido, CENTRALIZADO. O selo verde que ficava
+   à direita saiu — o olho que revela/oculta os valores subiu para o topo. */
 .hf-core{margin-top:16px}
 .hf-balance{min-width:0;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.17);
-  border-radius:22px;padding:15px 17px;display:flex;align-items:center;gap:12px;
+  border-radius:22px;padding:15px 17px;display:flex;align-items:center;justify-content:center;
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 14px 30px -14px rgba(10,4,30,.55)}
-.hf-balance .bcol{flex:1;min-width:0;text-align:left}
-.hf-balance .lbl{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#DDD6FE;margin:0}
+.hf-balance .bcol{flex:0 1 auto;min-width:0;text-align:center}
+.hf-balance .lbl{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#DDD6FE;margin:0}
 .hf-balance .lbl i{width:26px;height:26px;border-radius:9px;background:rgba(255,255,255,.14);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;font-style:normal}
 .hf-balance .val{font-family:var(--font-display);font-size:clamp(31px,9.6vw,38px);font-weight:800;letter-spacing:-.03em;
   line-height:1.04;margin:8px 0 0}
 
-/* selo circular verde de tendência: no protótipo é decorativo; aqui é o botão
-   que revela/oculta o saldo (a mesma função que o app já tinha). */
-.hf-trend{position:relative;flex-shrink:0;width:50px;height:50px;border-radius:50%;z-index:0;padding:0;border:none;cursor:pointer;
-  background:linear-gradient(160deg,#34D399,#059669);display:flex;align-items:center;justify-content:center;color:#fff;
-  box-shadow:0 0 0 5px rgba(52,211,153,.16),0 8px 22px -4px rgba(5,150,105,.65),inset 0 1px 0 rgba(255,255,255,.35)}
-.hf-trend:active{transform:scale(.96)}
-.hf-trend::before{content:"";position:absolute;inset:-7px;border-radius:50%;z-index:-1;
-  background:rgba(52,211,153,.38);filter:blur(11px)}
-.hf-trend .spark{position:absolute;color:#A7F3D0;opacity:.9}
-.hf-trend .s1{top:-7px;left:2px;transform:rotate(-12deg)}
-.hf-trend .s2{top:-2px;right:-9px;transform:rotate(18deg) scale(.75)}
-.hf-trend .s3{bottom:-8px;left:-6px;transform:rotate(6deg) scale(.6)}
-
 /* saldo previsto para o fim do mês: cartão próprio, mesmo idioma do saldo */
-.hf-proj{margin-top:10px;width:100%;display:flex;align-items:center;gap:12px;text-align:left;color:inherit;
+.hf-proj{margin-top:10px;width:100%;display:flex;align-items:center;justify-content:center;gap:12px;text-align:center;color:inherit;
   background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.17);border-radius:18px;padding:12px 16px;
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 12px 26px -14px rgba(10,4,30,.5);
@@ -355,7 +343,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .hf-proj:active{transform:scale(.985)}
 .hf-proj-ic{flex-shrink:0;width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.15);
   display:flex;align-items:center;justify-content:center;color:#fff}
-.hf-proj-txt{flex:1;min-width:0}
+.hf-proj-txt{flex:0 1 auto;min-width:0;text-align:center}
 .hf-proj-lbl{display:block;font-size:12px;font-weight:600;color:#DDD6FE}
 .hf-proj b{display:block;font-family:var(--font-display);font-size:21px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
 .hf-proj b.pos{color:#6EE7B7}

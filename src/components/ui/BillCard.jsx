@@ -300,8 +300,8 @@ export function BillCard({
             }}
           >
             {receita
-              ? <><ArrowDownToLine size={17} /> Registrar recebimento</>
-              : <><CreditCard size={17} /> Registrar pagamento</>}
+              ? <><ArrowDownToLine size={17} /> RECEBER</>
+              : <><CreditCard size={17} /> PAGAR</>}
             <ArrowRight size={16} style={{ opacity: 0.9 }} />
           </button>
         )}
