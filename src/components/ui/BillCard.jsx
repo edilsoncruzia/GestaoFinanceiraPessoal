@@ -1,50 +1,48 @@
 import React from "react";
-import { Calendar, Check, Sparkle, Target, ArrowDownToLine, CreditCard, AlertTriangle, Zap, Pencil, Trash2 } from "lucide-react";
+import { Calendar, Check, Sparkle, Target, ArrowDownToLine, CreditCard, AlertTriangle, Zap, Pencil, Trash2, Wallet, Clock, ArrowRight } from "lucide-react";
 import { COLORS, RADIUS, SHADOW } from "../../constants/tokens";
 
 // ============================================================================
-// BillCard — o cartão de conta em aberto aprovado no protótipo.
+// BillCard — o cartão de conta em aberto.
 //
-// É um componente APRESENTACIONAL: recebe valores prontos e devolve o cartão.
-// Nada de regra de negócio aqui — o motor de priorização, os lançamentos
-// agrupados, o salário com descontos e o menu de editar/excluir continuam onde
-// estão. É isso que permite trocar o visual do card sem tocar em nenhuma
-// decisão do app.
+// Layout do modelo aprovado: bloco de calendário à esquerda (mês + dia),
+// título com o ícone da categoria, a linha de recorrência/prioridade/pessoa,
+// a linha do vencimento, a caixa do valor à direita, uma caixa interna com
+// PAGO/RESTANTE e a barra, e a linha de ação (editar · registrar · excluir).
 //
-// O que o cartão mostra, na ordem:
-//   ícone da categoria + título + valor cheio
-//   linha "pago/recebido : restante"
-//   barra com o % dentro do preenchimento
-//   dois quadros: vencimento (com o selo de prazo) e data recomendada
-//   ação sólida na cor do dinheiro
+// O FUNDO É O SINAL: verde bem clarinho para receita, vermelho bem clarinho
+// para despesa — a mesma leitura da faixa lateral, agora no cartão inteiro.
 //
-// A cor é o SINAL: verde para receita, vermelho para despesa. A urgência tem
-// cor própria no selo de prazo, e a ação é sempre o violeta da marca.
+// É apresentacional: nada de regra de negócio aqui. Quem decide o que é pago,
+// qual é a data recomendada e o que é grupo é o motor, do lado de fora.
 // ============================================================================
 
 const fmtPadrao = (v) =>
   (v < 0 ? "−" : "") + "R$ " + Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 
+const numeroPuro = (v) => Math.abs(Math.round(v)).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+
 const dataCurta = (dia, mes) => String(dia).padStart(2, "0") + "/" + String(mes).padStart(2, "0");
 
+const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
 /* Estado pelo VENCIMENTO, que é a data que o mundo cobra. A data recomendada
-   pelo motor é outra coisa e vive no quadro ao lado. */
+   pelo motor é outra coisa e vive no bloco do calendário. */
 function estadoDe({ receita, quitada, vencimentoDia, hoje }) {
   if (quitada) return receita
     ? { l: "Recebido", tone: "in", Icon: Check }
     : { l: "Pago", tone: "done", Icon: Check };
-  if (vencimentoDia == null || hoje == null) return { l: "Em aberto", tone: "later", Icon: Calendar };
+  if (vencimentoDia == null || hoje == null) return { l: "Em aberto", tone: "later", Icon: Clock };
   const d = vencimentoDia - hoje;
   if (d < 0) return { l: "Atrasada " + Math.abs(d) + "d", tone: "late", Icon: AlertTriangle };
   if (d === 0) return { l: "Hoje", tone: "today", Icon: Zap };
-  return { l: "Em " + d + "d", tone: d <= 7 ? "soon" : "later", Icon: Calendar };
+  return { l: "Em " + d + "d", tone: d <= 7 ? "soon" : "later", Icon: Clock };
 }
 
 const chip = (tone) => {
-  if (tone === "late") return { background: COLORS.expenseSoft, color: COLORS.expense };
+  if (tone === "late") return { background: COLORS.expense, color: "#fff" };
   if (tone === "today" || tone === "soon") return { background: COLORS.warnSoft, color: COLORS.warn };
   if (tone === "in") return { background: COLORS.incomeSoft, color: COLORS.income };
-  if (tone === "done") return { background: COLORS.surface2, color: COLORS.fg2 };
   return { background: COLORS.surface2, color: COLORS.fg2 };
 };
 
@@ -78,40 +76,40 @@ export function BillCard({
 
   const accent = receita ? COLORS.income : COLORS.expense;
   const soft = receita ? COLORS.incomeSoft : COLORS.expenseSoft;
+  const borderSoft = receita ? COLORS.incomeBorder : COLORS.expenseBorder;
+  const gradBar = receita
+    ? "linear-gradient(90deg, #10B981, #047857)"
+    : "linear-gradient(90deg, #EF4444, #BE123C)";
+  const gradBtn = receita
+    ? "linear-gradient(158deg, #059669, #065F46)"
+    : "linear-gradient(158deg, #E11D48, #9F1239)";
+
   const est = status || estadoDe({ receita, quitada, vencimentoDia, hoje });
   const estChip = chip(est.tone);
-  const EstIcon = est.Icon || Calendar;
+  const EstIcon = est.Icon || Clock;
 
-  // Janela recomendada: só existe enquanto houver valor em aberto. Quando já
-  // passou, é o alerta vermelho do cartão.
-  const janela = quitada || indicadaDia == null ? null
-    : (hoje != null && indicadaDia < hoje ? { tone: "late", data: dataCurta(indicadaDia, mes), selo: "Passou" }
-      : { tone: "ideal", data: dataCurta(indicadaDia, mes), selo: "Ideal" });
-
-  // O "%" e o rótulo da barra vivem em posições calculadas: o número muda de
-  // lado quando o preenchimento é estreito e o rótulo não é desenhado quando a
-  // trilha acaba. Nada de texto cortado em nenhum percentual.
-  const dentro = pct >= 20;
-  const comRotulo = pct <= 52;
+  // O calendário mostra o dia RECOMENDADO (o que o motor sugere pagar); a
+  // linha abaixo diz o vencimento real. Sem recomendação, cai no vencimento.
+  const diaCalendario = indicadaDia != null ? indicadaDia : vencimentoDia;
+  const mesRotulo = MESES[((Number(mes) || 1) - 1 + 12) % 12];
 
   const meta = [recorrencia, prioridade, pessoa].filter(Boolean).join(" · ");
-  const cap = quitada ? "valor total" : receita ? "a receber" : "em aberto";
 
   return (
     <div
       data-od-id="bill-card"
       style={{
         position: "relative",
-        background: COLORS.surface,
-        border: "1px solid " + COLORS.border,
+        background: soft,                       // fundo bem clarinho: verde/vermelho
+        border: "1px solid " + borderSoft,
         borderRadius: RADIUS.card,
         padding: 16,
-        // A faixa colorida é SÓ na lateral esquerda (o deslocamento vertical
-        // pintava a base do cartão, que o modelo não tem).
+        // A faixa colorida é SÓ na lateral esquerda (sem deslocamento vertical).
         boxShadow: quitada ? "-8px 0 0 " + COLORS.border : "-8px 0 0 " + accent + ", " + SHADOW.card,
       }}
     >
       <button
+        type="button"
         onClick={onAbrir}
         style={{
           display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: 0,
@@ -123,149 +121,157 @@ export function BillCard({
         }
       >
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          {/* bloco calendário: mês no cabeçalho, dia grande embaixo */}
           <span style={{
-            width: 40, height: 40, borderRadius: 14, flexShrink: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: soft, color: accent,
+            flexShrink: 0, width: 52, borderRadius: 14, overflow: "hidden",
+            background: COLORS.surface, border: "1px solid " + borderSoft, textAlign: "center",
+            boxShadow: "0 1px 2px rgba(21,19,42,.04)",
           }}>
-            {Icone ? <Icone size={20} /> : null}
-          </span>
-          <span style={{ flex: 1, minWidth: 0, paddingTop: 1 }}>
             <span style={{
-              display: "block", fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800,
-              letterSpacing: "-0.025em", color: COLORS.ink,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>{titulo}</span>
-            <span style={{ display: "block", fontSize: 11.5, lineHeight: 1.4, color: COLORS.muted, fontWeight: 500, marginTop: 3 }}>
-              {meta}
-            </span>
-          </span>
-          <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, paddingLeft: 8 }}>
+              display: "block", background: accent, color: "#fff", fontSize: 9.5, fontWeight: 800,
+              letterSpacing: "0.06em", padding: "3px 0",
+            }}>{mesRotulo}</span>
             <span className="num" style={{
-              fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, letterSpacing: "-0.035em",
-              color: quitada ? COLORS.muted : COLORS.ink, whiteSpace: "nowrap", lineHeight: 1.15,
-            }}>{moeda(valor)}</span>
+              display: "block", fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800,
+              letterSpacing: "-0.03em", color: COLORS.ink, padding: "4px 0 6px", lineHeight: 1,
+            }}>{diaCalendario != null ? String(diaCalendario).padStart(2, "0") : "—"}</span>
           </span>
-        </div>
 
-        <div style={{ display: "flex", alignItems: "baseline", gap: "4px 12px", marginTop: 15, flexWrap: "wrap", minWidth: 0 }}>
-          <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
-            <em style={{
-              fontStyle: "normal", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.04em",
-              textTransform: "uppercase", color: COLORS.muted, whiteSpace: "nowrap",
-            }}>{receita ? "Recebido:" : "Pago:"}</em>
-            <b className="num" style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 800, letterSpacing: "-0.02em", color: COLORS.ink, whiteSpace: "nowrap" }}>
-              {moeda(pagoReal)}
-            </b>
-          </span>
-          <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6, minWidth: 0, marginLeft: "auto" }}>
-            <em style={{
-              fontStyle: "normal", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.04em",
-              textTransform: "uppercase", color: COLORS.muted, whiteSpace: "nowrap",
-            }}>Restante:</em>
-            <b className="num" style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 800, letterSpacing: "-0.02em", color: COLORS.ink, whiteSpace: "nowrap" }}>
-              {moeda(restante)}
-            </b>
-          </span>
-        </div>
-
-        <div style={{
-          position: "relative", height: 24, borderRadius: 999, background: COLORS.surface2,
-          overflow: "hidden", marginTop: 9,
-        }}>
-          <i style={{
-            position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 999,
-            background: accent, width: pct + "%",
-            transition: "width .5s cubic-bezier(.22,1,.36,1)",
-          }} />
-          <b className="num" style={{
-            position: "absolute", top: 0, bottom: 0, display: "flex", alignItems: "center",
-            fontFamily: "var(--font-display)", fontSize: 11.5, fontWeight: 800, letterSpacing: "-0.01em", whiteSpace: "nowrap",
-            left: dentro ? (pct / 2) + "%" : "calc(" + pct + "% + 10px)",
-            transform: dentro ? "translateX(-50%)" : "none",
-            color: dentro ? "#fff" : COLORS.ink,
-          }}>{pct}%</b>
-          {comRotulo && (
-            <u style={{
-              position: "absolute", top: 0, bottom: 0, display: "flex", alignItems: "center",
-              fontStyle: "normal", fontSize: 9.5, fontWeight: 800, letterSpacing: "0.06em",
-              textTransform: "uppercase", color: COLORS.fg2, whiteSpace: "nowrap",
-              left: "calc(" + pct + "% + " + (dentro ? 12 : 50) + "px)",
-            }}>do valor total</u>
-          )}
-        </div>
-
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: janela ? "1fr 1fr" : "1fr",
-          gap: 8, marginTop: 14,
-        }}>
-          <span style={{ display: "block", minWidth: 0, borderRadius: 16, padding: "10px 11px", background: COLORS.surface2 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              <i style={{
-                width: 24, height: 24, borderRadius: 8, background: COLORS.surface, flexShrink: 0,
-                display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.fg2,
-              }}><Calendar size={15} /></i>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <span style={{
-                fontSize: 9, fontWeight: 800, letterSpacing: "0.02em", textTransform: "uppercase",
-                color: COLORS.fg2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>Vencimento</span>
+                fontFamily: "var(--font-display)", fontSize: 16.5, fontWeight: 800,
+                letterSpacing: "-0.025em", color: COLORS.ink,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>{titulo}</span>
+              {Icone && (
+                <span style={{
+                  flexShrink: 0, width: 24, height: 24, borderRadius: 999, background: COLORS.surface,
+                  color: accent, display: "flex", alignItems: "center", justifyContent: "center",
+                }}><Icone size={13} /></span>
+              )}
             </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, flexWrap: "wrap" }}>
-              <b className="num" style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 800, letterSpacing: "-0.025em", color: COLORS.ink, whiteSpace: "nowrap" }}>
-                {vencimentoDia != null ? dataCurta(vencimentoDia, mes) : "—"}
-              </b>
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 999,
-                fontSize: 9.5, fontWeight: 800, whiteSpace: "nowrap", ...estChip,
-              }}>
-                <EstIcon size={10} /> {est.l}
-              </span>
-            </span>
-          </span>
 
-          {janela && (
-            <span style={{ display: "block", minWidth: 0, borderRadius: 16, padding: "10px 11px", background: soft }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                <i style={{
-                  width: 24, height: 24, borderRadius: 8, background: COLORS.surface, flexShrink: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center", color: accent,
-                }}><Target size={15} /></i>
-                <span style={{
-                  fontSize: 9, fontWeight: 800, letterSpacing: "0.02em", textTransform: "uppercase",
-                  color: COLORS.fg2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>Recomendada</span>
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, flexWrap: "wrap" }}>
-                <b className="num" style={{
-                  fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 800, letterSpacing: "-0.025em",
-                  color: janela.tone === "late" ? COLORS.expense : COLORS.ink, whiteSpace: "nowrap",
-                }}>{janela.data}</b>
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 999,
-                  fontSize: 9.5, fontWeight: 800, whiteSpace: "nowrap",
-                  background: COLORS.surface,
-                  color: janela.tone === "late" ? COLORS.expense : accent,
-                }}>
-                  <Sparkle size={9} /> {janela.selo}
+            {meta && (
+              <span style={{
+                display: "block", fontSize: 11.5, lineHeight: 1.4, color: COLORS.muted,
+                fontWeight: 500, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>{meta}</span>
+            )}
+
+            {vencimentoDia != null && (
+              <span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
+                <EstIcon size={13} color={est.tone === "late" ? COLORS.expense : COLORS.fg2} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 11.5, color: COLORS.fg2, whiteSpace: "nowrap" }}>
+                  Vencimento <b style={{ color: COLORS.ink, fontWeight: 700 }}>real dia {vencimentoDia}</b>
                 </span>
+                {/* O selo de prazo vive aqui: o modelo trocou o quadro "Vencimento"
+                    por esta linha, e sem ele o atraso perderia o sinal. */}
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 999,
+                  fontSize: 9, fontWeight: 800, whiteSpace: "nowrap", ...estChip,
+                }}>{est.l}</span>
+              </span>
+            )}
+          </span>
+
+          {/* caixa do valor: "R$" pequeno em cima, número grande embaixo */}
+          <span style={{
+            flexShrink: 0, textAlign: "right", background: COLORS.surface,
+            border: "1px solid " + borderSoft, borderRadius: 14, padding: "7px 12px", minWidth: 82,
+          }}>
+            <span style={{ display: "block", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.04em", color: COLORS.muted }}>R$</span>
+            <span className="num" style={{
+              display: "block", fontFamily: "var(--font-display)", fontSize: 21, fontWeight: 800,
+              letterSpacing: "-0.035em", lineHeight: 1.1, color: quitada ? COLORS.muted : COLORS.ink,
+              whiteSpace: "nowrap",
+            }}>{numeroPuro(valor)}</span>
+          </span>
+        </div>
+
+        {/* caixa interna: pago/recebido, restante e a barra */}
+        <span style={{
+          display: "block", marginTop: 14, background: COLORS.surface,
+          border: "1px solid " + borderSoft, borderRadius: 16, padding: "12px 14px",
+        }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+              <i style={{
+                width: 26, height: 26, borderRadius: 9, background: soft, color: accent, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center", fontStyle: "normal",
+              }}><Wallet size={14} /></i>
+              <span style={{ minWidth: 0 }}>
+                <em style={{
+                  display: "block", fontStyle: "normal", fontSize: 9.5, fontWeight: 800,
+                  letterSpacing: "0.06em", textTransform: "uppercase", color: COLORS.muted,
+                }}>{receita ? "Recebido:" : "Pago:"}</em>
+                <b className="num" style={{
+                  display: "block", fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800,
+                  letterSpacing: "-0.02em", color: COLORS.ink, whiteSpace: "nowrap",
+                }}>{moeda(pagoReal)}</b>
               </span>
             </span>
-          )}
-        </div>
+
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0, marginLeft: "auto" }}>
+              <i style={{
+                width: 26, height: 26, borderRadius: 9, background: soft, color: accent, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center", fontStyle: "normal",
+              }}><Clock size={14} /></i>
+              <span style={{ minWidth: 0, textAlign: "right" }}>
+                <em style={{
+                  display: "block", fontStyle: "normal", fontSize: 9.5, fontWeight: 800,
+                  letterSpacing: "0.06em", textTransform: "uppercase", color: COLORS.muted,
+                }}>Restante:</em>
+                <b className="num" style={{
+                  display: "block", fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800,
+                  letterSpacing: "-0.02em", color: COLORS.ink, whiteSpace: "nowrap",
+                }}>{moeda(restante)}</b>
+              </span>
+            </span>
+          </span>
+
+          {/* barra: o "%" fica centrado no próprio preenchimento */}
+          <span style={{
+            position: "relative", display: "block", height: 22, borderRadius: 999,
+            background: COLORS.surface2, overflow: "hidden", marginTop: 10,
+          }}>
+            <i style={{
+              position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 999,
+              background: gradBar, width: pct + "%",
+              transition: "width .5s cubic-bezier(.22,1,.36,1)",
+            }} />
+            {/* Quando o preenchimento é estreito demais para caber o número, o
+                "%" sai de dentro dele e vai para a trilha em cor escura — é o
+                caso do cartão ainda sem nenhum pagamento (0%). */}
+            {pct >= 15 ? (
+              <b className="num" style={{
+                position: "absolute", left: 0, top: 0, bottom: 0, width: pct + "%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 800,
+                letterSpacing: "-0.01em", color: "#fff", whiteSpace: "nowrap",
+              }}>{pct}%</b>
+            ) : (
+              <b className="num" style={{
+                position: "absolute", left: "calc(" + pct + "% + 10px)", top: 0, bottom: 0,
+                display: "flex", alignItems: "center",
+                fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 800,
+                letterSpacing: "-0.01em", color: COLORS.ink, whiteSpace: "nowrap",
+              }}>{pct}%</b>
+            )}
+          </span>
+        </span>
       </button>
 
-      {/* Linha de ação: editar à esquerda, a ação do dinheiro no meio (com a
-          largura reduzida para abrir espaço) e excluir à direita. */}
-      <div style={{ display: "flex", alignItems: "stretch", gap: 8, marginTop: 14 }}>
+      {/* Linha de ação: editar (círculo) · registrar (pílula) · excluir (círculo) */}
+      <div style={{ display: "flex", alignItems: "stretch", gap: 8, marginTop: 12 }}>
         {onEditar && (
           <button
             type="button"
             onClick={onEditar}
             aria-label={"Editar " + titulo}
             style={{
-              flexShrink: 0, width: 52, minHeight: 52, borderRadius: 20,
-              border: "1px solid " + COLORS.border, background: COLORS.surface2, color: COLORS.fg2,
+              flexShrink: 0, width: 52, minHeight: 52, borderRadius: "50%",
+              border: "1px solid " + COLORS.border, background: COLORS.surface, color: COLORS.fg2,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
@@ -276,9 +282,8 @@ export function BillCard({
         {quitada ? (
           <span style={{
             flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            minHeight: 52, borderRadius: 20, fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 13.5,
-            background: receita ? COLORS.incomeSoft : COLORS.surface2,
-            color: receita ? COLORS.income : COLORS.fg2,
+            minHeight: 52, borderRadius: 999, fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 13.5,
+            background: COLORS.surface, color: receita ? COLORS.income : COLORS.fg2,
           }}>
             <Check size={16} /> {receita ? "Recebimento concluído" : "Pagamento concluído"}
           </span>
@@ -287,18 +292,17 @@ export function BillCard({
             type="button"
             onClick={onPagar}
             style={{
-              flex: 1, minWidth: 0, minHeight: 52, borderRadius: 20, border: "none",
-              background: receita
-                ? "linear-gradient(158deg, #059669, #065F46)"
-                : "linear-gradient(158deg, " + COLORS.expense + ", #7F1D1D)",
-              color: "#fff", fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 14.5,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
+              flex: 1, minWidth: 0, minHeight: 52, borderRadius: 999, border: "none",
+              background: gradBtn, color: "#fff", fontFamily: "var(--font-display)",
+              fontWeight: 800, fontSize: 14.5,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               boxShadow: "0 10px 22px -12px rgba(21,19,42,.5)",
             }}
           >
             {receita
               ? <><ArrowDownToLine size={17} /> Registrar recebimento</>
               : <><CreditCard size={17} /> Registrar pagamento</>}
+            <ArrowRight size={16} style={{ opacity: 0.9 }} />
           </button>
         )}
 
@@ -308,7 +312,7 @@ export function BillCard({
             onClick={onExcluir}
             aria-label={"Excluir " + titulo}
             style={{
-              flexShrink: 0, width: 52, minHeight: 52, borderRadius: 20,
+              flexShrink: 0, width: 52, minHeight: 52, borderRadius: "50%",
               border: "1px solid " + COLORS.expenseBorder, background: COLORS.expenseSoft, color: COLORS.expense,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
