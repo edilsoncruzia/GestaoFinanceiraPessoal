@@ -44,14 +44,14 @@ export function DeclaracaoIRView({ transactions, onBack, onAttach }) {
 
       {expenses.length === 0 && (
         <Card style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 6px" }}>Nenhuma despesa marcada ainda.</p>
-          <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>Ao cadastrar uma despesa, ative "Incluir na Declaração de IR" para ela aparecer aqui.</p>
+          <p style={{ fontSize: 14, color: COLORS.muted, margin: "0 0 6px" }}>Nenhuma despesa marcada ainda.</p>
+          <p style={{ fontSize: 13, color: COLORS.muted, margin: 0 }}>Ao cadastrar uma despesa, ative "Incluir na Declaração de IR" para ela aparecer aqui.</p>
         </Card>
       )}
 
       {years.map((y) => (
         <div key={y} style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.green, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: COLORS.green, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Ano-base {Number(y) - 1} → IR {y} ({groups[y].length})
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -63,30 +63,30 @@ export function DeclaracaoIRView({ transactions, onBack, onAttach }) {
                 <Card key={t.id}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{t.description}</p>
-                      <p style={{ fontSize: 12, color: COLORS.muted, margin: "2px 0 6px" }}>{c ? c.label : t.category} · {fmtDate(t.date)}</p>
+                      <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>{t.description}</p>
+                      <p style={{ fontSize: 13, color: COLORS.muted, margin: "2px 0 6px" }}>{c ? c.label : t.category} · {fmtDate(t.date)}</p>
                       {hasReceipt ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: COLORS.green }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: COLORS.green }}>
                           <CheckCircle2 size={13} /> Comprovante anexado
                         </span>
                       ) : (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: COLORS.muted }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: COLORS.muted }}>
                           <Paperclip size={13} /> Sem comprovante
                         </span>
                       )}
                     </div>
-                    <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: COLORS.rust, whiteSpace: "nowrap" }}>{fmt(t.amount)}</p>
+                    <p style={{ fontSize: 15, fontWeight: 600, margin: 0, color: COLORS.rust, whiteSpace: "nowrap" }}>{fmt(t.amount)}</p>
                   </div>
 
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                     {hasReceipt ? (
                       isImage ? (
-                        <button onClick={() => setPreview(t.attachment)} style={{ fontSize: 12, padding: "7px 12px", borderRadius: 8, border: "1px solid " + COLORS.green, background: "transparent", color: COLORS.green, fontWeight: 500 }}>Ver comprovante</button>
+                        <button onClick={() => setPreview(t.attachment)} style={{ fontSize: 13, padding: "7px 12px", borderRadius: 8, border: "1px solid " + COLORS.green, background: "transparent", color: COLORS.green, fontWeight: 500 }}>Ver comprovante</button>
                       ) : (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: COLORS.muted }}><Paperclip size={13} /> Anexado</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: COLORS.muted }}><Paperclip size={13} /> Anexado</span>
                       )
                     ) : (
-                      <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, padding: "7px 12px", borderRadius: 8, border: "1px dashed " + COLORS.line, background: "transparent", color: COLORS.green, fontWeight: 500, cursor: "pointer" }}>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, padding: "7px 12px", borderRadius: 8, border: "1px dashed " + COLORS.line, background: "transparent", color: COLORS.green, fontWeight: 500, cursor: "pointer" }}>
                         <Paperclip size={13} /> Anexar comprovante
                         <input type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={(e) => { handleFile(t, e.target.files[0]); e.target.value = ""; }} />
                       </label>

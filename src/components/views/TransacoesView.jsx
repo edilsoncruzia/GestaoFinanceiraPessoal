@@ -19,9 +19,9 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
     return (
       <Card style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderColor: COLORS.rust }}>
         <AlertTriangle size={16} color={COLORS.rust} style={{ flexShrink: 0 }} />
-        <p style={{ fontSize: 13, margin: 0, flex: 1 }}>Excluir "{t.description}"?</p>
-        <button onClick={() => setConfirming(false)} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted }}>Cancelar</button>
-        <button onClick={() => onDelete(t.id)} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "none", background: COLORS.rust, color: "#fff", fontWeight: 500 }}>Excluir</button>
+        <p style={{ fontSize: 14, margin: 0, flex: 1 }}>Excluir "{t.description}"?</p>
+        <button onClick={() => setConfirming(false)} style={{ fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted }}>Cancelar</button>
+        <button onClick={() => onDelete(t.id)} style={{ fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "none", background: COLORS.rust, color: "#fff", fontWeight: 500 }}>Excluir</button>
       </Card>
     );
   }
@@ -35,10 +35,10 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
           <ArrowLeftRight size={17} color="#3B6E8F" />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{t.description || "Transferência"}</p>
-          <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>{(from ? from.name : "?") + " → " + (to ? to.name : "?")} · {fmtDate(t.date)}</p>
+          <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>{t.description || "Transferência"}</p>
+          <p style={{ fontSize: 13, color: COLORS.muted, margin: 0 }}>{(from ? from.name : "?") + " → " + (to ? to.name : "?")} · {fmtDate(t.date)}</p>
         </div>
-        <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#3B6E8F", whiteSpace: "nowrap" }}>{fmt(t.amount)}</p>
+        <p style={{ fontSize: 15, fontWeight: 600, margin: 0, color: "#3B6E8F", whiteSpace: "nowrap" }}>{fmt(t.amount)}</p>
         {onEdit && <button onClick={() => onEdit(t)} aria-label="Editar" className="icon-btn" style={{ background: "none", border: "none", padding: 4, color: COLORS.muted }}><Pencil size={15} /></button>}
         {onDelete && <button onClick={() => setConfirming(true)} aria-label="Excluir" className="icon-btn" style={{ background: "none", border: "none", padding: 4, color: COLORS.muted }}><Trash2 size={16} /></button>}
       </Card>
@@ -50,8 +50,8 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
     <Card style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: txTint + "12", border: "1px solid " + txTint }}>
       <CategoryIcon cat={t.category} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 14, fontWeight: 500, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.description}</p>
-        <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 2px", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+        <p style={{ fontSize: 15, fontWeight: 500, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.description}</p>
+        <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 2px", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
           <span>{c ? c.label : t.category} · {fmtDate(t.date)}</span>
           {t.attachment && <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Paperclip size={11} />{t.attachment}</span>}
           {t.plannedId && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: COLORS.green }}><Link2 size={11} />Previsto</span>}
@@ -60,19 +60,19 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
         <MemberBadge memberId={t.memberId} />
         {(t.deductedInPayroll || t.includeInIR) && (
           <span style={{ display: "inline-flex", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
-            {t.deductedInPayroll && <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.green, padding: "1px 7px", borderRadius: 10, background: COLORS.green + "1A" }}>Descontado em folha</span>}
-            {t.includeInIR && <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.amber, padding: "1px 7px", borderRadius: 10, background: COLORS.amber + "1A" }}>IR</span>}
+            {t.deductedInPayroll && <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.green, padding: "1px 7px", borderRadius: 10, background: COLORS.green + "1A" }}>Descontado em folha</span>}
+            {t.includeInIR && <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.amber, padding: "1px 7px", borderRadius: 10, background: COLORS.amber + "1A" }}>IR</span>}
           </span>
         )}
       </div>
-      <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.income : COLORS.rust, whiteSpace: "nowrap" }}>{t.type === "income" ? "+" : "−"} {fmt(t.amount)}</p>
+      <p style={{ fontSize: 15, fontWeight: 600, margin: 0, color: t.type === "income" ? COLORS.income : COLORS.rust, whiteSpace: "nowrap" }}>{t.type === "income" ? "+" : "−"} {fmt(t.amount)}</p>
       {onEdit && <button onClick={() => onEdit(t)} aria-label="Editar" className="icon-btn" style={{ background: "none", border: "none", padding: 4, color: COLORS.muted }}><Pencil size={15} /></button>}
       {onDelete && <button onClick={() => setConfirming(true)} aria-label="Excluir" className="icon-btn" style={{ background: "none", border: "none", padding: 4, color: COLORS.muted }}><Trash2 size={16} /></button>}
     </Card>
   );
 }
 
-export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilter, search, setSearch, filterType, setFilterType, accounts, onEdit, onDelete, onPay, onEditPlanned, onDeletePlanned, selectedMonth, onMonthChange }) {
+export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilter, search, setSearch, filterType, setFilterType, accounts, onEdit, onDelete, onPay, onEditPlanned, onDeletePlanned, selectedMonth, onMonthChange, saldoDoMes }) {
   const [status, setStatus] = useState("todos");
   const closedForMonth = closedList.filter((t) => monthKey(t.date) === selectedMonth);
   const openItems = rawOpenItems
@@ -85,26 +85,26 @@ export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilt
 
   return (
     <div>
-      {selectedMonth && <MonthNav month={selectedMonth} onChange={onMonthChange} />}
+      {selectedMonth && <MonthNav month={selectedMonth} onChange={onMonthChange} saldoDoMes={saldoDoMes} />}
       <p className="serif" style={{ fontSize: 22, fontWeight: 500, margin: "0 0 14px" }}>Transações</p>
       <div style={{ position: "relative", marginBottom: 10 }}>
         <Search size={16} color={COLORS.muted} style={{ position: "absolute", left: 12, top: 11 }} />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar transação" style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, color: COLORS.ink, outline: "none" }} />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar transação" style={{ width: "100%", padding: "10px 12px 10px 34px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 15, color: COLORS.ink, outline: "none" }} />
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         {[["todos", "Todas"], ["income", "Receitas"], ["expense", "Despesas"], ["transferencia", "Transferências"]].map(([v, l]) => (
-          <button key={v} onClick={() => setFilterType(v)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, border: "1px solid " + (filterType === v ? COLORS.green : COLORS.line), background: filterType === v ? COLORS.green : "transparent", color: filterType === v ? "#fff" : COLORS.muted }}>{l}</button>
+          <button key={v} onClick={() => setFilterType(v)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 14, border: "1px solid " + (filterType === v ? COLORS.green : COLORS.line), background: filterType === v ? COLORS.green : "transparent", color: filterType === v ? "#fff" : COLORS.muted }}>{l}</button>
         ))}
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
         {[["todos", "Todas"], ["aberto", "Em aberto"], ["fechado", "Fechadas"]].map(([v, l]) => (
-          <button key={v} onClick={() => setStatus(v)} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11.5, border: "1px solid " + (status === v ? COLORS.green : COLORS.line), background: status === v ? COLORS.green + "1A" : "transparent", color: status === v ? COLORS.green : COLORS.muted }}>{l}</button>
+          <button key={v} onClick={() => setStatus(v)} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12.5, border: "1px solid " + (status === v ? COLORS.green : COLORS.line), background: status === v ? COLORS.green + "1A" : "transparent", color: status === v ? COLORS.green : COLORS.muted }}>{l}</button>
         ))}
       </div>
 
       {showOpen && openItems.length > 0 && (
         <div style={{ marginBottom: showClosed ? 18 : 0 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.amber, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Em aberto ({openItems.length})</p>
+          <p style={{ fontSize: 13, fontWeight: 600, color: COLORS.amber, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Em aberto ({openItems.length})</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {openItems.map((item) => <PlannedCard key={item.occId} item={item} selectedMonth={selectedMonth} onPay={onPay} onEdit={onEditPlanned} onDelete={onDeletePlanned} />)}
           </div>
@@ -113,15 +113,15 @@ export function TransacoesView({ closedList, openItems: rawOpenItems, memberFilt
 
       {showClosed && (
         <div>
-          {status === "todos" && <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.muted, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Fechadas ({closedForMonth.length})</p>}
+          {status === "todos" && <p style={{ fontSize: 13, fontWeight: 600, color: COLORS.muted, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Fechadas ({closedForMonth.length})</p>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {closedForMonth.length === 0 && <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "24px 0" }}>Nenhuma transação encontrada.</p>}
+            {closedForMonth.length === 0 && <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "24px 0" }}>Nenhuma transação encontrada.</p>}
             {closedForMonth.map((t) => <TxRow key={t.id} t={t} accounts={accounts} onEdit={onEdit} onDelete={onDelete} />)}
           </div>
         </div>
       )}
 
-      {showOpen && !showClosed && openItems.length === 0 && <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "24px 0" }}>Nada em aberto por aqui.</p>}
+      {showOpen && !showClosed && openItems.length === 0 && <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "24px 0" }}>Nada em aberto por aqui.</p>}
     </div>
   );
 }

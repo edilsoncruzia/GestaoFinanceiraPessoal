@@ -50,12 +50,12 @@ export function MonthAnalysis({ meses = [], moeda = (v) => "R$ " + v }) {
       }}
     >
       <h2 id="titulo-analise" style={{
-        margin: 0, fontFamily: "var(--font-display)", fontSize: 15.5, fontWeight: 800,
+        margin: 0, fontFamily: "var(--font-display)", fontSize: 16.5, fontWeight: 800,
         letterSpacing: "-0.025em", color: COLORS.ink,
       }}>
         Saldo nos próximos 12 meses
       </h2>
-      <p style={{ margin: "3px 0 0", fontSize: 12, color: COLORS.muted, fontWeight: 500 }}>
+      <p style={{ margin: "3px 0 0", fontSize: 13, color: COLORS.muted, fontWeight: 500 }}>
         Tendência com as recorrências já cadastradas
       </p>
 
@@ -82,11 +82,11 @@ export function MonthAnalysis({ meses = [], moeda = (v) => "R$ " + v }) {
         })}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 11, color: COLORS.muted, fontWeight: 600 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12, color: COLORS.muted, fontWeight: 600 }}>
         {rotulos.map((i) => <span key={i}>{meses[i].label}</span>)}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 12, fontSize: 11.5, color: COLORS.muted }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 12, fontSize: 12.5, color: COLORS.muted }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <i style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />mês atual
         </span>

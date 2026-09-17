@@ -18,16 +18,16 @@ export function AccountScopeModal({ account, action, onConfirm, onClose }) {
 
   return (
     <ModalSheet title={title} onClose={onClose}>
-      <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 14px" }}>Como você quer aplicar esta alteração?</p>
+      <p style={{ fontSize: 14, color: COLORS.muted, margin: "0 0 14px" }}>Como você quer aplicar esta alteração?</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
         {opts.map((o) => (
           <button key={o.scope} onClick={() => onConfirm(o.scope)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: "1px solid " + COLORS.line, background: COLORS.card, cursor: "pointer" }}>
-            <span style={{ display: "block", fontSize: 14, fontWeight: 500, color: o.color }}>{o.label}</span>
-            <span style={{ display: "block", fontSize: 12, color: COLORS.muted, marginTop: 3 }}>{o.desc}</span>
+            <span style={{ display: "block", fontSize: 15, fontWeight: 500, color: o.color }}>{o.label}</span>
+            <span style={{ display: "block", fontSize: 13, color: COLORS.muted, marginTop: 3 }}>{o.desc}</span>
           </button>
         ))}
       </div>
-      <button onClick={onClose} style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 14 }}>Cancelar</button>
+      <button onClick={onClose} style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 15 }}>Cancelar</button>
     </ModalSheet>
   );
 }

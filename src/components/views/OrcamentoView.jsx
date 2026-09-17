@@ -23,7 +23,7 @@ export function OrcamentoView({ budgets: allBudgets, memberFilter }) {
       {totalLeft > 0 && (
         <Card style={{ marginBottom: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
           <PiggyBank size={16} color={COLORS.amber} />
-          <p style={{ fontSize: 12.5, margin: 0, color: COLORS.ink }}>{fmt(totalLeft)} ainda reservados desses orçamentos — descontados do "saldo disponível" na Início</p>
+          <p style={{ fontSize: 13.5, margin: 0, color: COLORS.ink }}>{fmt(totalLeft)} ainda reservados desses orçamentos — descontados do "saldo disponível" na Início</p>
         </Card>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -36,14 +36,14 @@ export function OrcamentoView({ budgets: allBudgets, memberFilter }) {
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                 <CategoryIcon cat={b.category} />
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{c ? c.label : b.category}</p>
-                  <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 2px" }}>{fmt(b.spent)} de {fmt(b.limit)}</p>
+                  <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>{c ? c.label : b.category}</p>
+                  <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 2px" }}>{fmt(b.spent)} de {fmt(b.limit)}</p>
                   <MemberBadge memberId={b.memberId} />
                 </div>
                 <Badge color={st.color}>{st.label}</Badge>
               </div>
               <ProgressBar pct={pct} color={st.color} />
-              {st.state === "over" && <p style={{ fontSize: 12, color: COLORS.rust, margin: "6px 0 0" }}>Ultrapassou em {fmt(b.spent - b.limit)}</p>}
+              {st.state === "over" && <p style={{ fontSize: 13, color: COLORS.rust, margin: "6px 0 0" }}>Ultrapassou em {fmt(b.spent - b.limit)}</p>}
             </Card>
           );
         })}

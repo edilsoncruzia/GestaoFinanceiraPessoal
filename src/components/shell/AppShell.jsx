@@ -26,8 +26,8 @@ import { COLORS, TOUCH, RADIUS, SHADOW } from "../../constants/tokens";
 // vindos do registro único (ROUTES) em vez de duas listas soltas.
 // ============================================================================
 
-const labelStyle = { fontSize: 11, fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.01em" };
-const itemLabelStyle = { fontSize: 13.5, lineHeight: 1.2 };
+const labelStyle = { fontSize: 12, fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.01em" };
+const itemLabelStyle = { fontSize: 14.5, lineHeight: 1.2 };
 
 export function AppSidebar({ activeRoute, onNavigate, userName }) {
   const Item = ({ routeKey }) => {
@@ -64,12 +64,12 @@ export function AppSidebar({ activeRoute, onNavigate, userName }) {
           width: 34, height: 34, borderRadius: 11, color: "#fff",
           background: "linear-gradient(135deg," + COLORS.accentBright + "," + COLORS.accentDeep + ")",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800,
+          fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 800,
           boxShadow: "0 4px 12px -3px rgba(109,40,217,.5)",
         }}>G</span>
         <div style={{ minWidth: 0 }}>
-          <p className="serif" style={{ margin: 0, fontSize: 15.5, fontWeight: 800 }}>Finanças</p>
-          <span style={{ fontSize: 11.5, color: COLORS.muted }}>{userName || "uso pessoal e do casal"}</span>
+          <p className="serif" style={{ margin: 0, fontSize: 16.5, fontWeight: 800 }}>Finanças</p>
+          <span style={{ fontSize: 12.5, color: COLORS.muted }}>{userName || "uso pessoal e do casal"}</span>
         </div>
       </div>
 

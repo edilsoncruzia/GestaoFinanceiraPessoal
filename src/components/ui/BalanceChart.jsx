@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { valoresOcultos, MASCARA_VALOR } from "../../utils/formatters";
 
 // ============================================================================
 // BalanceChart — o gráfico de saldo dia a dia do herói.
@@ -28,7 +29,7 @@ const PT = 14;          // topo
 const PB = 28;          // faixa das datas + rótulo "HOJE"
 
 const fmtPadrao = (v) =>
-  (v < 0 ? "−" : "") + "R$ " + Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  valoresOcultos() ? MASCARA_VALOR : (v < 0 ? "−" : "") + "R$ " + Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 
 const dataCurta = (dia, mes) => String(dia).padStart(2, "0") + "/" + String(mes).padStart(2, "0");
 
@@ -108,7 +109,7 @@ export function BalanceChart({ dias = [], hojeDia = null, mes = 9, moeda = fmtPa
   if (!n) {
     return (
       <div className="hf-chart" style={{ padding: "0 20px" }}>
-        <p style={{ fontSize: 12.5, color: "#EDE9FE", margin: "10px 0 2px" }}>
+        <p style={{ fontSize: 13.5, color: "#EDE9FE", margin: "10px 0 2px" }}>
           Sem movimentação prevista para desenhar o saldo dia a dia.
         </p>
       </div>

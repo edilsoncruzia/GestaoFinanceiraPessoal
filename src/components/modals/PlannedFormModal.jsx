@@ -31,8 +31,8 @@ function defaultsPorCategoria(cat) {
   };
 }
 
-const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
-const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 };
+const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 15, outline: "none" };
+const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 16, fontWeight: 500 };
 
 // Periodicidade para parcelas (com fim definido)
 const INSTALLMENT_PERIODS = [
@@ -199,12 +199,12 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
       {!editing && (
         <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
           {[["expense", "Despesa"], ["income", "Receita"], ["transferencia", "Transferência"]].map(([v, l]) => (
-            <button key={v} onClick={() => handleTypeChange(v)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 500, border: "1px solid " + (type === v ? COLORS.green : COLORS.line), background: type === v ? COLORS.green : "transparent", color: type === v ? "#fff" : COLORS.ink }}>{l}</button>
+            <button key={v} onClick={() => handleTypeChange(v)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 14, fontWeight: 500, border: "1px solid " + (type === v ? COLORS.green : COLORS.line), background: type === v ? COLORS.green : "transparent", color: type === v ? "#fff" : COLORS.ink }}>{l}</button>
           ))}
         </div>
       )}
       {editing && (
-        <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 14px" }}>Tipo: <span style={{ color: COLORS.ink, fontWeight: 500 }}>{type === "income" ? "Receita" : type === "transferencia" ? "Transferência" : "Despesa"}</span></p>
+        <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 14px" }}>Tipo: <span style={{ color: COLORS.ink, fontWeight: 500 }}>{type === "income" ? "Receita" : type === "transferencia" ? "Transferência" : "Despesa"}</span></p>
       )}
 
       <FormField label="Descrição"><input value={description} onChange={(e) => { setDescription(e.target.value); setError(""); }} placeholder="Ex: Aluguel" style={inputStyle} /></FormField>
@@ -236,8 +236,8 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button type="button" onClick={() => setShowNewCat(false)} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 13 }}>Cancelar</button>
-                <button type="button" onClick={createCategory} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 13, fontWeight: 500 }}>Criar categoria</button>
+                <button type="button" onClick={() => setShowNewCat(false)} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 14 }}>Cancelar</button>
+                <button type="button" onClick={createCategory} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 14, fontWeight: 500 }}>Criar categoria</button>
               </div>
             </FormField>
           ) : (
@@ -259,9 +259,9 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
             <div style={{ margin: "0 0 12px", padding: "12px 14px", borderRadius: 12, background: COLORS.card, border: "1px solid " + (restrito ? COLORS.amber : COLORS.line) }}>
               <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
                 <input type="checkbox" checked={restrito} onChange={(e) => setRestrito(e.target.checked)} style={{ marginTop: 2 }} />
-                <span style={{ fontSize: 13, color: COLORS.ink }}>
+                <span style={{ fontSize: 14, color: COLORS.ink }}>
                   Uso restrito (benefício)
-                  <span style={{ display: "block", fontSize: 11, color: COLORS.muted, marginTop: 2 }}>
+                  <span style={{ display: "block", fontSize: 12, color: COLORS.muted, marginTop: 2 }}>
                     Ex.: cartão alimentação. O valor entra no dia do vencimento, mas <strong>não</strong> conta como dinheiro livre para pagar as outras contas.
                   </span>
                 </span>
@@ -273,7 +273,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
                       {expenseOptions.map(([key, c]) => <option key={key} value={key}>{c.label}</option>)}
                     </select>
                   </FormField>
-                  <p style={{ fontSize: 11, color: COLORS.muted, margin: 0 }}>
+                  <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>
                     As contas dessa categoria são pagas primeiro com esse valor; nenhuma outra conta pode usá-lo.
                   </p>
                 </div>
@@ -290,7 +290,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
                 <option value="reserva">Reserva mínima (uso do limite)</option>
               </select>
               {formaPagamento === "reserva" && (
-                <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>
+                <p style={{ fontSize: 12, color: COLORS.muted, margin: "6px 0 0" }}>
                   Marque aqui o que você tirou da reserva mínima. O valor abate o limite da reserva e baixa a linha tracejada do gráfico (Início).
                 </p>
               )}
@@ -299,20 +299,20 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
           {type === "expense" && (
             <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px", cursor: "pointer" }}>
               <input type="checkbox" checked={includeInIR} onChange={(e) => setIncludeInIR(e.target.checked)} style={{ marginTop: 2 }} />
-              <span style={{ fontSize: 13, color: COLORS.ink }}>
+              <span style={{ fontSize: 14, color: COLORS.ink }}>
                 Incluir na Declaração de IR
-                <span style={{ display: "block", fontSize: 11, color: COLORS.muted, marginTop: 2 }}>Quando a despesa for paga, entra na declaração do ano seguinte.</span>
+                <span style={{ display: "block", fontSize: 12, color: COLORS.muted, marginTop: 2 }}>Quando a despesa for paga, entra na declaração do ano seguinte.</span>
               </span>
             </label>
           )}
           {type === "expense" && (
             <div style={{ margin: "0 0 14px" }}>
-              <button type="button" onClick={() => setShowCustos((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: COLORS.green, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+              <button type="button" onClick={() => setShowCustos((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 500, color: COLORS.green, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                 {showCustos ? "Ocultar" : "Mostrar"} custos de atraso (opcional)
               </button>
               {showCustos && (
                 <div style={{ marginTop: 8, padding: "12px 14px", borderRadius: 12, border: "1px solid " + COLORS.line, background: COLORS.card }}>
-                  <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "0 0 10px" }}>Pré-preenchido pela categoria (Seção 2.1). Ajuste apenas se necessário.</p>
+                  <p style={{ fontSize: 12.5, color: COLORS.muted, margin: "0 0 10px" }}>Pré-preenchido pela categoria (Seção 2.1). Ajuste apenas se necessário.</p>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <FormField label="Tipo de consequência">
                       <select value={campos.tipo_consequencia} onChange={(e) => setCampo("tipo_consequencia", e.target.value)} style={inputStyle}>
@@ -343,7 +343,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
                   </div>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
                     <input type="checkbox" checked={campos.aceita_pagamento_parcial} onChange={(e) => setCampo("aceita_pagamento_parcial", e.target.checked)} />
-                    <span style={{ fontSize: 13, color: COLORS.ink }}>Aceita pagamento parcial</span>
+                    <span style={{ fontSize: 14, color: COLORS.ink }}>Aceita pagamento parcial</span>
                   </label>
                 </div>
               )}
@@ -351,8 +351,8 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
           )}
           {type === "income" && category === "salario" && (
             <div style={{ margin: "4px 0 14px", padding: "12px 14px", borderRadius: 12, background: COLORS.card, border: "1px solid " + COLORS.line }}>
-              <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 4px", color: COLORS.ink }}>Descontos em folha (opcional)</p>
-              <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "0 0 10px" }}>INSS, IRRF, plano de saúde etc. — são descontados automaticamente ao registrar o recebimento do salário.</p>
+              <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: COLORS.ink }}>Descontos em folha (opcional)</p>
+              <p style={{ fontSize: 12.5, color: COLORS.muted, margin: "0 0 10px" }}>INSS, IRRF, plano de saúde etc. — são descontados automaticamente ao registrar o recebimento do salário.</p>
               {salaryDeductions.map((d, idx) => (
                 <div key={d.id} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
                   <input value={d.label} onChange={(e) => updateDeduction(idx, "label", e.target.value)} placeholder="Desconto" style={{ ...inputStyle, flex: 2, padding: "8px 10px" }} />
@@ -365,10 +365,10 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
               ))}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "4px 0 8px" }}>
                 {DEDUCTION_PRESETS.map(([label, cat]) => (
-                  <button key={label} type="button" onClick={() => addDeductionPreset(label, cat)} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 14, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.green, fontWeight: 500 }}>{label}</button>
+                  <button key={label} type="button" onClick={() => addDeductionPreset(label, cat)} style={{ fontSize: 12, padding: "5px 10px", borderRadius: 14, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.green, fontWeight: 500 }}>{label}</button>
                 ))}
               </div>
-              <button type="button" onClick={addDeduction} style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, border: "1px dashed " + COLORS.line, background: "transparent", color: COLORS.green, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
+              <button type="button" onClick={addDeduction} style={{ fontSize: 13, padding: "6px 12px", borderRadius: 8, border: "1px dashed " + COLORS.line, background: "transparent", color: COLORS.green, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
                 <Plus size={13} /> Adicionar desconto
               </button>
             </div>
@@ -417,7 +417,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
 
       <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 14px", cursor: "pointer" }}>
         <input type="checkbox" checked={realized} onChange={(e) => setRealized(e.target.checked)} />
-        <span style={{ fontSize: 13, color: COLORS.ink }}>Efetivado (lançamento já feito)</span>
+        <span style={{ fontSize: 14, color: COLORS.ink }}>Efetivado (lançamento já feito)</span>
       </label>
 
       <FormField label="Fonte (de quem recebe / para quem paga)">
@@ -434,15 +434,15 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
             ].map(([v, l]) => (
               <label key={v} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, border: "1px solid " + (scope === v ? COLORS.green : COLORS.line), background: scope === v ? COLORS.green + "0D" : COLORS.card, cursor: "pointer" }}>
                 <input type="radio" name="edit-scope" checked={scope === v} onChange={() => setScope(v)} />
-                <span style={{ fontSize: 13, color: COLORS.ink }}>{l}</span>
+                <span style={{ fontSize: 14, color: COLORS.ink }}>{l}</span>
               </label>
             ))}
           </div>
-          <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>O histórico já consolidado é sempre preservado.</p>
+          <p style={{ fontSize: 12, color: COLORS.muted, margin: "6px 0 0" }}>O histórico já consolidado é sempre preservado.</p>
         </FormField>
       )}
 
-      {error && <p style={{ fontSize: 13, color: COLORS.rust, margin: "0 0 10px" }}>{error}</p>}
+      {error && <p style={{ fontSize: 14, color: COLORS.rust, margin: "0 0 10px" }}>{error}</p>}
       <button onClick={handleSubmit} style={primaryBtn}>{editing ? "Salvar alterações" : "Salvar previsto"}</button>
     </ModalSheet>
   );

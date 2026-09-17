@@ -42,13 +42,13 @@ function MiniCard({ Icone, cor, fundo, nome, valor, total, pct, unidade, onAbrir
           <Icone size={14} />
         </i>
         <span style={{
-          fontSize: 11.5, fontWeight: 600, color: COLORS.fg2, minWidth: 0,
+          fontSize: 12.5, fontWeight: 600, color: COLORS.fg2, minWidth: 0,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>{nome}</span>
       </span>
 
       <b className="num" style={{
-        display: "block", fontFamily: "var(--font-display)", fontSize: 17, fontWeight: 800,
+        display: "block", fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800,
         letterSpacing: "-0.02em", color: COLORS.ink, margin: "10px 0 9px",
         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       }}>{valor}</b>
@@ -62,7 +62,7 @@ function MiniCard({ Icone, cor, fundo, nome, valor, total, pct, unidade, onAbrir
       </span>
 
       <u className="num" style={{
-        display: "block", marginTop: 7, fontSize: 11, fontWeight: 700, fontStyle: "normal",
+        display: "block", marginTop: 7, fontSize: 12, fontWeight: 700, fontStyle: "normal",
         color: cor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       }}>{unidade}</u>
     </Tag>

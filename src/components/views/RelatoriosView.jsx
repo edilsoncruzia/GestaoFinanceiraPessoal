@@ -65,7 +65,7 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
     return { label: monthLabel(m), receitas: inM.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0), despesas: inM.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0) };
   });
 
-  const tooltip = { fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line };
+  const tooltip = { fontSize: 13, borderRadius: 10, border: "1px solid " + COLORS.line };
   const totalOf = (data) => data.reduce((s, d) => s + d.value, 0);
   const donut = (data, height = 160) => (
     <div style={{ width: "100%", height }}>
@@ -84,9 +84,9 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
       {data.map((d) => (
         <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} />
-          <span style={{ fontSize: 12.5, flex: 1 }}>{d.name}</span>
-          <span style={{ fontSize: 12.5, fontWeight: 500 }}>{fmt(d.value)}</span>
-          <span style={{ fontSize: 11, color: COLORS.muted, minWidth: 30, textAlign: "right" }}>{totalOf(data) > 0 ? Math.round((d.value / totalOf(data)) * 100) : 0}%</span>
+          <span style={{ fontSize: 13.5, flex: 1 }}>{d.name}</span>
+          <span style={{ fontSize: 13.5, fontWeight: 500 }}>{fmt(d.value)}</span>
+          <span style={{ fontSize: 12, color: COLORS.muted, minWidth: 30, textAlign: "right" }}>{totalOf(data) > 0 ? Math.round((d.value / totalOf(data)) * 100) : 0}%</span>
         </div>
       ))}
     </div>
@@ -98,15 +98,15 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {PERIODS.map(([v, l]) => (
-          <button key={v} onClick={() => setPeriod(v)} style={{ padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 500, border: "1px solid " + (period === v ? COLORS.green : COLORS.line), background: period === v ? COLORS.green : "transparent", color: period === v ? "#fff" : COLORS.muted }}>{l}</button>
+          <button key={v} onClick={() => setPeriod(v)} style={{ padding: "6px 12px", borderRadius: 20, fontSize: 13, fontWeight: 500, border: "1px solid " + (period === v ? COLORS.green : COLORS.line), background: period === v ? COLORS.green : "transparent", color: period === v ? "#fff" : COLORS.muted }}>{l}</button>
         ))}
       </div>
 
       <Card style={{ marginBottom: 16 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Despesas por categoria</p>
-        <p className="serif" style={{ fontSize: 20, fontWeight: 500, margin: "0 0 10px" }}>{fmt(monthExpense)}</p>
+        <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 6px" }}>Despesas por categoria</p>
+        <p className="serif" style={{ fontSize: 21, fontWeight: 500, margin: "0 0 10px" }}>{fmt(monthExpense)}</p>
         {breakdown.length === 0 ? (
-          <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Nenhuma despesa neste período.</p>
+          <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Nenhuma despesa neste período.</p>
         ) : (
           <>
             {donut(breakdown)}
@@ -116,9 +116,9 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
       </Card>
 
       <Card style={{ marginBottom: 16 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px" }}>Despesas por recorrência</p>
+        <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Despesas por recorrência</p>
         {monthExpense === 0 ? (
-          <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Sem despesas neste período.</p>
+          <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Sem despesas neste período.</p>
         ) : (
           <>
             {donut(recData, 150)}
@@ -128,12 +128,12 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
       </Card>
 
       <Card style={{ marginBottom: 16 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px" }}>Evolução mensal</p>
+        <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Evolução mensal</p>
         <div style={{ width: "100%", height: 180 }}>
           <ResponsiveContainer>
             <LineChart data={trend}>
               <CartesianGrid vertical={false} stroke={COLORS.line} />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: COLORS.muted }} axisLine={false} tickLine={false} />
               <YAxis hide />
               <Tooltip formatter={(v) => fmt(v)} contentStyle={tooltip} />
               <Line type="monotone" dataKey="receitas" stroke={COLORS.income} strokeWidth={2.5} dot={false} />
@@ -142,15 +142,15 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
           </ResponsiveContainer>
         </div>
         <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
-          <span style={{ fontSize: 11, color: COLORS.income, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 3, background: COLORS.income, display: "inline-block" }} /> Receitas</span>
-          <span style={{ fontSize: 11, color: COLORS.rust, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 3, background: COLORS.rust, display: "inline-block" }} /> Despesas</span>
+          <span style={{ fontSize: 12, color: COLORS.income, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 3, background: COLORS.income, display: "inline-block" }} /> Receitas</span>
+          <span style={{ fontSize: 12, color: COLORS.rust, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 12, height: 3, background: COLORS.rust, display: "inline-block" }} /> Despesas</span>
         </div>
       </Card>
 
       <Card style={{ marginBottom: 16 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px" }}>Despesas por prioridade de pagamento</p>
+        <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Despesas por prioridade de pagamento</p>
         {priData.length === 0 ? (
-          <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Sem despesas neste período.</p>
+          <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Sem despesas neste período.</p>
         ) : (
           <>
             {donut(priData, 150)}
@@ -160,16 +160,16 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
       </Card>
 
       <Card style={{ marginBottom: 16 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px" }}>Despesas e receitas por dono</p>
+        <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Despesas e receitas por dono</p>
         {Object.keys(donoMap).length === 0 ? (
-          <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Sem lançamentos neste período.</p>
+          <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Sem lançamentos neste período.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {Object.entries(donoMap).map(([d, v]) => (
               <div key={d} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, flex: 1 }}>{d}</span>
-                <span style={{ fontSize: 12, color: COLORS.income }}>+{fmt(v.income)}</span>
-                <span style={{ fontSize: 12, color: COLORS.rust }}>−{fmt(v.expense)}</span>
+                <span style={{ fontSize: 14, flex: 1 }}>{d}</span>
+                <span style={{ fontSize: 13, color: COLORS.income }}>+{fmt(v.income)}</span>
+                <span style={{ fontSize: 13, color: COLORS.rust }}>−{fmt(v.expense)}</span>
               </div>
             ))}
           </div>
@@ -177,16 +177,16 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
       </Card>
 
       <Card style={{ marginBottom: 16 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px" }}>Despesas e receitas por fonte</p>
+        <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Despesas e receitas por fonte</p>
         {Object.keys(fonteMap).length === 0 ? (
-          <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Nenhum lançamento com fonte neste período.</p>
+          <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Nenhum lançamento com fonte neste período.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {Object.entries(fonteMap).sort((a, b) => (b[1].expense + b[1].income) - (a[1].expense + a[1].income)).map(([f, v]) => (
               <div key={f} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, flex: 1 }}>{f}</span>
-                <span style={{ fontSize: 12, color: COLORS.income }}>+{fmt(v.income)}</span>
-                <span style={{ fontSize: 12, color: COLORS.rust }}>−{fmt(v.expense)}</span>
+                <span style={{ fontSize: 14, flex: 1 }}>{f}</span>
+                <span style={{ fontSize: 13, color: COLORS.income }}>+{fmt(v.income)}</span>
+                <span style={{ fontSize: 13, color: COLORS.rust }}>−{fmt(v.expense)}</span>
               </div>
             ))}
           </div>
@@ -194,18 +194,18 @@ export function RelatoriosView({ month, transactions, planned, sources }) {
       </Card>
 
       <Card>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px" }}>Despesas que mais estouraram o previsto</p>
+        <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Despesas que mais estouraram o previsto</p>
         {juros.length === 0 ? (
-          <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Nenhum estouro detectado (previsto × realizado).</p>
+          <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "20px 0" }}>Nenhum estouro detectado (previsto × realizado).</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {juros.slice(0, 8).map((j) => (
               <div key={j.desc} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, margin: 0 }}>{j.desc}</p>
-                  <p style={{ fontSize: 11, color: COLORS.muted, margin: 0 }}>Previsto {fmt(j.previsto)} · realizado {fmt(j.realizado)}</p>
+                  <p style={{ fontSize: 14, margin: 0 }}>{j.desc}</p>
+                  <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>Previsto {fmt(j.previsto)} · realizado {fmt(j.realizado)}</p>
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.rust }}>+{fmt(j.diff)}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.rust }}>+{fmt(j.diff)}</span>
               </div>
             ))}
           </div>

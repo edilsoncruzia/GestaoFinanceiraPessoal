@@ -1,6 +1,7 @@
 import React from "react";
 import { Calendar, Check, Sparkle, Target, ArrowDownToLine, CreditCard, AlertTriangle, Zap, Pencil, Trash2, Wallet, Clock, ArrowRight } from "lucide-react";
 import { COLORS, RADIUS, SHADOW } from "../../constants/tokens";
+import { valoresOcultos, MASCARA_VALOR, MASCARA_CURTA } from "../../utils/formatters";
 
 // ============================================================================
 // BillCard — o cartão de conta em aberto.
@@ -17,10 +18,16 @@ import { COLORS, RADIUS, SHADOW } from "../../constants/tokens";
 // qual é a data recomendada e o que é grupo é o motor, do lado de fora.
 // ============================================================================
 
+// O cartão tem formatador PRÓPRIO (o valor grande é "R$" em cima e o número
+// embaixo, em caixa separada) — e por isso escapava do modo privacidade, que
+// age em fmt(). Agora ele consulta o mesmo estado global antes de escrever o
+// número: com o "olho" fechado, sai a máscara, não o valor.
 const fmtPadrao = (v) =>
-  (v < 0 ? "−" : "") + "R$ " + Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  valoresOcultos() ? MASCARA_VALOR
+    : (v < 0 ? "−" : "") + "R$ " + Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 
-const numeroPuro = (v) => Math.abs(Math.round(v)).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+const numeroPuro = (v) =>
+  valoresOcultos() ? MASCARA_CURTA : Math.abs(Math.round(v)).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 
 const dataCurta = (dia, mes) => String(dia).padStart(2, "0") + "/" + String(mes).padStart(2, "0");
 
@@ -128,7 +135,7 @@ export function BillCard({
             boxShadow: "0 1px 2px rgba(21,19,42,.04)",
           }}>
             <span style={{
-              display: "block", background: accent, color: "#fff", fontSize: 9.5, fontWeight: 800,
+              display: "block", background: accent, color: "#fff", fontSize: 10.5, fontWeight: 800,
               letterSpacing: "0.06em", padding: "3px 0",
             }}>{mesRotulo}</span>
             <span className="num" style={{
@@ -140,7 +147,7 @@ export function BillCard({
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <span style={{
-                fontFamily: "var(--font-display)", fontSize: 16.5, fontWeight: 800,
+                fontFamily: "var(--font-display)", fontSize: 17.5, fontWeight: 800,
                 letterSpacing: "-0.025em", color: COLORS.ink,
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>{titulo}</span>
@@ -154,7 +161,7 @@ export function BillCard({
 
             {meta && (
               <span style={{
-                display: "block", fontSize: 11.5, lineHeight: 1.4, color: COLORS.muted,
+                display: "block", fontSize: 12.5, lineHeight: 1.4, color: COLORS.muted,
                 fontWeight: 500, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>{meta}</span>
             )}
@@ -162,14 +169,14 @@ export function BillCard({
             {vencimentoDia != null && (
               <span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
                 <EstIcon size={13} color={est.tone === "late" ? COLORS.expense : COLORS.fg2} style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: 11.5, color: COLORS.fg2, whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 12.5, color: COLORS.fg2, whiteSpace: "nowrap" }}>
                   Vencimento <b style={{ color: COLORS.ink, fontWeight: 700 }}>real dia {vencimentoDia}</b>
                 </span>
                 {/* O selo de prazo vive aqui: o modelo trocou o quadro "Vencimento"
                     por esta linha, e sem ele o atraso perderia o sinal. */}
                 <span style={{
                   display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 999,
-                  fontSize: 9, fontWeight: 800, whiteSpace: "nowrap", ...estChip,
+                  fontSize: 10, fontWeight: 800, whiteSpace: "nowrap", ...estChip,
                 }}>{est.l}</span>
               </span>
             )}
@@ -180,7 +187,7 @@ export function BillCard({
             flexShrink: 0, textAlign: "right", background: COLORS.surface,
             border: "1px solid " + borderSoft, borderRadius: 14, padding: "7px 12px", minWidth: 82,
           }}>
-            <span style={{ display: "block", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.04em", color: COLORS.muted }}>R$</span>
+            <span style={{ display: "block", fontSize: 11.5, fontWeight: 800, letterSpacing: "0.04em", color: COLORS.muted }}>R$</span>
             <span className="num" style={{
               display: "block", fontFamily: "var(--font-display)", fontSize: 21, fontWeight: 800,
               letterSpacing: "-0.035em", lineHeight: 1.1, color: quitada ? COLORS.muted : COLORS.ink,
@@ -202,11 +209,11 @@ export function BillCard({
               }}><Wallet size={14} /></i>
               <span style={{ minWidth: 0 }}>
                 <em style={{
-                  display: "block", fontStyle: "normal", fontSize: 9.5, fontWeight: 800,
+                  display: "block", fontStyle: "normal", fontSize: 10.5, fontWeight: 800,
                   letterSpacing: "0.06em", textTransform: "uppercase", color: COLORS.muted,
                 }}>{receita ? "Recebido:" : "Pago:"}</em>
                 <b className="num" style={{
-                  display: "block", fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800,
+                  display: "block", fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 800,
                   letterSpacing: "-0.02em", color: COLORS.ink, whiteSpace: "nowrap",
                 }}>{moeda(pagoReal)}</b>
               </span>
@@ -219,11 +226,11 @@ export function BillCard({
               }}><Clock size={14} /></i>
               <span style={{ minWidth: 0, textAlign: "right" }}>
                 <em style={{
-                  display: "block", fontStyle: "normal", fontSize: 9.5, fontWeight: 800,
+                  display: "block", fontStyle: "normal", fontSize: 10.5, fontWeight: 800,
                   letterSpacing: "0.06em", textTransform: "uppercase", color: COLORS.muted,
                 }}>Restante:</em>
                 <b className="num" style={{
-                  display: "block", fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800,
+                  display: "block", fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 800,
                   letterSpacing: "-0.02em", color: COLORS.ink, whiteSpace: "nowrap",
                 }}>{moeda(restante)}</b>
               </span>
@@ -247,14 +254,14 @@ export function BillCard({
               <b className="num" style={{
                 position: "absolute", left: 0, top: 0, bottom: 0, width: pct + "%",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 800,
+                fontFamily: "var(--font-display)", fontSize: 12, fontWeight: 800,
                 letterSpacing: "-0.01em", color: "#fff", whiteSpace: "nowrap",
               }}>{pct}%</b>
             ) : (
               <b className="num" style={{
                 position: "absolute", left: "calc(" + pct + "% + 10px)", top: 0, bottom: 0,
                 display: "flex", alignItems: "center",
-                fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 800,
+                fontFamily: "var(--font-display)", fontSize: 12, fontWeight: 800,
                 letterSpacing: "-0.01em", color: COLORS.ink, whiteSpace: "nowrap",
               }}>{pct}%</b>
             )}
@@ -282,7 +289,7 @@ export function BillCard({
         {quitada ? (
           <span style={{
             flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            minHeight: 52, borderRadius: 999, fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 13.5,
+            minHeight: 52, borderRadius: 999, fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 14.5,
             background: COLORS.surface, color: receita ? COLORS.income : COLORS.fg2,
           }}>
             <Check size={16} /> {receita ? "Recebimento concluído" : "Pagamento concluído"}
@@ -294,7 +301,7 @@ export function BillCard({
             style={{
               flex: 1, minWidth: 0, minHeight: 52, borderRadius: 999, border: "none",
               background: gradBtn, color: "#fff", fontFamily: "var(--font-display)",
-              fontWeight: 800, fontSize: 14.5,
+              fontWeight: 800, fontSize: 15.5,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               boxShadow: "0 10px 22px -12px rgba(21,19,42,.5)",
             }}

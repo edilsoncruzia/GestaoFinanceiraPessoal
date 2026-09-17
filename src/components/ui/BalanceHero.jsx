@@ -1,6 +1,7 @@
 import React from "react";
 import { Wallet, TrendingUp, Bell, Star, Eye, EyeOff } from "lucide-react";
 import BalanceChart from "./BalanceChart";
+import { MASCARA_VALOR } from "../../utils/formatters";
 
 // ============================================================================
 // BalanceHero — o bloco de destaque do topo da Início.
@@ -150,7 +151,7 @@ export function BalanceHero({
           <span className="hf-proj-txt">
             <span className="hf-proj-lbl">Saldo previsto no fim do mês</span>
             <b className={"num " + (previsto >= 0 ? "pos" : "neg")}>
-              {previsto >= 0 ? "+ " : "− "}{fmt(Math.abs(previsto), 0)}
+              {escondido ? MASCARA_VALOR : (previsto >= 0 ? "+ " : "− ") + fmt(Math.abs(previsto), 0)}
             </b>
           </span>
         </button>

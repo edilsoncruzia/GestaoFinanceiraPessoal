@@ -7,8 +7,8 @@ import { ModalSheet } from '../ui/ModalSheet';
 import { FormField } from '../ui/FormField';
 import { SourceSelect } from '../ui/SourceSelect';
 
-const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
-const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 };
+const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 15, outline: "none" };
+const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 16, fontWeight: 500 };
 
 export function TransactionFormModal({ accounts, sources, selectedMonth, editing, initialType, onClose, onSubmit, onAddCategory, onAddAccount }) {
   // Conta padrão = a marcada como isDefault; senão a primeira da lista.
@@ -76,7 +76,7 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
     <ModalSheet title={editing ? "Editar transação" : "Nova transação"} onClose={onClose}>
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
         {[["expense", "Despesa"], ["income", "Receita"], ["transferencia", "Transferência"]].map(([v, l]) => (
-          <button key={v} onClick={() => handleTypeChange(v)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 500, border: "1px solid " + (type === v ? COLORS.green : COLORS.line), background: type === v ? COLORS.green : "transparent", color: type === v ? "#fff" : COLORS.ink }}>{l}</button>
+          <button key={v} onClick={() => handleTypeChange(v)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 14, fontWeight: 500, border: "1px solid " + (type === v ? COLORS.green : COLORS.line), background: type === v ? COLORS.green : "transparent", color: type === v ? "#fff" : COLORS.ink }}>{l}</button>
         ))}
       </div>
 
@@ -97,7 +97,7 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
             </div>
           </FormField>
           <FormField label="Data" last><input value={date} onChange={(e) => setDate(e.target.value)} type="date" style={inputStyle} /></FormField>
-          <p style={{ fontSize: 11, color: COLORS.muted, margin: "-6px 0 12px" }}>Transferências não entram como receita nem despesa nos relatórios — só movem o dinheiro entre contas.</p>
+          <p style={{ fontSize: 12, color: COLORS.muted, margin: "-6px 0 12px" }}>Transferências não entram como receita nem despesa nos relatórios — só movem o dinheiro entre contas.</p>
         </>
       ) : (
         <>
@@ -112,8 +112,8 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button type="button" onClick={() => setShowNewCat(false)} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 13 }}>Cancelar</button>
-                <button type="button" onClick={createCategory} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 13, fontWeight: 500 }}>Criar categoria</button>
+                <button type="button" onClick={() => setShowNewCat(false)} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 14 }}>Cancelar</button>
+                <button type="button" onClick={createCategory} style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 14, fontWeight: 500 }}>Criar categoria</button>
               </div>
             </FormField>
           ) : (
@@ -133,9 +133,9 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
           {type === "expense" && (
             <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px", cursor: "pointer" }}>
               <input type="checkbox" checked={includeInIR} onChange={(e) => setIncludeInIR(e.target.checked)} style={{ marginTop: 2 }} />
-              <span style={{ fontSize: 13, color: COLORS.ink }}>
+              <span style={{ fontSize: 14, color: COLORS.ink }}>
                 Incluir na Declaração de IR
-                <span style={{ display: "block", fontSize: 11, color: COLORS.muted, marginTop: 2 }}>Despesas de {date.slice(0, 4)} entram na declaração de {Number(date.slice(0, 4)) + 1}.</span>
+                <span style={{ display: "block", fontSize: 12, color: COLORS.muted, marginTop: 2 }}>Despesas de {date.slice(0, 4)} entram na declaração de {Number(date.slice(0, 4)) + 1}.</span>
               </span>
             </label>
           )}
@@ -152,7 +152,7 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
           <FormField label="Data" last><input value={date} onChange={(e) => setDate(e.target.value)} type="date" style={inputStyle} /></FormField>
         </>
       )}
-      {error && <p style={{ fontSize: 13, color: COLORS.rust, margin: "0 0 10px" }}>{error}</p>}
+      {error && <p style={{ fontSize: 14, color: COLORS.rust, margin: "0 0 10px" }}>{error}</p>}
       <button onClick={handleSubmit} style={primaryBtn}>{editing ? "Salvar alterações" : "Salvar transação"}</button>
     </ModalSheet>
   );

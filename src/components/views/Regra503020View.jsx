@@ -20,7 +20,7 @@ export function Regra503020View({ income, expenses }) {
     <div>
       <SectionTitle title="Regra 50/30/20" subtitle="50% necessidades · 30% desejos · 20% poupança" />
       <Card style={{ marginBottom: 12 }}>
-        <p style={{ fontSize: 13, color: COLORS.ink, margin: 0, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 14, color: COLORS.ink, margin: 0, lineHeight: 1.6 }}>
           A ideia é dividir a sua renda mensal em três blocos: metade para o essencial, quase um terço para o que dá prazer, e um quinto para guardar ou quitar dívidas. Comparamos abaixo sua renda de setembro com essa referência.
         </p>
       </Card>
@@ -31,15 +31,15 @@ export function Regra503020View({ income, expenses }) {
           return (
             <Card key={r.label}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 2 }}>
-                <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{r.label}</p>
-                <p style={{ fontSize: 13, fontWeight: 600, margin: 0, color: over ? COLORS.rust : r.color }}>{actualPct}% <span style={{ color: COLORS.muted, fontWeight: 400 }}>/ meta {r.target}%</span></p>
+                <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>{r.label}</p>
+                <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: over ? COLORS.rust : r.color }}>{actualPct}% <span style={{ color: COLORS.muted, fontWeight: 400 }}>/ meta {r.target}%</span></p>
               </div>
-              <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 10px" }}>{r.desc}</p>
+              <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 10px" }}>{r.desc}</p>
               <div style={{ position: "relative", height: 8, borderRadius: 6, background: COLORS.line, overflow: "hidden" }}>
                 <div style={{ position: "absolute", left: Math.min(100, r.target) + "%", top: -2, width: 2, height: 12, background: COLORS.ink, opacity: 0.4 }} />
                 <div style={{ height: "100%", width: Math.max(0, Math.min(100, actualPct)) + "%", background: over ? COLORS.rust : r.color, borderRadius: 6, transition: "width 0.4s ease" }} />
               </div>
-              <p style={{ fontSize: 12, color: COLORS.muted, margin: "6px 0 0" }}>{fmt(r.value)}</p>
+              <p style={{ fontSize: 13, color: COLORS.muted, margin: "6px 0 0" }}>{fmt(r.value)}</p>
             </Card>
           );
         })}

@@ -94,20 +94,20 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
       <Card style={{ marginBottom: 12, padding: "14px 16px", background: "#3B6E8F0F", border: "1px solid #3B6E8F22" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <PiggyBank size={16} color="#3B6E8F" />
-          <p style={{ fontSize: 13.5, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1 }}>Trava de liquidez mínima (buffer diário)</p>
+          <p style={{ fontSize: 14.5, fontWeight: 700, margin: 0, color: COLORS.ink, flex: 1 }}>Trava de liquidez mínima (buffer diário)</p>
           <Wallet size={14} color={COLORS.muted} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <div>
-            <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 2px" }}>{reservaLimiteFixo > 0 ? "Reserva mínima (valor configurado)" : "Reserva mínima (15% do salário líquido)"}</p>
-            <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: COLORS.ink }}>{fmt(reservaDisponivel)}</p>
+            <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 2px" }}>{reservaLimiteFixo > 0 ? "Reserva mínima (valor configurado)" : "Reserva mínima (15% do salário líquido)"}</p>
+            <p style={{ fontSize: 17, fontWeight: 600, margin: 0, color: COLORS.ink }}>{fmt(reservaDisponivel)}</p>
           </div>
           <div>
-            <p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 2px" }}>Disponível para contas</p>
-            <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: saldoParaContas >= 0 ? COLORS.income : COLORS.rust }}>{fmt(saldoParaContas)}</p>
+            <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 2px" }}>Disponível para contas</p>
+            <p style={{ fontSize: 17, fontWeight: 600, margin: 0, color: saldoParaContas >= 0 ? COLORS.income : COLORS.rust }}>{fmt(saldoParaContas)}</p>
           </div>
         </div>
-        <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>
+        <p style={{ fontSize: 12, color: COLORS.muted, margin: "6px 0 0" }}>
           Teto {fmt(reservaBase)} · usado na reserva {fmt(reservaUsada)} · disponível {fmt(reservaDisponivel)}.
           Base do teto: {reservaLimiteFixo > 0 ? "valor fixo configurado em Mais › Reserva mínima" : "15% do salário líquido do mês (" + fmt(salario) + ")"} (Seção 4.1).
         </p>
@@ -116,14 +116,14 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
       {/* Duplo totalizador */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
         <Card style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><ListOrdered size={14} color={COLORS.green} /><span style={{ fontSize: 12, color: COLORS.muted }}>Total orçado (mês)</span></div>
-          <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.ink }}>{fmt(totalOrcado)}</p>
-          <p style={{ fontSize: 10.5, color: COLORS.muted, margin: "2px 0 0" }}>regime de competência</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><ListOrdered size={14} color={COLORS.green} /><span style={{ fontSize: 13, color: COLORS.muted }}>Total orçado (mês)</span></div>
+          <p style={{ fontSize: 19, fontWeight: 600, margin: 0, color: COLORS.ink }}>{fmt(totalOrcado)}</p>
+          <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "2px 0 0" }}>regime de competência</p>
         </Card>
         <Card style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><Coins size={14} color={COLORS.amber} /><span style={{ fontSize: 12, color: COLORS.muted }}>Saída real de caixa</span></div>
-          <p style={{ fontSize: 18, fontWeight: 600, margin: 0, color: COLORS.ink }}>{fmt(saidaRealCaixa)}</p>
-          <p style={{ fontSize: 10.5, color: COLORS.muted, margin: "2px 0 0" }}>pago/agendado no mês</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><Coins size={14} color={COLORS.amber} /><span style={{ fontSize: 13, color: COLORS.muted }}>Saída real de caixa</span></div>
+          <p style={{ fontSize: 19, fontWeight: 600, margin: 0, color: COLORS.ink }}>{fmt(saidaRealCaixa)}</p>
+          <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "2px 0 0" }}>pago/agendado no mês</p>
         </Card>
       </div>
 
@@ -131,10 +131,10 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
         <Card style={{ marginBottom: 12, borderColor: COLORS.rust, background: COLORS.rust + "0F", padding: "12px 14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <ShieldAlert size={15} color={COLORS.rust} />
-            <p style={{ fontSize: 13, fontWeight: 700, margin: 0, color: COLORS.rust }}>Alerta crítico — contas essenciais em risco</p>
+            <p style={{ fontSize: 14, fontWeight: 700, margin: 0, color: COLORS.rust }}>Alerta crítico — contas essenciais em risco</p>
           </div>
           {criticos.map((a, i) => (
-            <p key={i} style={{ fontSize: 12, color: COLORS.ink, margin: "2px 0 0" }}>
+            <p key={i} style={{ fontSize: 13, color: COLORS.ink, margin: "2px 0 0" }}>
               Dia {a.dia}: faltam {fmt(a.deficit)} — {a.contas.map((c) => c.descricao).join(", ")} (Gravidade 5 não é postergada automaticamente)
             </p>
           ))}
@@ -145,10 +145,10 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
         <Card style={{ marginBottom: 12, padding: "12px 14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <Clock size={15} color={COLORS.rust} />
-            <p style={{ fontSize: 13, fontWeight: 700, margin: 0, color: COLORS.rust }}>Vencidas (reavaliadas com Score Completo — 6.2)</p>
+            <p style={{ fontSize: 14, fontWeight: 700, margin: 0, color: COLORS.rust }}>Vencidas (reavaliadas com Score Completo — 6.2)</p>
           </div>
           {vencidas.map((c) => (
-            <p key={c.id} style={{ fontSize: 12, color: COLORS.ink, margin: "2px 0 0" }}>
+            <p key={c.id} style={{ fontSize: 13, color: COLORS.ink, margin: "2px 0 0" }}>
               <strong>{c.description}</strong> · venceu {fmtDate(c.dueDate)} · {c.diasEmAtraso} dias de atraso · Score {c.S}
             </p>
           ))}
@@ -159,12 +159,12 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
         <Card style={{ marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <CreditCard size={15} color="#3B6E8F" />
-            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Faturas de cartão (agrupadas)</p>
+            <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Faturas de cartão (agrupadas)</p>
           </div>
           {resultado.cartaoFaturas.map((f) => (
             <div key={f.id} style={{ marginBottom: 8 }}>
-              <p style={{ fontSize: 12.5, fontWeight: 500, margin: 0, color: COLORS.ink }}>{f.description} · {fmt(f.amount)} · vence {fmtDate(f.dueDate)}</p>
-              <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "2px 0 0" }}>Inclui: {f.agrupadas}</p>
+              <p style={{ fontSize: 13.5, fontWeight: 500, margin: 0, color: COLORS.ink }}>{f.description} · {fmt(f.amount)} · vence {fmtDate(f.dueDate)}</p>
+              <p style={{ fontSize: 12.5, color: COLORS.muted, margin: "2px 0 0" }}>Inclui: {f.agrupadas}</p>
             </div>
           ))}
         </Card>
@@ -174,9 +174,9 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
       <Card style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
           <CalendarClock size={15} color={COLORS.green} />
-          <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Cronograma (Gantt) — pagamentos × vencimentos</p>
+          <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Cronograma (Gantt) — pagamentos × vencimentos</p>
         </div>
-        <div style={{ display: "flex", fontSize: 9.5, color: COLORS.muted, marginBottom: 4 }}>
+        <div style={{ display: "flex", fontSize: 10.5, color: COLORS.muted, marginBottom: 4 }}>
           {Array.from({ length: 31 }, (_, i) => <span key={i} style={{ flex: 1, textAlign: "center" }}>{i === 0 ? "" : i}</span>)}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -184,18 +184,18 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
             const venc = diaDe(g.id) || g.dia;
             return (
               <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 110, flexShrink: 0, fontSize: 11, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{g.descricao}</span>
+                <span style={{ width: 110, flexShrink: 0, fontSize: 12, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{g.descricao}</span>
                 <div style={{ flex: 1, position: "relative", height: 14, background: COLORS.line, borderRadius: 7 }}>
                   <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: (Math.min(30, g.dia) / 30) * 100 + "%", background: g.tipo === "pago" ? COLORS.green : COLORS.amber, borderRadius: 7, opacity: 0.85 }} />
                   <div style={{ position: "absolute", left: (venc / 30) * 100 + "%", top: -3, bottom: -3, width: 2, background: COLORS.rust }} title={"venc. dia " + venc} />
                 </div>
-                <span style={{ width: 60, flexShrink: 0, fontSize: 10.5, color: COLORS.muted }}>dia {g.dia}</span>
+                <span style={{ width: 60, flexShrink: 0, fontSize: 11.5, color: COLORS.muted }}>dia {g.dia}</span>
               </div>
             );
           })}
-          {gantt.length === 0 && <p style={{ fontSize: 12.5, color: COLORS.muted, margin: 0 }}>Sem pagamentos previstos para o mês.</p>}
+          {gantt.length === 0 && <p style={{ fontSize: 13.5, color: COLORS.muted, margin: 0 }}>Sem pagamentos previstos para o mês.</p>}
         </div>
-        <p style={{ fontSize: 11, color: COLORS.muted, margin: "6px 0 0" }}>Barra verde = pagamento ideal · barra âmbar = postergado · traço vermelho = vencimento.</p>
+        <p style={{ fontSize: 12, color: COLORS.muted, margin: "6px 0 0" }}>Barra verde = pagamento ideal · barra âmbar = postergado · traço vermelho = vencimento.</p>
       </Card>
 
       {/* 5. Pacing */}
@@ -203,30 +203,30 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
         <Card style={{ marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <TrendingDown size={15} color="#3B6E8F" />
-            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Pacing de mercado (semana {semanaAtual}/4)</p>
+            <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Pacing de mercado (semana {semanaAtual}/4)</p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <div><p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 2px" }}>Envelope da semana</p><p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{fmt(pac.envelopeSemanal)}</p></div>
-            <div><p style={{ fontSize: 11, color: COLORS.muted, margin: "0 0 2px" }}>Gasto nesta semana</p><p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{fmt(gastoSemanaAtual)}</p></div>
+            <div><p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 2px" }}>Envelope da semana</p><p style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>{fmt(pac.envelopeSemanal)}</p></div>
+            <div><p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 2px" }}>Gasto nesta semana</p><p style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>{fmt(gastoSemanaAtual)}</p></div>
           </div>
-          <p style={{ fontSize: 12.5, margin: "0 0 4px" }}>Disponível nesta semana: <strong>{fmt(pac.saldoSemanalRestante)}</strong></p>
-          <p style={{ fontSize: 12.5, margin: 0 }}>Teto diário (burn rate): <strong>{fmt(pac.tetoDiario)}</strong></p>
+          <p style={{ fontSize: 13.5, margin: "0 0 4px" }}>Disponível nesta semana: <strong>{fmt(pac.saldoSemanalRestante)}</strong></p>
+          <p style={{ fontSize: 13.5, margin: 0 }}>Teto diário (burn rate): <strong>{fmt(pac.tetoDiario)}</strong></p>
         </Card>
       ) : (
-        <Card style={{ marginBottom: 12 }}><p style={{ fontSize: 12.5, color: COLORS.muted, margin: 0 }}>Sem valor de mercado para o mês (Seção 5).</p></Card>
+        <Card style={{ marginBottom: 12 }}><p style={{ fontSize: 13.5, color: COLORS.muted, margin: 0 }}>Sem valor de mercado para o mês (Seção 5).</p></Card>
       )}
 
       {/* 8. DRE */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
         <Card style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><ArrowDownLeft size={14} color={COLORS.green} /><span style={{ fontSize: 12, color: COLORS.muted }}>Rotativo pago em dia</span></div>
-          <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: COLORS.green }}>{fmt(rotativoPagoEmDia)}</p>
-          <p style={{ fontSize: 10.5, color: COLORS.muted, margin: "2px 0 0" }}>juros de cartão/cheque especial evitados</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><ArrowDownLeft size={14} color={COLORS.green} /><span style={{ fontSize: 13, color: COLORS.muted }}>Rotativo pago em dia</span></div>
+          <p style={{ fontSize: 17, fontWeight: 600, margin: 0, color: COLORS.green }}>{fmt(rotativoPagoEmDia)}</p>
+          <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "2px 0 0" }}>juros de cartão/cheque especial evitados</p>
         </Card>
         <Card style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><TrendingDown size={14} color={COLORS.rust} /><span style={{ fontSize: 12, color: COLORS.muted }}>Custo de atraso (postergações)</span></div>
-          <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: COLORS.rust }}>{fmt(custoPostergacoes)}</p>
-          <p style={{ fontSize: 10.5, color: COLORS.muted, margin: "2px 0 0" }}>juros estimados das postergadas</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><TrendingDown size={14} color={COLORS.rust} /><span style={{ fontSize: 13, color: COLORS.muted }}>Custo de atraso (postergações)</span></div>
+          <p style={{ fontSize: 17, fontWeight: 600, margin: 0, color: COLORS.rust }}>{fmt(custoPostergacoes)}</p>
+          <p style={{ fontSize: 11.5, color: COLORS.muted, margin: "2px 0 0" }}>juros estimados das postergadas</p>
         </Card>
       </div>
 
@@ -235,22 +235,22 @@ export function PriorizacaoView({ planned, transactions, budgets, accounts, sele
         <Card>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <Gauge size={15} color="#3B6E8F" />
-            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Projeção diária de saldo (curva de liquidez)</p>
+            <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Projeção diária de saldo (curva de liquidez)</p>
           </div>
           <div style={{ width: "100%", height: 160 }}>
             <ResponsiveContainer>
               <LineChart data={dias} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke={COLORS.line} />
-                <XAxis dataKey="dia" tick={{ fontSize: 10, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={4} />
+                <XAxis dataKey="dia" tick={{ fontSize: 11, fill: COLORS.muted }} axisLine={false} tickLine={false} interval={4} />
                 <YAxis hide />
-                <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid " + COLORS.line }} />
+                <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontSize: 13, borderRadius: 10, border: "1px solid " + COLORS.line }} />
                 <Line type="monotone" dataKey="saldo" stroke={COLORS.income} strokeWidth={2.5} dot={false} />
                 {/* Reserva mínima: linha tracejada que desce conforme a reserva é usada. */}
                 <Line type="stepAfter" dataKey="reserva" stroke={COLORS.amber} strokeWidth={2} strokeDasharray="4 4" dot={false} name="Reserva mínima" />
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p style={{ fontSize: 11, color: COLORS.muted, margin: "4px 0 0" }}>
+          <p style={{ fontSize: 12, color: COLORS.muted, margin: "4px 0 0" }}>
             Linha verde = saldo previsto dia a dia. Linha tracejada = reserva mínima, que desce conforme você lança nela
             {reservaUsada > 0 ? " (usado " + fmt(reservaUsada) + ", restam " + fmt(reservaDisponivel) + ")" : " (" + fmt(reservaMinima) + ")"}.
           </p>

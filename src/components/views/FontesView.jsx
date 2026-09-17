@@ -6,7 +6,7 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { BackRow } from './MaisMenuView';
 
-const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
+const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 15, outline: "none" };
 
 export function FontesView({ sources, onBack, onSave, onDelete }) {
   const [showForm, setShowForm] = useState(false);
@@ -35,14 +35,14 @@ export function FontesView({ sources, onBack, onSave, onDelete }) {
           if (g.list.length === 0) return null;
           return (
             <div key={g.label} style={{ marginBottom: 6 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: g.color, margin: "0 0 6px" }}>{g.label}</p>
+              <p style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: g.color, margin: "0 0 6px" }}>{g.label}</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {g.list.map((s) => (
                   <Card key={s.id}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 10, background: g.color + "1E", display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={17} color={g.color} /></div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{s.name}</p>
+                        <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>{s.name}</p>
                       </div>
                       <button onClick={() => openEdit(s)} aria-label="Editar" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted, padding: 6 }}><Pencil size={16} /></button>
                       <button onClick={() => onDelete(s.id)} aria-label="Excluir" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.rust, padding: 6 }}><Trash2 size={16} /></button>
@@ -53,15 +53,15 @@ export function FontesView({ sources, onBack, onSave, onDelete }) {
             </div>
           );
         })}
-        {sources.length === 0 && <p style={{ fontSize: 13, color: COLORS.muted, textAlign: "center", padding: "12px 0" }}>Nenhuma fonte cadastrada ainda.</p>}
+        {sources.length === 0 && <p style={{ fontSize: 14, color: COLORS.muted, textAlign: "center", padding: "12px 0" }}>Nenhuma fonte cadastrada ainda.</p>}
       </div>
 
       {!showForm && (
-        <button onClick={openNew} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1px dashed " + COLORS.line, background: "transparent", color: COLORS.green, fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Plus size={16} /> Nova fonte</button>
+        <button onClick={openNew} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1px dashed " + COLORS.line, background: "transparent", color: COLORS.green, fontSize: 15, fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Plus size={16} /> Nova fonte</button>
       )}
       {showForm && (
         <Card>
-          <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>{editing ? "Editar fonte" : "Nova fonte"}</p>
+          <p style={{ fontSize: 15, fontWeight: 500, margin: "0 0 12px" }}>{editing ? "Editar fonte" : "Nova fonte"}</p>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome (ex: Mercado A, Padaria, Cliente X)" style={{ ...inputStyle, marginBottom: 10 }} />
           <select value={type} onChange={(e) => setType(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }}>
             <option value="">Sem tipo</option>
@@ -69,8 +69,8 @@ export function FontesView({ sources, onBack, onSave, onDelete }) {
             <option value="expense">Despesa (para quem pago)</option>
           </select>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 14 }}>Cancelar</button>
-            <button onClick={submit} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 14, fontWeight: 500 }}>Salvar</button>
+            <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted, fontSize: 15 }}>Cancelar</button>
+            <button onClick={submit} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 }}>Salvar</button>
           </div>
         </Card>
       )}

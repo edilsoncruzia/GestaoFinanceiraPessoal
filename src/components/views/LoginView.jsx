@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Wallet, LogIn } from 'lucide-react';
 import { COLORS } from '../../constants/tokens';
 
-const inputStyle = { width: "100%", padding: "13px 14px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 15, outline: "none", color: COLORS.ink };
+const inputStyle = { width: "100%", padding: "13px 14px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 16, outline: "none", color: COLORS.ink };
 
 function GoogleIcon() {
   return (
@@ -31,29 +31,29 @@ export function LoginView({ onGoogleLogin, onPasswordLogin, loading, error }) {
         <Wallet size={34} color="#fff" />
       </div>
       <p className="serif" style={{ fontSize: 24, fontWeight: 600, margin: "18px 0 4px" }}>Gestão Financeira</p>
-      <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 28px" }}>Entre com sua conta</p>
+      <p style={{ fontSize: 14, color: COLORS.muted, margin: "0 0 28px" }}>Entre com sua conta</p>
 
-      <button onClick={onGoogleLogin} disabled={loading} style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "1px solid " + COLORS.line, background: "#fff", color: COLORS.ink, fontSize: 14.5, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer" }}>
+      <button onClick={onGoogleLogin} disabled={loading} style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "1px solid " + COLORS.line, background: "#fff", color: COLORS.ink, fontSize: 15.5, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer" }}>
         <GoogleIcon /> Continuar com Google
       </button>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", margin: "18px 0" }}>
         <div style={{ flex: 1, height: 1, background: COLORS.line }} />
-        <span style={{ fontSize: 11, color: COLORS.muted }}>ou com CPF</span>
+        <span style={{ fontSize: 12, color: COLORS.muted }}>ou com CPF</span>
         <div style={{ flex: 1, height: 1, background: COLORS.line }} />
       </div>
 
       <form onSubmit={handleSubmit} style={{ width: "100%" }}>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6 }}>CPF</label>
+          <label style={{ display: "block", fontSize: 13, color: COLORS.muted, marginBottom: 6 }}>CPF</label>
           <input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" inputMode="numeric" style={inputStyle} />
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6 }}>Senha</label>
+          <label style={{ display: "block", fontSize: 13, color: COLORS.muted, marginBottom: 6 }}>Senha</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
         </div>
-        {error && <p style={{ fontSize: 13, color: COLORS.rust, margin: "0 0 12px" }}>{error}</p>}
-        <button type="submit" disabled={loading} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+        {error && <p style={{ fontSize: 14, color: COLORS.rust, margin: "0 0 12px" }}>{error}</p>}
+        <button type="submit" disabled={loading} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: COLORS.green, color: "#fff", fontSize: 16, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           <LogIn size={17} /> Entrar
         </button>
       </form>

@@ -106,11 +106,18 @@ body {
   background-color: var(--color-page);
   font-family: var(--font-body);
   color: var(--color-ink);
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   /* O body NÃO centraliza nem tem altura fixa: quem manda no tamanho é o
      shell. Era isso que cortava o topo/base em telas com menos de 700px. */
+}
+
+/* O celular é lido com o aparelho na mão, a um braço de distância — e a tela
+   é pequena. Além do ajuste global de +1px, o texto de base sobe mais um pouco
+   só nas telas estreitas, onde a legibilidade pesa mais que a densidade. */
+@media (max-width: 979px) {
+  body { font-size: 15.5px; }
 }
 
 #root {
@@ -155,6 +162,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 /* ── Animações ────────────────────────────────────────────────────────────── */
 @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+/* Gaveta ancorada no TOPO (filtro de pessoa, seletor de mês): entra descendo,
+   no mesmo tempo e curva da que sobe — o gesto acompanha a origem do gatilho. */
+@keyframes sheetDown { from { transform: translateY(-18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
 .modal-backdrop { animation: backdropIn 0.18s ease; }
@@ -210,7 +220,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 
 .eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -263,8 +273,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .brandmark .dot{width:30px;height:30px;border-radius:11px;
   background:linear-gradient(135deg,var(--color-accent-bright),var(--color-accent-deep));
   display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);
-  font-weight:800;font-size:14px;box-shadow:0 4px 12px -3px rgba(109,40,217,.5)}
-.brandmark span{font-family:var(--font-display);font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+  font-weight:800;font-size: 15px;box-shadow:0 4px 12px -3px rgba(109,40,217,.5)}
+.brandmark span{font-family:var(--font-display);font-size: 15.5px;font-weight:700;letter-spacing:-.01em}
 
 .iconbtn{width:44px;height:44px;border-radius:14px;background:var(--color-surface);border:1px solid var(--color-border);
   display:flex;align-items:center;justify-content:center;color:var(--color-ink);position:relative;
@@ -275,7 +285,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .iconbtn:not(.plain):hover{background:var(--color-surface-2)}
 
 .badge{position:absolute;top:3px;right:3px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;
-  background:var(--color-expense);color:#fff;font-size:10.5px;font-weight:700;
+  background:var(--color-expense);color:#fff;font-size: 11.5px;font-weight:700;
   display:flex;align-items:center;justify-content:center;border:2px solid var(--color-surface)}
 
 /* no herói, os controles do topo ficam translúcidos */
@@ -290,15 +300,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 /* seletor de mês */
 .monthnav{display:flex;align-items:center;justify-content:center;gap:2px;margin:14px 0 2px;position:relative}
 .monthnav .lab{display:flex;align-items:baseline;gap:7px;padding:6px 10px;border-radius:12px;background:none;border:none}
-.monthnav .lab strong{font-family:var(--font-display);font-size:16.5px;font-weight:700;letter-spacing:-.02em;text-transform:capitalize}
-.monthnav .lab em{font-style:normal;font-size:11.5px;font-weight:600;color:var(--color-muted)}
+.monthnav .lab strong{font-family:var(--font-display);font-size: 17.5px;font-weight:700;letter-spacing:-.02em;text-transform:capitalize}
+.monthnav .lab em{font-style:normal;font-size: 12.5px;font-weight:600;color:var(--color-muted)}
 .monthnav .chev{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;
   color:var(--color-muted);transition:background .15s;background:none;border:none}
 .monthnav .chev:hover{background:var(--color-surface-2)}
 .herofull .monthnav{margin:10px 0 0}
 .herofull .monthnav .lab strong{color:#fff}
 .herofull .monthnav .lab em{color:#EDE9FE;background:rgba(255,255,255,.15);padding:2.5px 9px;border-radius:999px;
-  font-size:10.5px;font-weight:700;letter-spacing:.02em}
+  font-size: 11.5px;font-weight:700;letter-spacing:.02em}
 .herofull .monthnav .chev{color:#DDD6FE}
 .herofull .monthnav .chev:hover{background:rgba(255,255,255,.14)}
 
@@ -309,7 +319,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .hf-ring:hover{background:rgba(255,255,255,.26)}
 .hf-ring:active{transform:scale(.93)}
 .hf-ring svg{position:absolute;inset:4px;transform:rotate(-90deg)}
-.hf-ring b{position:relative;font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-.04em;color:#fff}
+.hf-ring b{position:relative;font-family:var(--font-display);font-size: 14px;font-weight:800;letter-spacing:-.04em;color:#fff}
 .hf-ring .go{position:absolute;bottom:-3px;right:-3px;width:15px;height:15px;border-radius:50%;
   background:#fff;color:var(--color-accent-deep);display:flex;align-items:center;justify-content:center;
   border:2px solid var(--color-accent-deep)}
@@ -317,7 +327,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 /* pílula de "pessoa filtrada": altura reservada sempre, pra não empurrar o saldo */
 .hf-who{min-height:24px;display:flex;align-items:center;justify-content:center;margin-top:2px}
 .hf-who span{display:inline-block;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.16);
-  font-size:11px;font-weight:700;color:#EDE9FE}
+  font-size: 12px;font-weight:700;color:#EDE9FE}
 
 /* saldo disponível: cartão translúcido, CENTRALIZADO. O selo verde que ficava
    à direita saiu — o olho que revela/oculta os valores subiu para o topo. */
@@ -327,7 +337,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 14px 30px -14px rgba(10,4,30,.55)}
 .hf-balance .bcol{flex:0 1 auto;min-width:0;text-align:center}
-.hf-balance .lbl{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#DDD6FE;margin:0}
+.hf-balance .lbl{display:flex;align-items:center;justify-content:center;gap:7px;font-size: 13.5px;font-weight:600;color:#DDD6FE;margin:0}
 .hf-balance .lbl i{width:26px;height:26px;border-radius:9px;background:rgba(255,255,255,.14);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;font-style:normal}
 .hf-balance .val{font-family:var(--font-display);font-size:clamp(31px,9.6vw,38px);font-weight:800;letter-spacing:-.03em;
@@ -344,7 +354,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .hf-proj-ic{flex-shrink:0;width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.15);
   display:flex;align-items:center;justify-content:center;color:#fff}
 .hf-proj-txt{flex:0 1 auto;min-width:0;text-align:center}
-.hf-proj-lbl{display:block;font-size:12px;font-weight:600;color:#DDD6FE}
+.hf-proj-lbl{display:block;font-size: 13px;font-weight:600;color:#DDD6FE}
 .hf-proj b{display:block;font-family:var(--font-display);font-size:21px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
 .hf-proj b.pos{color:#6EE7B7}
 .hf-proj b.neg{color:#FCA5A5}
@@ -360,8 +370,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   box-shadow:0 12px 26px -10px rgba(6,2,26,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   transform:translate(-50%,calc(-100% - 12px));animation:fadeIn .14s ease}
 .hf-tip.abaixo{transform:translate(-50%,12px)}
-.hf-tip span{font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#DDD6FE}
-.hf-tip b{font-family:var(--font-display);font-size:13.5px;font-weight:800;letter-spacing:-.02em;color:#fff}
+.hf-tip span{font-size: 11.5px;font-weight:700;letter-spacing:.02em;color:#DDD6FE}
+.hf-tip b{font-family:var(--font-display);font-size: 14.5px;font-weight:800;letter-spacing:-.02em;color:#fff}
 
 /* No desktop o herói vive dentro da coluna (sem sangria), então os cantos de
    cima também arredondam — o protótipo é mobile e usa topo reto porque encosta
@@ -447,7 +457,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   border-radius: 18px;
   color: rgba(255, 255, 255, 0.82);   /* abas inativas: branco */
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.01em;
   transition: color 0.15s ease, background 0.15s ease;
@@ -489,7 +499,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
    botão e o rótulo juntos, "Transações" truncaria. */
 @media (max-width: 359px) {
   .app-tabbar { --fab-d: 56px; --fab-r: 31px; }
-  .app-tabbar button { font-size: 9.5px; }
+  .app-tabbar button { font-size: 10.5px; }
 }
 
 /* ============================================================================

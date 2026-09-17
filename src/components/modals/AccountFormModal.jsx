@@ -4,8 +4,8 @@ import { MEMBERS } from '../../constants/seedData';
 import { ModalSheet } from '../ui/ModalSheet';
 import { FormField } from '../ui/FormField';
 
-const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
-const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 15, fontWeight: 500 };
+const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 15, outline: "none" };
+const primaryBtn = { width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: COLORS.green, color: "#fff", fontSize: 16, fontWeight: 500 };
 
 const BANDEIRAS = ["Visa", "Mastercard", "Elo", "American Express", "Hipercard", "Outra"];
 
@@ -50,12 +50,12 @@ export function AccountFormModal({ editing, onClose, onSubmit }) {
       {!editing && (
         <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
           {[["conta", "Conta"], ["cartao", "Cartão"]].map(([v, l]) => (
-            <button key={v} onClick={() => setType(v)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 500, border: "1px solid " + (type === v ? COLORS.green : COLORS.line), background: type === v ? COLORS.green : "transparent", color: type === v ? "#fff" : COLORS.ink }}>{l}</button>
+            <button key={v} onClick={() => setType(v)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 14, fontWeight: 500, border: "1px solid " + (type === v ? COLORS.green : COLORS.line), background: type === v ? COLORS.green : "transparent", color: type === v ? "#fff" : COLORS.ink }}>{l}</button>
           ))}
         </div>
       )}
       {editing && (
-        <p style={{ fontSize: 12, color: COLORS.muted, margin: "0 0 14px" }}>Tipo: <span style={{ color: COLORS.ink, fontWeight: 500 }}>{type === "cartao" ? "Cartão" : "Conta"}</span></p>
+        <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 14px" }}>Tipo: <span style={{ color: COLORS.ink, fontWeight: 500 }}>{type === "cartao" ? "Cartão" : "Conta"}</span></p>
       )}
 
       <FormField label="Nome"><input value={name} onChange={(e) => { setName(e.target.value); setError(""); }} placeholder="ex: Nubank" style={inputStyle} /></FormField>
@@ -66,9 +66,9 @@ export function AccountFormModal({ editing, onClose, onSubmit }) {
           <FormField label="Saldo inicial (R$)"><input value={initialBalance} onChange={(e) => setInitialBalance(e.target.value)} type="number" min="0" step="0.01" placeholder="0,00" style={inputStyle} /></FormField>
           <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px", cursor: "pointer" }}>
             <input type="checkbox" checked={countInAvailable} onChange={(e) => setCountInAvailable(e.target.checked)} style={{ marginTop: 2 }} />
-            <span style={{ fontSize: 13, color: COLORS.ink }}>
+            <span style={{ fontSize: 14, color: COLORS.ink }}>
               Considerar no saldo disponível
-              <span style={{ display: "block", fontSize: 11.5, color: COLORS.muted, marginTop: 2 }}>
+              <span style={{ display: "block", fontSize: 12.5, color: COLORS.muted, marginTop: 2 }}>
                 Desative para contas de reserva, investimento ou dinheiro guardado — o valor continua no saldo total, mas sai do disponível para uso.
               </span>
             </span>
@@ -88,7 +88,7 @@ export function AccountFormModal({ editing, onClose, onSubmit }) {
 
       <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px", cursor: "pointer" }}>
         <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
-        <span style={{ fontSize: 13, color: COLORS.ink }}>Conta padrão (novos lançamentos usam esta conta)</span>
+        <span style={{ fontSize: 14, color: COLORS.ink }}>Conta padrão (novos lançamentos usam esta conta)</span>
       </label>
 
       <FormField label="Dono">
@@ -98,7 +98,7 @@ export function AccountFormModal({ editing, onClose, onSubmit }) {
         </select>
       </FormField>
 
-      {error && <p style={{ fontSize: 13, color: COLORS.rust, margin: "0 0 10px" }}>{error}</p>}
+      {error && <p style={{ fontSize: 14, color: COLORS.rust, margin: "0 0 10px" }}>{error}</p>}
       <button onClick={handleSubmit} style={primaryBtn}>{editing ? "Salvar alterações" : "Salvar conta"}</button>
     </ModalSheet>
   );

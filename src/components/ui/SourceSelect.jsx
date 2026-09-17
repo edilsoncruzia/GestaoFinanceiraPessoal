@@ -1,7 +1,7 @@
 import React from 'react';
 import { COLORS } from '../../constants/tokens';
 
-const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 14, outline: "none" };
+const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + COLORS.line, background: COLORS.card, fontSize: 15, outline: "none" };
 
 function grp(sources, type) {
   return (sources || [])

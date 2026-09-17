@@ -109,7 +109,32 @@ export function generatePlannedOccurrences(templates, month) {
   return out;
 }
 
-export const fmt = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+// ============================================================================
+// PRIVACIDADE DOS VALORES — o "olho" do app inteiro
+//
+// O botão de ocultar valores precisa valer para TODO número em reais da tela,
+// não só para o saldo do herói. Em vez de passar uma prop de máscara por 20
+// telas (e esquecer uma), a formatação é centralizada aqui: quando o modo
+// privacidade está ligado, `fmt()` devolve a máscara em qualquer lugar —
+// inclusive dentro de modais, tabelas e tooltips de gráfico.
+//
+// Quem liga/desliga é o PrivacyProvider (src/context/PrivacyContext.jsx), que
+// chama `definirValoresOcultos` ANTES de renderizar os filhos. O React não
+// observa a variável sozinho; o provider também guarda o estado, então a
+// mudança de estado re-renderiza a árvore e o valor formatado é recalculado.
+// ============================================================================
+let VALORES_OCULTOS = false;
+
+/** Mascara usada no lugar do valor. Mesma string em todo o app. */
+export const MASCARA_VALOR = "R$ • • • • •";
+export const MASCARA_CURTA = "•••";
+
+export function definirValoresOcultos(v) { VALORES_OCULTOS = Boolean(v); }
+export function valoresOcultos() { return VALORES_OCULTOS; }
+
+const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+export const fmt = (v) => (VALORES_OCULTOS ? MASCARA_VALOR : BRL.format(v));
 export const fmtDate = (d) => new Date(d + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 export const monthKey = (d) => d.slice(0, 7);
 export const round2 = (v) => Math.round(v * 100) / 100;

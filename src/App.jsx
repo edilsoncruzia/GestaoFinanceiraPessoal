@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { COLORS, CATEGORIES, NECESSIDADES, DESEJOS, PRIORITY, DEFAULT_PRIORITY, buildCategoriesObject, categoriesToRows, MAIN_TABS } from './constants/tokens';
 import { CategoriesContext } from './context/CategoriesContext';
+import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { computeHealthScore } from './utils/health';
 import { SEED_ACCOUNTS, SEED_TRANSACTIONS, SEED_PLANNED, SEED_GOALS, BUDGETS, MEMBERS, INITIAL_BALANCE, TODAY_MONTH, TODAY_DATE } from './constants/seedData';
 import {
-  fmt, fmtDate, monthKey, round2, statusFor, plannedStatus, displayStatus,
+  fmtDate, monthKey, round2, statusFor, plannedStatus, displayStatus,
   memberLabel, inScope, addMonths, monthDiff, monthLabel, monthLabelFull, generatePlannedOccurrences,
   accountBalance, buildOpenItems, monthlyCashFlow, salarioLiquidoDoMes
 } from './utils/formatters';
@@ -60,7 +61,11 @@ import { AccountScopeModal } from './components/modals/AccountScopeModal';
 export default function App() {
   return (
     <ErrorBoundary>
-      <FinanceApp />
+      {/* O modo privacidade vive acima de tudo: o "olho" do topo precisa
+          alcançar TODA tela e TODO modal, não só o saldo do herói. */}
+      <PrivacyProvider>
+        <FinanceApp />
+      </PrivacyProvider>
     </ErrorBoundary>
   );
 }
@@ -97,7 +102,8 @@ function FinanceApp() {
   const [filterType, setFilterType] = useState("todos");
   const [memberFilter, setMemberFilter] = useState("todos");
   const [selectedMonth, setSelectedMonth] = useState(TODAY_MONTH);
-  const [hideBalance, setHideBalance] = useState(false);
+  // Ocultar valores: estado global (PrivacyProvider), padrão OCULTO.
+  const { oculto: hideBalance, alternar: alternarValores } = usePrivacy();
   const [toast, setToast] = useState("");
   const fileInputRef = useRef(null);
 
@@ -368,6 +374,32 @@ function FinanceApp() {
     return rows;
   }, [selectedMonth, transactions, planned, memberFilter, reservedAccountIds, monthProjection]);
 
+  // Saldo projetado no FIM de um mês qualquer — é o dado que pinta os cartões
+  // do seletor de "Período" (verde = fecha no azul, vermelho = fecha no
+  // vermelho), para qualquer ano que o usuário abrir, não só os 12 meses da
+  // Análise. Do mês corrente para frente, acumula o fluxo previsto a partir do
+  // saldo disponível de hoje; antes dele, reconstrói para trás subtraindo o
+  // fluxo (realizado) de cada mês.
+  const saldoDoMes = useCallback((m) => {
+    let saldo = monthProjection.endBalance;
+    if (m === selectedMonth) return round2(saldo);
+    if (m > selectedMonth) {
+      let cur = selectedMonth;
+      while (cur < m) {
+        cur = addMonths(cur, 1);
+        const flow = monthlyCashFlow(cur, transactions, planned, memberFilter, reservedAccountIds);
+        saldo += flow.receitas - flow.despesas;
+      }
+    } else {
+      let cur = selectedMonth;
+      while (cur > m) {
+        const flow = monthlyCashFlow(cur, transactions, planned, memberFilter, reservedAccountIds);
+        saldo -= flow.receitas - flow.despesas;
+        cur = addMonths(cur, -1);
+      }
+    }
+    return round2(saldo);
+  }, [monthProjection, selectedMonth, transactions, planned, memberFilter, reservedAccountIds]);
   const todayOccurrences = useMemo(() => {
     const occ = generatePlannedOccurrences(planned, TODAY_MONTH);
     return occ.map((o) => {
@@ -381,24 +413,53 @@ function FinanceApp() {
     return budgets.map((b) => ({ ...b, spent: txMonth.filter((t) => t.type === "expense" && t.category === b.category && (b.memberId == null || t.memberId === b.memberId)).reduce((s, t) => s + t.amount, 0) }));
   }, [budgets, transactions]);
 
+  // ==========================================================================
+  // ALERTAS — agora ESTRUTURADOS, não uma frase pronta
+  //
+  // Antes cada alerta era { level, text }: uma string montada aqui dentro. A
+  // lista só sabia desenhar parágrafos — sem ícone próprio, sem o valor em
+  // destaque, sem o atalho de pagar, e sem como separar título de detalhe.
+  //
+  // Agora cada alerta carrega as partes que a tela precisa e NENHUM texto
+  // formatado: nome, frase de situação, detalhe, valor cru e o item pagável.
+  // Além de deixar o cartão bonito, isso resolve de graça o modo privacidade —
+  // o valor é formatado na hora de desenhar, então o "olho" alcança o alerta.
+  // ==========================================================================
   const alerts = useMemo(() => {
     const list = [];
     todayBudgets.forEach((b) => {
       const st = statusFor(b.spent, b.limit);
       const label = (categories[b.category]?.label || b.category) + (b.memberId ? " (" + memberLabel(b.memberId) + ")" : "");
-      if (st.state === "over") list.push({ level: "rust", priorityRank: 0, text: label + " ultrapassou o limite em " + fmt(b.spent - b.limit) });
-      else if (st.state === "exact") list.push({ level: "amber", priorityRank: 1, text: label + " atingiu o limite do mês" });
-      else if (b.limit > 0 && b.spent / b.limit >= 0.8) list.push({ level: "amber", priorityRank: 1, text: label + " já está em " + Math.round((b.spent / b.limit) * 100) + "% do limite" });
+      const id = "orc-" + b.category + "-" + (b.memberId == null ? "casal" : b.memberId);
+      if (st.state === "over") {
+        list.push({ id, nivel: "rust", titulo: label, texto: "ultrapassou o limite do mês", detalhe: "Estourou o orçamento", valor: round2(b.spent - b.limit), ordem: 0, rank: 0 });
+      } else if (st.state === "exact") {
+        list.push({ id, nivel: "amber", titulo: label, texto: "atingiu o limite do mês", detalhe: "Sem margem até o fim do mês", valor: null, ordem: 1, rank: 1 });
+      } else if (b.limit > 0 && b.spent / b.limit >= 0.8) {
+        list.push({ id, nivel: "amber", titulo: label, texto: "já está em " + Math.round((b.spent / b.limit) * 100) + "% do limite", detalhe: "Resta " + Math.round(100 - (b.spent / b.limit) * 100) + "% do orçamento", valor: null, ordem: 2, rank: 1 });
+      }
     });
     todayOccurrences.forEach((o) => {
       const st = plannedStatus(o.paid, o.amount);
       if (st.state !== "pendente" && st.state !== "parcial") return;
       const diffDays = Math.round((new Date(o.dueDate + "T00:00:00") - new Date(TODAY_DATE + "T00:00:00")) / 86400000);
-      const priorityRank = PRIORITY[o.priority || DEFAULT_PRIORITY[o.category] || "importante"]?.rank || 1;
-      if (diffDays < 0) list.push({ level: "rust", priorityRank, text: o.description + " está atrasado desde " + fmtDate(o.dueDate) });
-      else if (diffDays <= 3) list.push({ level: "amber", priorityRank, text: o.description + " vence " + (diffDays === 0 ? "hoje" : "em " + diffDays + " dia" + (diffDays > 1 ? "s" : "")) });
+      const rank = PRIORITY[o.priority || DEFAULT_PRIORITY[o.category] || "importante"]?.rank || 1;
+      const base = {
+        id: "occ-" + o.occId,
+        titulo: o.description,
+        valor: Math.max(0, (Number(o.amount) || 0) - (Number(o.paid) || 0)),
+        alvo: o,
+        pagavel: true,
+        parcial: st.state === "parcial",
+        rank,
+      };
+      if (diffDays < 0) {
+        list.push({ ...base, nivel: "rust", texto: "está atrasado desde " + fmtDate(o.dueDate), detalhe: "Atrasado desde " + fmtDate(o.dueDate), ordem: -10000 + diffDays });
+      } else if (diffDays <= 3) {
+        list.push({ ...base, nivel: "amber", texto: diffDays === 0 ? "vence hoje" : "vence em " + diffDays + " dia" + (diffDays > 1 ? "s" : ""), detalhe: diffDays === 0 ? "Vence hoje" : "Vence em " + diffDays + " dia" + (diffDays > 1 ? "s" : ""), ordem: diffDays });
+      }
     });
-    return list.sort((a, b) => (a.level === b.level ? a.priorityRank - b.priorityRank : a.level === "rust" ? -1 : 1));
+    return list.sort((a, b) => (a.nivel === b.nivel ? (a.ordem - b.ordem) || (a.rank - b.rank) : a.nivel === "rust" ? -1 : 1));
   }, [todayBudgets, todayOccurrences, categories]);
 
   const filteredTx = useMemo(() => sorted.filter((t) => {
@@ -834,13 +895,13 @@ function FinanceApp() {
         onAdd={() => { setEditingPlanned(null); setShowPlannedForm(true); }}
         topbar={
           <AppTopbar>
-            <MonthNav month={selectedMonth} onChange={setSelectedMonth} />
+            <MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} />
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
               <MemberFilterBar value={memberFilter} onChange={setMemberFilter} />
               <button
                 onClick={() => { setEditingPlanned(null); setShowPlannedForm(true); }}
                 style={{ minHeight: 44, padding: "0 18px", borderRadius: 10, border: "none",
-                         background: COLORS.green, color: "#fff", fontWeight: 600, fontSize: 13.5 }}>
+                         background: COLORS.green, color: "#fff", fontWeight: 600, fontSize: 14.5 }}>
                 Novo previsto
               </button>
             </div>
@@ -851,24 +912,24 @@ function FinanceApp() {
           <>
             {/* O mês e o filtro agora vivem DENTRO do herói (InicioView) — não
                 há faixa acima dele. */}
-            <InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={netIncome} monthExpense={netExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={priorizacaoHome.items} postergadas={priorizacaoHome.postergadas} pacing={priorizacaoHome.pacing} dias={priorizacaoHome.dias} reservaMinima={priorizacaoHome.reservaMinima} reservaUsada={priorizacaoHome.reservaUsada} reservaDisponivel={priorizacaoHome.reservaDisponivel} reservaItens={priorizacaoHome.reservaItens} reservaConfigurada={priorizacaoHome.reservaConfigurada} reservaAporte={priorizacaoHome.reservaAporte} reservaReceita={priorizacaoHome.reservaReceita} reservaDespesa={priorizacaoHome.reservaDespesa} reservaSobra={priorizacaoHome.reservaSobra} reservaDeficit={priorizacaoHome.reservaDeficit} beneficio={beneficioMes} carryRestrito={carryRestrito} selectedMonth={selectedMonth} onOpenReserva={() => { setTab("mais"); setMoreView("reserva"); }} autoDetalhes={priorizacaoHome.autoDetalhes} memberFilter={memberFilter} onChangeMemberFilter={setMemberFilter} hideBalance={hideBalance} onToggleHide={() => setHideBalance((h) => !h)} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} />
+            <InicioView balance={balance} availableBalance={availableBalance} reservedAmount={reservedAmount} availableNow={availableNow} monthProjection={monthProjection} isCurrentMonth={selectedMonth === TODAY_MONTH} health={health} alerts={alerts} monthIncome={netIncome} monthExpense={netExpense} projectedBalance={projectedBalance} onSelectMonth={setSelectedMonth} openItems={priorizacaoHome.items} postergadas={priorizacaoHome.postergadas} pacing={priorizacaoHome.pacing} dias={priorizacaoHome.dias} reservaMinima={priorizacaoHome.reservaMinima} reservaUsada={priorizacaoHome.reservaUsada} reservaDisponivel={priorizacaoHome.reservaDisponivel} reservaItens={priorizacaoHome.reservaItens} reservaConfigurada={priorizacaoHome.reservaConfigurada} reservaAporte={priorizacaoHome.reservaAporte} reservaReceita={priorizacaoHome.reservaReceita} reservaDespesa={priorizacaoHome.reservaDespesa} reservaSobra={priorizacaoHome.reservaSobra} reservaDeficit={priorizacaoHome.reservaDeficit} beneficio={beneficioMes} carryRestrito={carryRestrito} selectedMonth={selectedMonth} saldoDoMes={saldoDoMes} onOpenReserva={() => { setTab("mais"); setMoreView("reserva"); }} autoDetalhes={priorizacaoHome.autoDetalhes} memberFilter={memberFilter} onChangeMemberFilter={setMemberFilter} hideBalance={hideBalance} onToggleHide={alternarValores} onSeeAll={() => setTab("transacoes")} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} onNewPlanned={() => { setEditingPlanned(null); setShowPlannedForm(true); }} onCloseMonth={() => setShowCloseMonth(true)} />
           </>
         )}
           {tab === "transacoes" && (
           <>
             <div className="only-phone" style={{ marginBottom: 12 }}>
-              <MonthNav month={selectedMonth} onChange={setSelectedMonth} />
+              <MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} />
             </div>
             <div className="only-phone" style={{ marginBottom: 12 }}>
               <MemberFilterBar value={memberFilter} onChange={setMemberFilter} />
             </div>
-            <TransacoesView closedList={filteredTx} openItems={openItems} memberFilter={memberFilter} search={search} setSearch={setSearch} filterType={filterType} setFilterType={setFilterType} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} accounts={accounts} onEdit={(t) => { const linkedPlanned = t.plannedId ? planned.find((p) => p.id === t.plannedId) : null; if (linkedPlanned) { setEditingPlanned(linkedPlanned); setShowPlannedForm(true); } else { setEditingTx(t); setShowForm(true); } }} onDelete={deleteTransaction} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} />
+            <TransacoesView closedList={filteredTx} openItems={openItems} memberFilter={memberFilter} search={search} setSearch={setSearch} filterType={filterType} setFilterType={setFilterType} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} accounts={accounts} onEdit={(t) => { const linkedPlanned = t.plannedId ? planned.find((p) => p.id === t.plannedId) : null; if (linkedPlanned) { setEditingPlanned(linkedPlanned); setShowPlannedForm(true); } else { setEditingTx(t); setShowForm(true); } }} onDelete={deleteTransaction} onPay={setPayTarget} onEditPlanned={(p) => { setEditingPlanned(p); setShowPlannedForm(true); }} onDeletePlanned={deletePlanned} saldoDoMes={saldoDoMes} />
           </>
         )}
           {tab === "orcamento" && (
           <>
             <div className="only-phone" style={{ marginBottom: 12 }}>
-              <MonthNav month={selectedMonth} onChange={setSelectedMonth} />
+              <MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} />
             </div>
             <div className="only-phone" style={{ marginBottom: 12 }}>
               <MemberFilterBar value={memberFilter} onChange={setMemberFilter} />
@@ -879,7 +940,7 @@ function FinanceApp() {
           {tab === "priorizacao" && (
             <>
               <div className="only-phone" style={{ marginBottom: 12 }}>
-                <MonthNav month={selectedMonth} onChange={setSelectedMonth} />
+                <MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} />
               </div>
               <div className="only-phone" style={{ marginBottom: 12 }}>
                 <MemberFilterBar value={memberFilter} onChange={setMemberFilter} />
@@ -893,13 +954,13 @@ function FinanceApp() {
           {tab === "mais" && moreView === "declaracao" && <DeclaracaoIRView transactions={transactions} onBack={() => setMoreView(null)} onAttach={attachReceipt} />}
           {tab === "mais" && moreView === "ajustes" && <IdeiasView ideas={ideas} onBack={() => setMoreView(null)} onSave={saveIdea} onDelete={deleteIdea} onToggle={toggleIdeaDone} onUpdate={updateIdea} />}
           {tab === "mais" && moreView === "metas" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /></div><MetasView goals={goals} memberFilter={memberFilter} accounts={accounts} onContribute={setContributeTarget} onNewGoal={() => setShowGoalForm(true)} /></>}
-          {tab === "mais" && moreView === "relatorios" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} /></div><div className="only-phone" style={{ marginBottom: 12 }}><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /></div><RelatoriosView month={selectedMonth} transactions={transactions} planned={planned} sources={sources} /></>}
-          {tab === "mais" && moreView === "regra" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} /></div><div className="only-phone" style={{ marginBottom: 12 }}><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /></div><Regra503020View income={monthIncome} expenses={currentMonthTx.filter((t) => t.type === "expense")} /></>}
+          {tab === "mais" && moreView === "relatorios" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} /></div><div className="only-phone" style={{ marginBottom: 12 }}><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /></div><RelatoriosView month={selectedMonth} transactions={transactions} planned={planned} sources={sources} /></>}
+          {tab === "mais" && moreView === "regra" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} /></div><div className="only-phone" style={{ marginBottom: 12 }}><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /></div><Regra503020View income={monthIncome} expenses={currentMonthTx.filter((t) => t.type === "expense")} /></>}
           {tab === "mais" && moreView === "projecao" && <><BackRow onBack={() => setMoreView(null)} /><ProjecaoView planned={nonReservedPlanned} transactions={nonReservedTx} balance={availableBalance} memberFilter={memberFilter} setMemberFilter={setMemberFilter} /></>}
-          {tab === "mais" && moreView === "priorizacao" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} /></div><PriorizacaoView planned={nonReservedPlanned} transactions={nonReservedTx} budgets={budgets} accounts={accounts} selectedMonth={selectedMonth} availableBalance={availableBalance} memberFilter={memberFilter} reservaConfig={reservaConfig} /></>}
+          {tab === "mais" && moreView === "priorizacao" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} /></div><PriorizacaoView planned={nonReservedPlanned} transactions={nonReservedTx} budgets={budgets} accounts={accounts} selectedMonth={selectedMonth} availableBalance={availableBalance} memberFilter={memberFilter} reservaConfig={reservaConfig} /></>}
           {tab === "mais" && moreView === "dados" && <><BackRow onBack={() => setMoreView(null)} /><DadosView onExport={exportData} onImport={() => fileInputRef.current && fileInputRef.current.click()} onReset={resetToSeed} onClearSupabase={clearSupabase} /></>}
           {tab === "mais" && moreView === "fontes" && <><FontesView sources={sources} onBack={() => setMoreView(null)} onSave={saveSource} onDelete={deleteSource} /></>}
-          {tab === "mais" && moreView === "reserva" && <ReservaView onBack={() => setMoreView(null)} month={selectedMonth} onMonthChange={setSelectedMonth} reserva={reservaMes} config={reservaConfig} salario={salarioMes} onSaveConfig={setReservaConfig} />}
+          {tab === "mais" && moreView === "reserva" && <ReservaView onBack={() => setMoreView(null)} month={selectedMonth} onMonthChange={setSelectedMonth} reserva={reservaMes} config={reservaConfig} salario={salarioMes} onSaveConfig={setReservaConfig} saldoDoMes={saldoDoMes} />}
       </AppShell>
 
       <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ""; }} />
@@ -912,7 +973,7 @@ function FinanceApp() {
       {toast && (
         <div role="status" style={{ position: "fixed", left: "50%", transform: "translateX(-50%)",
           bottom: "calc(var(--tabbar-height) + 24px)", background: COLORS.ink, color: "#fff",
-          borderRadius: 12, padding: "11px 18px", fontSize: 13, fontWeight: 500, zIndex: 80,
+          borderRadius: 12, padding: "11px 18px", fontSize: 14, fontWeight: 500, zIndex: 80,
           boxShadow: "0 10px 28px rgba(27,42,47,.26)", maxWidth: "min(92vw, 420px)", textAlign: "center" }}>
           {toast}
         </div>

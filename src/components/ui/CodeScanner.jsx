@@ -42,11 +42,11 @@ export function CodeScanner({ onResult, onClose }) {
   return (
     <div style={{ marginBottom: 8 }}>
       {error ? (
-        <p style={{ fontSize: 12, color: COLORS.rust, margin: "0 0 8px" }}>{error}</p>
+        <p style={{ fontSize: 13, color: COLORS.rust, margin: "0 0 8px" }}>{error}</p>
       ) : (
         <div id={id} style={{ width: "100%", borderRadius: 10, overflow: "hidden", background: "#222" }} />
       )}
-      <button onClick={onClose} aria-label="Fechar leitor" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 0" }}><X size={14} />Fechar leitor</button>
+      <button onClick={onClose} aria-label="Fechar leitor" className="icon-btn" style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 6, fontSize: 13, padding: "6px 0" }}><X size={14} />Fechar leitor</button>
     </div>
   );
 }
