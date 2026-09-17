@@ -53,30 +53,41 @@ function LinhaAlerta({ alerta, onPay }) {
   return (
     <div
       style={{
-        display: "flex", alignItems: "center", gap: 12,
+        // Duas LINHAS, não duas colunas: o texto ocupa a largura inteira do
+        // modal e o botão de pagar desce para baixo dele.
+        //
+        // Antes o botão ficava na mesma faixa do texto e, com o valor ao lado
+        // ("Pagar · R$ 100,00"), ele comia ~45% da largura — o nome do
+        // compromisso quebrava em cinco linhas ("Acordo / Cheque / Especial /
+        // Caixa / está atrasado desde 01 de set."). Agora a leitura corre na
+        // horizontal, que é como se lê, e a ação fica embaixo, com largura
+        // inteira e alvo de dedo folgado.
+        display: "flex", flexDirection: "column", gap: 10,
         background: tom.fundo, border: "1px solid " + tom.borda,
-        borderRadius: 14, padding: "11px 12px",
+        borderRadius: 14, padding: "12px 13px",
       }}
     >
-      <span style={{
-        width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-        background: tom.cor + "1F", color: tom.cor,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        <Icone size={20} strokeWidth={2.1} />
-      </span>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <span style={{
+          width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+          background: tom.cor + "1F", color: tom.cor,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Icone size={20} strokeWidth={2.1} />
+        </span>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.35 }}>
-          <strong style={{ fontWeight: 700, color: COLORS.ink }}>{alerta.titulo}</strong>
-          {alerta.texto ? <span style={{ color: COLORS.fg2, fontWeight: 500 }}> {alerta.texto}</span> : null}
-        </p>
-        {alerta.detalhe ? (
-          <p style={{ margin: "2px 0 0", fontSize: 13, color: COLORS.muted, fontWeight: 500 }}>
-            {alerta.detalhe}
-            {temValor && !alerta.pagavel ? " · " + fmt(alerta.valor) : ""}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.4 }}>
+            <strong style={{ fontWeight: 700, color: COLORS.ink }}>{alerta.titulo}</strong>
+            {alerta.texto ? <span style={{ color: COLORS.fg2, fontWeight: 500 }}> {alerta.texto}</span> : null}
           </p>
-        ) : null}
+          {alerta.detalhe ? (
+            <p style={{ margin: "3px 0 0", fontSize: 13, color: COLORS.muted, fontWeight: 500, lineHeight: 1.4 }}>
+              {alerta.detalhe}
+              {temValor && !alerta.pagavel ? " · " + fmt(alerta.valor) : ""}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {alerta.pagavel && alerta.alvo && onPay ? (
@@ -84,7 +95,7 @@ function LinhaAlerta({ alerta, onPay }) {
           type="button"
           onClick={() => onPay(alerta.alvo)}
           style={{
-            flexShrink: 0, minHeight: 38, padding: "0 14px", borderRadius: 11,
+            width: "100%", minHeight: 44, padding: "0 14px", borderRadius: 11,
             border: "1.5px solid " + tom.cor, background: COLORS.surface, color: tom.cor,
             fontFamily: "var(--font-display)", fontSize: 14.5, fontWeight: 700,
           }}

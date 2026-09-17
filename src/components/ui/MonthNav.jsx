@@ -4,6 +4,7 @@ import { COLORS, TOUCH, RADIUS } from '../../constants/tokens';
 import { TODAY_MONTH } from '../../constants/seedData';
 import { addMonths, monthDiff, monthLabelFull, pad2 } from '../../utils/formatters';
 import { useDevice } from '../../hooks/useDevice';
+import { usePrivacy } from '../../context/PrivacyContext';
 import { ModalSheet } from './ModalSheet';
 
 // ============================================================================
@@ -43,6 +44,18 @@ const arrowStyle = (tom) => ({
 
 const NOMES_CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
+// Saldo do cartão em formato curto: cabe em três colunas no celular (~100px)
+// sem clipar nem empurrar o layout, e continua legível em qualquer ordem de
+// grandeza — 999 fica "R$ 999", 12.345 fica "R$ 12.345", 1.250.000 vira
+// "R$ 1,3 mi".
+function moedaCurta(v) {
+  const abs = Math.abs(v);
+  const sinal = v < 0 ? "−" : "";
+  if (abs >= 1000000) return sinal + "R$ " + (abs / 1000000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi";
+  if (abs >= 100000) return sinal + "R$ " + Math.round(abs / 1000).toLocaleString("pt-BR") + " mil";
+  return sinal + "R$ " + Math.round(abs).toLocaleString("pt-BR");
+}
+
 const VERDE = { topo: "#10B981", base: "#047857" };
 const VERMELHO = { topo: "#EF4444", base: "#B91C1C" };
 const NEUTRO = { topo: "#94A3B8", base: "#64748B" };
@@ -53,11 +66,18 @@ const NEUTRO = { topo: "#94A3B8", base: "#64748B" };
 // ============================================================================
 function CartaoMes({ ano, mes, selecionado, ehMesAtual, saldo, onPick }) {
   const chave = ano + "-" + pad2(mes);
+  const { oculto } = usePrivacy();
   const temSaldo = typeof saldo === "number" && Number.isFinite(saldo);
   const positivo = temSaldo ? saldo >= 0 : null;
   const cor = positivo === null ? NEUTRO : positivo ? VERDE : VERMELHO;
   const IconeSeta = positivo === null ? null : positivo ? ArrowUpRight : ArrowDownRight;
   const legenda = positivo === null ? "Sem projeção" : positivo ? "Receita maior" : "Despesa alta";
+
+  // O VALOR no cartão é o que dá sentido à cor: verde/vermelho sem o número ao
+  // lado é enfeite. Formato CURTO — sem centavos e, acima de 100 mil, em "mil"/
+  // "mi" — porque o cartão tem ~100px de largura no celular; e mascarado quando
+  // o modo privacidade está ligado.
+  const valorCurto = !temSaldo ? null : oculto ? "R$ •••" : moedaCurta(saldo);
 
   return (
     <button
@@ -72,7 +92,7 @@ function CartaoMes({ ano, mes, selecionado, ehMesAtual, saldo, onPick }) {
       style={{
         position: "relative",
         display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4,
-        minHeight: 84, padding: "10px 10px 9px", borderRadius: 14, overflow: "hidden",
+        minHeight: 96, padding: "10px 10px 10px", borderRadius: 14, overflow: "hidden",
         border: "none",
         background: "linear-gradient(158deg," + cor.topo + " 0%," + cor.base + " 100%)",
         color: "#fff", textAlign: "left",
@@ -104,6 +124,16 @@ function CartaoMes({ ano, mes, selecionado, ehMesAtual, saldo, onPick }) {
       <span style={{ position: "relative", fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,.88)", lineHeight: 1.15 }}>
         {legenda}
       </span>
+      {valorCurto && (
+        <span style={{
+          position: "relative", marginTop: "auto", paddingTop: 4,
+          fontFamily: "var(--font-display)", fontSize: 12.5, fontWeight: 800,
+          letterSpacing: "-.01em", color: "#fff", lineHeight: 1.1,
+          maxWidth: "100%", whiteSpace: "nowrap",
+        }}>
+          {valorCurto}
+        </span>
+      )}
 
       {selecionado && (
         <span aria-hidden="true" style={{

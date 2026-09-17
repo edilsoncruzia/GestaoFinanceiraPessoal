@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { COLORS, CATEGORIES, NECESSIDADES, DESEJOS, PRIORITY, DEFAULT_PRIORITY, buildCategoriesObject, categoriesToRows, MAIN_TABS } from './constants/tokens';
 import { CategoriesContext } from './context/CategoriesContext';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
@@ -374,32 +374,69 @@ function FinanceApp() {
     return rows;
   }, [selectedMonth, transactions, planned, memberFilter, reservedAccountIds, monthProjection]);
 
-  // Saldo projetado no FIM de um mês qualquer — é o dado que pinta os cartões
-  // do seletor de "Período" (verde = fecha no azul, vermelho = fecha no
-  // vermelho), para qualquer ano que o usuário abrir, não só os 12 meses da
-  // Análise. Do mês corrente para frente, acumula o fluxo previsto a partir do
-  // saldo disponível de hoje; antes dele, reconstrói para trás subtraindo o
-  // fluxo (realizado) de cada mês.
-  const saldoDoMes = useCallback((m) => {
-    let saldo = monthProjection.endBalance;
-    if (m === selectedMonth) return round2(saldo);
-    if (m > selectedMonth) {
-      let cur = selectedMonth;
-      while (cur < m) {
-        cur = addMonths(cur, 1);
-        const flow = monthlyCashFlow(cur, transactions, planned, memberFilter, reservedAccountIds);
-        saldo += flow.receitas - flow.despesas;
+  // ── A ÂNCORA FIXA DO SELETOR DE PERÍODO ──────────────────────────────
+  // Saldo projetado no fim do MÊS CORRENTE. É a mesma conta do card "Saldo
+  // previsto no fim do mês" do herói, só que sempre calculada para HOJE.
+  //
+  // Existe separado de `monthProjection` de propósito: aquele segue o mês em
+  // exibição. Se a cor dos meses partisse dele, o mesmo "Março de 2027" ficaria
+  // verde ou vermelho conforme o mês que a pessoa estivesse olhando — era
+  // exatamente a incoerência relatada (a cor "mudava a cada vez").
+  const projecaoHoje = useMemo(() => {
+    const itens = buildOpenItems(planned, transactions, TODAY_MONTH)
+      .filter((i) => !["accountId", "fromAccountId", "toAccountId"].some((k) => reservedAccountIds.includes(i[k])));
+    let entradas = 0, saidas = 0;
+    itens.forEach((i) => {
+      const ded = (i.salaryDeductions || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+      if (i.type === "income") {
+        const valor = Math.max(0, (i.amount - i.paid) - ded);
+        if (!ehReceitaRestrita(i)) entradas += valor;
+      } else if (i.type === "expense") {
+        saidas += (i.amount - i.paid);
       }
-    } else {
-      let cur = selectedMonth;
-      while (cur > m) {
-        const flow = monthlyCashFlow(cur, transactions, planned, memberFilter, reservedAccountIds);
-        saldo -= flow.receitas - flow.despesas;
-        cur = addMonths(cur, -1);
+    });
+    return { entradas: round2(entradas), saidas: round2(saidas), saldo: round2(availableBalance + entradas - saidas) };
+  }, [planned, transactions, availableBalance, reservedAccountIds]);
+
+  // Saldo projetado no FIM de um mês QUALQUER — o dado que pinta os cartões do
+  // seletor de "Período" (verde = fecha no azul, vermelho = fecha no vermelho).
+  //
+  // A função é PURA em relação ao mês: `saldoDoMes("2027-03")` devolve sempre o
+  // mesmo número, não importa o mês selecionado nem quantas vezes o painel for
+  // aberto. Parte da âncora de hoje e anda para frente (somando o fluxo) ou
+  // para trás (subtraindo o fluxo realizado), sempre em passos de um mês — e
+  // memoriza cada mês, porque o painel pede os doze de uma vez.
+  //
+  // Sem nenhum dado cadastrado devolve `null`: o cartão cai no estado neutro
+  // em vez de pintar tudo de verde no primeiro paint, antes de o Supabase
+  // responder.
+  const saldoDoMes = useMemo(() => {
+    const cache = new Map();
+    const calcular = (m) => {
+      if (!transactions.length && !planned.length) return null;
+      let saldo = projecaoHoje.saldo;
+      if (m > TODAY_MONTH) {
+        let cur = TODAY_MONTH;
+        while (cur < m) {
+          cur = addMonths(cur, 1);
+          const f = monthlyCashFlow(cur, transactions, planned, memberFilter, reservedAccountIds);
+          saldo += f.receitas - f.despesas;
+        }
+      } else if (m < TODAY_MONTH) {
+        let cur = TODAY_MONTH;
+        while (cur > m) {
+          const f = monthlyCashFlow(cur, transactions, planned, memberFilter, reservedAccountIds);
+          saldo -= f.receitas - f.despesas;
+          cur = addMonths(cur, -1);
+        }
       }
-    }
-    return round2(saldo);
-  }, [monthProjection, selectedMonth, transactions, planned, memberFilter, reservedAccountIds]);
+      return round2(saldo);
+    };
+    return (m) => {
+      if (!cache.has(m)) cache.set(m, calcular(m));
+      return cache.get(m);
+    };
+  }, [projecaoHoje, transactions, planned, memberFilter, reservedAccountIds]);
   const todayOccurrences = useMemo(() => {
     const occ = generatePlannedOccurrences(planned, TODAY_MONTH);
     return occ.map((o) => {

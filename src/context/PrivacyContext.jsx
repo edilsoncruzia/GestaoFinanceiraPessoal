@@ -47,16 +47,24 @@ const PrivacyContext = createContext({
 });
 
 export function PrivacyProvider({ children }) {
-  const [oculto, setOculto] = useState(() => {
-    const inicial = lerPreferencia();
-    // Sincroniza a variável de módulo JÁ no primeiro render: os filhos são
-    // renderizados depois deste componente, então nenhum valor escapa.
-    definirValoresOcultos(inicial);
-    return inicial;
-  });
+  const [oculto, setOculto] = useState(lerPreferencia);
+
+  // Sincroniza a variável de módulo ANTES de renderizar os filhos — e faz isso
+  // a CADA renderização, não num useEffect.
+  //
+  // Por quê: fmt() e valoresOcultos() leem um singleton de módulo. Se a
+  // sincronização rodar só no useEffect, ela acontece DEPOIS do commit — os
+  // filhos já foram pintados com o valor ANTERIOR, e mudar a variável não
+  // dispara re-render. Resultado: o herói (que lê o estado "oculto" direto)
+  // virava visível enquanto todo o resto continuava oculto — e vice-versa.
+  //
+  // Aqui a chamada é síncrona e idempotente (sempre iguala a variável ao
+  // estado atual), então qualquer troca de estado re-renderiza a árvore inteira
+  // já com o flag novo — o "olho" fica coerente na mesma pintura, em todos os
+  // cantos.
+  definirValoresOcultos(oculto);
 
   useEffect(() => {
-    definirValoresOcultos(oculto);
     try { localStorage.setItem(CHAVE, oculto ? "1" : "0"); } catch (e) { /* modo privado */ }
   }, [oculto]);
 
