@@ -1,102 +1,211 @@
 import React from "react";
-import { PiggyBank, ShoppingCart } from "lucide-react";
-import { COLORS, RADIUS } from "../../constants/tokens";
+import { ChevronRight, PiggyBank, ShoppingCart } from "lucide-react";
+import { COLORS } from "../../constants/tokens";
 
-// ============================================================================
-// ResumoCards — reserva mínima e mercado, lado a lado, logo abaixo do herói.
-//
-// Onde isso vivia antes:
-//   · a reserva era um SupportCard grande no FIM da coluna de apoio — a última
-//     coisa da tela, depois da saúde financeira;
-//   · o mercado era a seção "Ritmo de gasto do mercado", escondida dentro do
-//     bloco recolhível "Análise do mês", com três números e dois parágrafos.
-//
-// Agora são os dois quadros pequenos do protótipo: o número grande é o que
-// ainda dá para usar, a barra é o quanto do total já foi, e a legenda traz o
-// total. Uma linha de leitura por card, sem frase explicativa.
-//
-// Clickable só quando existe destino: um card que parece botão e não leva a
-// lugar nenhum é pior do que um número parado.
-// ============================================================================
-
-function MiniCard({ Icone, cor, fundo, nome, valor, total, pct, unidade, onAbrir }) {
+function MiniCard({ Icone, cor, fundo, borda, brilho, nome, valor, pct, unidade, onAbrir }) {
   const Tag = onAbrir ? "button" : "div";
+  const pctSeguro = Math.max(0, Math.min(100, Math.round(pct || 0)));
+
   return (
     <Tag
       onClick={onAbrir}
       data-od-id={"resumo-" + nome.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")}
       style={{
-        display: "block", textAlign: "left", minWidth: 0, width: "100%",
+        display: "block",
+        textAlign: "left",
+        minWidth: 0,
+        width: "100%",
         minHeight: onAbrir ? 44 : undefined,
-        background: COLORS.surface, border: "1px solid " + COLORS.border,
-        borderRadius: RADIUS.card, padding: 14, boxShadow: "0 1px 2px rgba(21,19,42,.04)",
-        color: "inherit", font: "inherit", cursor: onAbrir ? "pointer" : "default",
+        background: brilho,
+        border: "1px solid " + borda,
+        borderRadius: 22,
+        padding: "20px 18px 18px",
+        boxShadow: "0 16px 34px -24px rgba(21,19,42,.24)",
+        color: "inherit",
+        font: "inherit",
+        cursor: onAbrir ? "pointer" : "default",
       }}
     >
-      <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-        <i style={{
-          width: 26, height: 26, borderRadius: 8, flexShrink: 0, fontStyle: "normal",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: fundo, color: cor,
-        }}>
-          <Icone size={14} />
+      <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <i
+          style={{
+            width: "clamp(40px, 10vw, 54px)",
+            height: "clamp(40px, 10vw, 54px)",
+            borderRadius: 16,
+            flexShrink: 0,
+            fontStyle: "normal",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: fundo,
+            color: cor,
+          }}
+        >
+          <Icone size={26} strokeWidth={2.4} />
         </i>
-        <span style={{
-          fontSize: 12.5, fontWeight: 600, color: COLORS.fg2, minWidth: 0,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>{nome}</span>
+        <span
+          style={{
+            flex: 1,
+            fontSize: "clamp(14px, 3.7vw, 22px)",
+            lineHeight: 1.1,
+            fontWeight: 800,
+            color: COLORS.ink,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {nome}
+        </span>
+        <ChevronRight size={24} color={COLORS.fg2} strokeWidth={2.8} style={{ flexShrink: 0 }} />
       </span>
 
-      <b className="num" style={{
-        display: "block", fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800,
-        letterSpacing: "-0.02em", color: COLORS.ink, margin: "10px 0 9px",
-        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-      }}>{valor}</b>
+      <b
+        className="num"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          fontFamily: "var(--font-display)",
+          fontSize: "clamp(20px, 5.4vw, 42px)",
+          fontWeight: 800,
+          letterSpacing: "-0.02em",
+          color: cor,
+          margin: "24px 0 14px",
+          lineHeight: 1,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{valor}</span>
+        <span
+          style={{
+            flexShrink: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "clamp(30px, 8vw, 40px)",
+            padding: "0 clamp(10px, 3vw, 18px)",
+            borderRadius: 999,
+            background: fundo,
+            color: cor,
+            fontSize: "clamp(12px, 3.4vw, 18px)",
+            fontWeight: 800,
+          }}
+        >
+          {pctSeguro}%
+        </span>
+      </b>
 
-      <span style={{ display: "block", height: 6, borderRadius: 999, background: COLORS.surface2, overflow: "hidden" }}>
-        <i style={{
-          display: "block", height: "100%", borderRadius: 999, background: cor,
-          width: Math.max(0, Math.min(100, pct)) + "%",
-          transition: "width .5s cubic-bezier(.22,1,.36,1)",
-        }} />
+      <span style={{ display: "block", height: 14, borderRadius: 999, background: "rgba(21,19,42,.12)", overflow: "hidden" }}>
+        <i
+          style={{
+            display: "block",
+            height: "100%",
+            borderRadius: 999,
+            background: cor,
+            width: pctSeguro + "%",
+            transition: "width .5s cubic-bezier(.22,1,.36,1)",
+          }}
+        />
       </span>
 
-      <u className="num" style={{
-        display: "block", marginTop: 7, fontSize: 12, fontWeight: 700, fontStyle: "normal",
-        color: cor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-      }}>{unidade}</u>
+      <span
+        className="num"
+        style={{
+          display: "block",
+          marginTop: 12,
+          fontSize: "clamp(14px, 3.8vw, 20px)",
+          fontWeight: 500,
+          fontStyle: "normal",
+          color: COLORS.fg2,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {unidade}
+      </span>
     </Tag>
   );
 }
 
 export function ResumoCards({ reserva, mercado, moeda = (v) => "R$ " + v }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-      {reserva && (
-        <MiniCard
-          Icone={PiggyBank}
-          cor={COLORS.income}
-          fundo={COLORS.incomeSoft}
-          nome="Reserva mínima"
-          valor={moeda(reserva.disponivel)}
-          pct={reserva.total > 0 ? (reserva.usado / reserva.total) * 100 : 0}
-          unidade={"de " + moeda(reserva.total)}
-          onAbrir={reserva.onAbrir}
-        />
-      )}
-      {mercado && (
-        <MiniCard
-          Icone={ShoppingCart}
-          cor={COLORS.warn}
-          fundo={COLORS.warnSoft}
-          nome="Mercado"
-          valor={moeda(mercado.restante)}
-          pct={mercado.total > 0 ? ((mercado.total - mercado.restante) / mercado.total) * 100 : 0}
-          unidade={"de " + moeda(mercado.total)}
-          onAbrir={mercado.onAbrir}
-        />
-      )}
-    </div>
+    <section aria-labelledby="titulo-planejamento" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2
+            id="titulo-planejamento"
+            className="serif"
+            style={{
+              margin: 0,
+              fontSize: "clamp(30px, 8vw, 42px)",
+              lineHeight: 1.05,
+              fontWeight: 800,
+              color: COLORS.ink,
+            }}
+          >
+            Planejamento
+          </h2>
+          <p style={{ margin: "6px 0 0", fontSize: "clamp(16px, 4.5vw, 22px)", lineHeight: 1.3, color: COLORS.muted }}>
+            Suas reservas e gastos controlados para o mês.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={reserva?.onAbrir}
+          style={{
+            minHeight: 44,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            border: 0,
+            background: "transparent",
+            color: COLORS.fg2,
+            fontSize: "clamp(16px, 4vw, 21px)",
+            fontWeight: 700,
+            padding: "0 2px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Ver detalhes <ChevronRight size={25} strokeWidth={2.8} />
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
+        {reserva && (
+          <MiniCard
+            Icone={PiggyBank}
+            cor={COLORS.income}
+            fundo={COLORS.incomeSoft}
+            borda={COLORS.incomeBorder}
+            brilho={"linear-gradient(135deg, " + COLORS.incomeSoft + " 0%, #fff 58%, " + COLORS.surface + " 100%)"}
+            nome="Reserva mínima"
+            valor={moeda(reserva.disponivel)}
+            pct={reserva.total > 0 ? (reserva.disponivel / reserva.total) * 100 : 0}
+            unidade={"de " + moeda(reserva.total)}
+            onAbrir={reserva.onAbrir}
+          />
+        )}
+        {mercado && (
+          <MiniCard
+            Icone={ShoppingCart}
+            cor={COLORS.warn}
+            fundo={COLORS.warnSoft}
+            borda={COLORS.warnBorder}
+            brilho={"linear-gradient(135deg, " + COLORS.warnSoft + " 0%, #fff 58%, " + COLORS.surface + " 100%)"}
+            nome="Mercado"
+            valor={moeda(mercado.restante)}
+            pct={mercado.total > 0 ? (mercado.restante / mercado.total) * 100 : 0}
+            unidade={"de " + moeda(mercado.total)}
+            onAbrir={mercado.onAbrir}
+          />
+        )}
+      </div>
+    </section>
   );
 }
 

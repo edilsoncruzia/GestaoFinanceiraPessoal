@@ -332,38 +332,108 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
         />
 
         {/* 3. LISTA DE TRABALHO — promovida para logo depois do saldo. */}
-        <section aria-labelledby="titulo-contas-abertas" style={{ marginTop: 4 }}>
-          <div className="screen-head" style={{ marginBottom: 10 }}>
-            <h2 id="titulo-contas-abertas" className="serif" style={{ fontSize: 21, fontWeight: 500, margin: 0 }}>
+        <section
+          aria-labelledby="titulo-contas-abertas"
+          style={{
+            marginTop: 10,
+            padding: "24px 20px 22px",
+            borderRadius: 24,
+            background: COLORS.surface,
+            border: "1px solid " + COLORS.borderSoft,
+            boxShadow: "0 18px 42px -30px rgba(21,19,42,.34)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 22 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 id="titulo-contas-abertas" className="serif" style={{ fontSize: "clamp(28px, 7vw, 39px)", lineHeight: 1.05, fontWeight: 800, margin: 0, color: COLORS.ink }}>
               Contas em aberto
             </h2>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-              {[["indicada", "Data indicada"], ["vencimento", "Vencimento"]].map(([v, l]) => (
-                <button key={v} onClick={() => setSortBy(v)} aria-pressed={sortBy === v}
-                  style={{
-                    minHeight: 36, padding: "0 12px", borderRadius: 10, fontSize: 13.5, fontWeight: 600,
-                    border: "1px solid " + (sortBy === v ? COLORS.green : COLORS.line),
-                    background: sortBy === v ? COLORS.green : COLORS.card,
-                    color: sortBy === v ? "#fff" : COLORS.fg2,
-                  }}>{l}</button>
-              ))}
+            <p style={{ margin: "8px 0 0", fontSize: "clamp(15px, 4.2vw, 20px)", color: COLORS.muted, lineHeight: 1.25 }}>
+              Veja o que ainda vai entrar e sair da sua conta.
+            </p>
             </div>
+            <button
+              type="button"
+              onClick={onSeeAll}
+              style={{
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                border: 0,
+                background: "transparent",
+                color: COLORS.accentDeep,
+                fontSize: "clamp(16px, 4vw, 21px)",
+                fontWeight: 800,
+                padding: "0 2px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <BarChart3 size={25} color={COLORS.ink} strokeWidth={2.8} />
+              Ver todas
+              <ChevronRight size={25} strokeWidth={2.8} />
+            </button>
           </div>
 
           {openItems.length > 0 && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 11px", minHeight: 30,
-                borderRadius: 999, background: COLORS.surface, border: "1px solid " + COLORS.border,
-                fontSize: 13, fontWeight: 600, color: COLORS.fg2 }}>
-                <b className="num" style={{ color: COLORS.expense }}>{mask(openPagar)}</b> a pagar
-              </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 11px", minHeight: 30,
-                borderRadius: 999, background: COLORS.surface, border: "1px solid " + COLORS.border,
-                fontSize: 13, fontWeight: 600, color: COLORS.fg2 }}>
-                <b className="num" style={{ color: COLORS.income }}>{mask(openReceber)}</b> a receber
-              </span>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginBottom: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, padding: "14px 12px", borderRadius: 18, background: "linear-gradient(135deg, " + COLORS.expenseSoft + " 0%, #fff 100%)" }}>
+                <span style={{ width: "clamp(40px, 11vw, 56px)", height: "clamp(40px, 11vw, 56px)", borderRadius: 16, background: COLORS.expenseSoft, color: COLORS.expense, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <ArrowUpRight size={28} strokeWidth={2.7} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6, color: COLORS.fg2, fontSize: "clamp(13px, 3.6vw, 18px)", fontWeight: 500 }}>
+                    A pagar
+                    <b style={{ flexShrink: 0, padding: "4px 10px", borderRadius: 999, background: COLORS.expenseSoft, color: COLORS.expense, fontSize: "clamp(11px, 3vw, 14px)", fontWeight: 800 }}>
+                      {openItems.filter(ehDespesaItem).length} contas
+                    </b>
+                  </span>
+                  <b className="num" style={{ display: "block", marginTop: 4, color: COLORS.expense, fontFamily: "var(--font-display)", fontSize: "clamp(18px, 5vw, 35px)", lineHeight: 1.1, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {mask(openPagar)}
+                  </b>
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, padding: "14px 12px", borderRadius: 18, background: "linear-gradient(135deg, " + COLORS.incomeSoft + " 0%, #fff 100%)" }}>
+                <span style={{ width: "clamp(40px, 11vw, 56px)", height: "clamp(40px, 11vw, 56px)", borderRadius: 16, background: COLORS.incomeSoft, color: COLORS.income, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <ArrowDownLeft size={28} strokeWidth={2.7} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6, color: COLORS.fg2, fontSize: "clamp(13px, 3.6vw, 18px)", fontWeight: 500 }}>
+                    A receber
+                    <b style={{ flexShrink: 0, padding: "4px 10px", borderRadius: 999, background: COLORS.incomeSoft, color: COLORS.income, fontSize: "clamp(11px, 3vw, 14px)", fontWeight: 800 }}>
+                      {openItems.filter((i) => !ehDespesaItem(i)).length} contas
+                    </b>
+                  </span>
+                  <b className="num" style={{ display: "block", marginTop: 4, color: COLORS.income, fontFamily: "var(--font-display)", fontSize: "clamp(18px, 5vw, 35px)", lineHeight: 1.1, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {mask(openReceber)}
+                  </b>
+                </span>
+              </div>
             </div>
           )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: 4, marginBottom: 18, borderRadius: 18, border: "1px solid " + COLORS.border, background: COLORS.surface }}>
+            {[["indicada", "Data indicada", Calendar], ["vencimento", "Vencimento", CalendarDays]].map(([v, l, Icon]) => (
+              <button key={v} onClick={() => setSortBy(v)} aria-pressed={sortBy === v}
+                style={{
+                  minHeight: 68,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 12,
+                  padding: "0 14px",
+                  borderRadius: 14,
+                  fontSize: "clamp(16px, 4.4vw, 22px)",
+                  fontWeight: 800,
+                  border: "1px solid " + (sortBy === v ? "rgba(255,255,255,.22)" : "transparent"),
+                  background: sortBy === v ? "linear-gradient(135deg, " + COLORS.accentBright + ", " + COLORS.accent + ")" : "transparent",
+                  color: sortBy === v ? "#fff" : COLORS.fg2,
+                  boxShadow: sortBy === v ? "0 12px 26px -16px rgba(76,29,149,.65)" : "none",
+                }}>
+                <Icon size={26} strokeWidth={2.5} />{l}
+              </button>
+            ))}
+          </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {openItems.length === 0 && (
