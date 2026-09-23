@@ -505,6 +505,46 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 /* ============================================================================
    TABLET — 560px+
    ========================================================================== */
+@media (max-width: 559px) {
+  .bill-card-main {
+    grid-template-columns: 78px minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .bill-card-value {
+    grid-column: 2 !important;
+    justify-self: start !important;
+    margin-top: 4px !important;
+  }
+
+  .bill-card-menu {
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+  }
+
+  .bill-card-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) 54px !important;
+    gap: 10px !important;
+  }
+
+  .tx-card-row {
+    grid-template-columns: 66px minmax(0, 1fr) 24px !important;
+    gap: 10px !important;
+  }
+
+  .tx-card-value {
+    grid-column: 2 !important;
+    justify-self: start !important;
+  }
+
+  .tx-card-menu {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+  }
+}
+
 @media (min-width: 560px) {
   .tab-content { padding: 20px 24px 40px; }
   /* Grades de apoio passam a duas colunas antes de virar layout de desktop. */
