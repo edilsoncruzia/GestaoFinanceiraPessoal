@@ -46,7 +46,7 @@ function MiniCard({ Icone, cor, fundo, borda, brilho, nome, valor, pct, unidade,
         <span
           style={{
             flex: 1,
-            fontSize: "clamp(14px, 3.7vw, 22px)",
+            fontSize: "clamp(13px, 3.2vw, 18px)",
             lineHeight: 1.1,
             fontWeight: 800,
             color: COLORS.ink,
@@ -68,7 +68,7 @@ function MiniCard({ Icone, cor, fundo, borda, brilho, nome, valor, pct, unidade,
           justifyContent: "space-between",
           gap: 8,
           fontFamily: "var(--font-display)",
-          fontSize: "clamp(20px, 5.4vw, 42px)",
+          fontSize: "clamp(18px, 4.8vw, 30px)",
           fontWeight: 800,
           letterSpacing: "-0.02em",
           color: cor,
@@ -91,7 +91,7 @@ function MiniCard({ Icone, cor, fundo, borda, brilho, nome, valor, pct, unidade,
             borderRadius: 999,
             background: fundo,
             color: cor,
-            fontSize: "clamp(12px, 3.4vw, 18px)",
+            fontSize: "clamp(11.5px, 3vw, 14px)",
             fontWeight: 800,
           }}
         >
@@ -117,7 +117,7 @@ function MiniCard({ Icone, cor, fundo, borda, brilho, nome, valor, pct, unidade,
         style={{
           display: "block",
           marginTop: 12,
-          fontSize: "clamp(14px, 3.8vw, 20px)",
+          fontSize: "clamp(12.5px, 3.2vw, 16px)",
           fontWeight: 500,
           fontStyle: "normal",
           color: COLORS.fg2,
@@ -142,7 +142,7 @@ export function ResumoCards({ reserva, mercado, moeda = (v) => "R$ " + v }) {
             className="serif"
             style={{
               margin: 0,
-              fontSize: "clamp(30px, 8vw, 42px)",
+              fontSize: "clamp(26px, 6vw, 34px)",
               lineHeight: 1.05,
               fontWeight: 800,
               color: COLORS.ink,
@@ -150,7 +150,7 @@ export function ResumoCards({ reserva, mercado, moeda = (v) => "R$ " + v }) {
           >
             Planejamento
           </h2>
-          <p style={{ margin: "6px 0 0", fontSize: "clamp(16px, 4.5vw, 22px)", lineHeight: 1.3, color: COLORS.muted }}>
+          <p style={{ margin: "6px 0 0", fontSize: "clamp(14px, 3.6vw, 17px)", lineHeight: 1.3, color: COLORS.muted }}>
             Suas reservas e gastos controlados para o mês.
           </p>
         </div>
@@ -165,7 +165,7 @@ export function ResumoCards({ reserva, mercado, moeda = (v) => "R$ " + v }) {
             border: 0,
             background: "transparent",
             color: COLORS.fg2,
-            fontSize: "clamp(16px, 4vw, 21px)",
+            fontSize: "clamp(13px, 3.4vw, 16px)",
             fontWeight: 700,
             padding: "0 2px",
             whiteSpace: "nowrap",

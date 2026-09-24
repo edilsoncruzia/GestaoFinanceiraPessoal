@@ -81,8 +81,8 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
         position: "relative",
         overflow: "hidden",
         display: "grid",
-        gridTemplateColumns: "80px minmax(0, 1fr) auto 28px",
-        gap: 14,
+        gridTemplateColumns: "70px minmax(0, 1fr) auto 24px",
+        gap: 12,
         alignItems: "center",
         padding: "14px 14px 14px 22px",
         borderRadius: 22,
@@ -92,19 +92,19 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
       }}
     >
       <span aria-hidden="true" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 7, background: txTint }} />
-      <span style={{ width: 64, borderRadius: 13, overflow: "hidden", background: COLORS.surface, border: "1px solid " + txBorder, textAlign: "center", boxShadow: "0 8px 18px -15px rgba(21,19,42,.45)" }}>
-        <span style={{ display: "block", background: txTint, color: "#fff", fontSize: 12, fontWeight: 800, padding: "5px 0" }}>{mes}</span>
-        <span className="num" style={{ display: "block", fontFamily: "var(--font-display)", fontSize: 26, lineHeight: 1, fontWeight: 800, color: COLORS.ink, paddingTop: 8 }}>{dia}</span>
-        <span style={{ display: "block", color: COLORS.fg2, fontSize: 12.5, fontWeight: 700, padding: "3px 0 7px" }}>{semana}</span>
+      <span style={{ width: 56, borderRadius: 12, overflow: "hidden", background: COLORS.surface, border: "1px solid " + txBorder, textAlign: "center", boxShadow: "0 8px 18px -15px rgba(21,19,42,.45)" }}>
+        <span style={{ display: "block", background: txTint, color: "#fff", fontSize: 10.5, fontWeight: 800, padding: "4px 0" }}>{mes}</span>
+        <span className="num" style={{ display: "block", fontFamily: "var(--font-display)", fontSize: 22, lineHeight: 1, fontWeight: 800, color: COLORS.ink, paddingTop: 7 }}>{dia}</span>
+        <span style={{ display: "block", color: COLORS.fg2, fontSize: 11, fontWeight: 700, padding: "2px 0 6px" }}>{semana}</span>
       </span>
 
-      <div style={{ display: "grid", gridTemplateColumns: "56px minmax(0, 1fr)", gap: 12, alignItems: "center", minWidth: 0 }}>
-        <span style={{ width: 52, height: 52, borderRadius: "50%", background: txSoft, color: txTint, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <TxIcon size={26} strokeWidth={2.4} />
+      <div style={{ display: "grid", gridTemplateColumns: "46px minmax(0, 1fr)", gap: 10, alignItems: "center", minWidth: 0 }}>
+        <span style={{ width: 42, height: 42, borderRadius: "50%", background: txSoft, color: txTint, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <TxIcon size={21} strokeWidth={2.4} />
         </span>
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontFamily: "var(--font-display)", fontSize: 19, lineHeight: 1.12, fontWeight: 800, margin: 0, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.description}</p>
-          <p style={{ fontSize: 14.5, color: COLORS.fg2, margin: "4px 0 3px", display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: 16, lineHeight: 1.12, fontWeight: 800, margin: 0, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.description}</p>
+          <p style={{ fontSize: 12.5, color: COLORS.fg2, margin: "3px 0 2px", display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
             <span>{c ? c.label : t.category} • {fmtDate(t.date)}</span>
             {t.attachment && <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Paperclip size={12} />{t.attachment}</span>}
             {t.plannedId && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: COLORS.accent }}><Link2 size={12} />Previsto</span>}
@@ -120,7 +120,7 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
         </div>
       </div>
 
-      <p className="num tx-card-value" style={{ fontFamily: "var(--font-display)", fontSize: 24, lineHeight: 1.1, fontWeight: 800, margin: 0, color: txTint, whiteSpace: "nowrap" }}>
+      <p className="num tx-card-value" style={{ fontFamily: "var(--font-display)", fontSize: 19, lineHeight: 1.1, fontWeight: 800, margin: 0, color: txTint, whiteSpace: "nowrap" }}>
         {receita ? "+" : "-"} {fmt(t.amount)}
       </p>
       <div className="tx-card-menu" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", color: COLORS.fg2 }}>
@@ -129,13 +129,13 @@ export function TxRow({ t, accounts, onEdit, onDelete }) {
 
       <div style={{ gridColumn: "2 / -1", display: "flex", gap: 10, justifyContent: "flex-end", marginTop: -2 }}>
         {onEdit && (
-          <button onClick={() => onEdit(t)} aria-label="Editar" style={{ minHeight: 42, padding: "0 18px", borderRadius: 999, border: "1px solid " + COLORS.border, background: "linear-gradient(180deg, #fff, " + COLORS.surface2 + ")", color: COLORS.ink, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <Pencil size={17} /> Editar
+          <button onClick={() => onEdit(t)} aria-label="Editar" style={{ minHeight: 36, padding: "0 14px", borderRadius: 999, border: "1px solid " + COLORS.border, background: "linear-gradient(180deg, #fff, " + COLORS.surface2 + ")", color: COLORS.ink, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13 }}>
+            <Pencil size={15} /> Editar
           </button>
         )}
         {onDelete && (
-          <button onClick={() => setConfirming(true)} aria-label="Excluir" style={{ width: 42, minHeight: 42, borderRadius: "50%", border: "1px solid " + COLORS.expenseBorder, background: COLORS.expenseSoft, color: COLORS.expense, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-            <Trash2 size={18} />
+          <button onClick={() => setConfirming(true)} aria-label="Excluir" style={{ width: 36, minHeight: 36, borderRadius: "50%", border: "1px solid " + COLORS.expenseBorder, background: COLORS.expenseSoft, color: COLORS.expense, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <Trash2 size={16} />
           </button>
         )}
       </div>

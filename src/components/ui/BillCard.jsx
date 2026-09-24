@@ -134,10 +134,10 @@ export function BillCard({
         }
         style={{ display: "block", width: "100%", textAlign: "left", border: 0, padding: 0, background: "transparent", color: "inherit", font: "inherit" }}
       >
-        <div className="bill-card-main" style={{ position: "relative", display: "grid", gridTemplateColumns: "104px minmax(0, 1fr) auto 28px", gap: 18, alignItems: "start" }}>
+        <div className="bill-card-main" style={{ position: "relative", display: "grid", gridTemplateColumns: "90px minmax(0, 1fr) auto 24px", gap: 14, alignItems: "start" }}>
           <span
             style={{
-              width: 80,
+              width: 70,
               borderRadius: 14,
               overflow: "hidden",
               background: COLORS.surface,
@@ -146,22 +146,22 @@ export function BillCard({
               boxShadow: "0 8px 18px -14px rgba(21,19,42,.45)",
             }}
           >
-            <span style={{ display: "block", background: accent, color: "#fff", fontSize: 15, fontWeight: 800, padding: "8px 0 7px" }}>
+            <span style={{ display: "block", background: accent, color: "#fff", fontSize: 12.5, fontWeight: 800, padding: "6px 0 5px" }}>
               {MESES[mesIndex]}
             </span>
-            <span className="num" style={{ display: "block", fontFamily: "var(--font-display)", fontSize: 34, lineHeight: 1, fontWeight: 800, color: COLORS.ink, paddingTop: 12 }}>
+            <span className="num" style={{ display: "block", fontFamily: "var(--font-display)", fontSize: 28, lineHeight: 1, fontWeight: 800, color: COLORS.ink, paddingTop: 9 }}>
               {diaCalendario != null ? String(diaCalendario).padStart(2, "0") : "--"}
             </span>
-            <span style={{ display: "block", color: COLORS.fg2, fontSize: 16, fontWeight: 700, padding: "5px 0 10px" }}>
+            <span style={{ display: "block", color: COLORS.fg2, fontSize: 13, fontWeight: 700, padding: "4px 0 8px" }}>
               {diaSemana(diaCalendario, mes)}
             </span>
           </span>
 
-          <span style={{ minWidth: 0, display: "grid", gridTemplateColumns: "86px minmax(0, 1fr)", gap: 18, alignItems: "start" }}>
+          <span style={{ minWidth: 0, display: "grid", gridTemplateColumns: "66px minmax(0, 1fr)", gap: 12, alignItems: "start" }}>
             <span
               style={{
-                width: 72,
-                height: 72,
+                width: 56,
+                height: 56,
                 borderRadius: "50%",
                 background: soft,
                 color: accent,
@@ -170,7 +170,7 @@ export function BillCard({
                 justifyContent: "center",
               }}
             >
-              {Icone ? <Icone size={35} strokeWidth={2.4} /> : <CreditCard size={35} strokeWidth={2.4} />}
+              {Icone ? <Icone size={27} strokeWidth={2.4} /> : <CreditCard size={27} strokeWidth={2.4} />}
             </span>
 
             <span style={{ minWidth: 0 }}>
@@ -178,7 +178,7 @@ export function BillCard({
                 style={{
                   display: "block",
                   fontFamily: "var(--font-display)",
-                  fontSize: "clamp(20px, 5vw, 28px)",
+                  fontSize: "clamp(16px, 4.2vw, 23px)",
                   fontWeight: 800,
                   lineHeight: 1.1,
                   color: COLORS.ink,
@@ -190,13 +190,13 @@ export function BillCard({
                 {titulo}
               </span>
               {meta && (
-                <span style={{ display: "block", marginTop: 4, fontSize: "clamp(15px, 4vw, 22px)", color: COLORS.fg2, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ display: "block", marginTop: 3, fontSize: "clamp(12.5px, 3.4vw, 16px)", color: COLORS.fg2, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {meta}
                 </span>
               )}
               <span style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, minWidth: 0, color: est.tone === "late" ? accent : COLORS.fg2 }}>
-                <EstIcon size={22} strokeWidth={2.3} style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: "clamp(14px, 3.8vw, 20px)", fontWeight: est.tone === "late" ? 600 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <EstIcon size={17} strokeWidth={2.3} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: "clamp(12px, 3.2vw, 15px)", fontWeight: est.tone === "late" ? 600 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {vencimentoTexto}
                 </span>
               </span>
@@ -206,7 +206,7 @@ export function BillCard({
                   marginTop: 8,
                   padding: "4px 16px",
                   borderRadius: 999,
-                  fontSize: "clamp(13px, 3.6vw, 18px)",
+                  fontSize: "clamp(11.5px, 3vw, 14px)",
                   lineHeight: 1.15,
                   fontWeight: 800,
                   ...chipStyle(est.tone, receita, soft, accent),
@@ -217,7 +217,7 @@ export function BillCard({
             </span>
           </span>
 
-          <span className="num bill-card-value" style={{ color: accent, fontFamily: "var(--font-display)", fontSize: "clamp(24px, 6vw, 34px)", fontWeight: 800, lineHeight: 1.05, whiteSpace: "nowrap" }}>
+          <span className="num bill-card-value" style={{ color: accent, fontFamily: "var(--font-display)", fontSize: "clamp(20px, 5vw, 27px)", fontWeight: 800, lineHeight: 1.05, whiteSpace: "nowrap" }}>
             {numeroMoeda(valor)}
           </span>
 
@@ -231,25 +231,25 @@ export function BillCard({
             <span style={{ position: "relative", display: "block", height: 20, borderRadius: 999, background: COLORS.surface2, overflow: "hidden" }}>
               <i style={{ display: "block", width: pct + "%", height: "100%", borderRadius: 999, background: gradBar, transition: "width .5s cubic-bezier(.22,1,.36,1)" }} />
             </span>
-            <span style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 5, color: COLORS.fg2, fontSize: "clamp(14px, 3.7vw, 19px)" }}>
+            <span style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 5, color: COLORS.fg2, fontSize: "clamp(12px, 3.2vw, 15px)" }}>
               <span>{receita ? "Recebido:" : "Pago:"} <b className="num" style={{ color: COLORS.fg2, fontWeight: 700 }}>{moeda(pagoReal)}</b></span>
               <span>Restante: <b className="num" style={{ color: COLORS.fg2, fontWeight: 700 }}>{moeda(restante)}</b></span>
             </span>
           </span>
-          <span className="num" style={{ color: COLORS.fg2, fontSize: "clamp(17px, 4.2vw, 24px)", fontWeight: 600 }}>
+          <span className="num" style={{ color: COLORS.fg2, fontSize: "clamp(14px, 3.5vw, 18px)", fontWeight: 600 }}>
             {pct}%
           </span>
         </div>
       </button>
 
-      <div className="bill-card-actions" style={{ display: "grid", gridTemplateColumns: "minmax(112px, .65fr) minmax(150px, 1.35fr) 72px", gap: 16, alignItems: "center", marginTop: 14 }}>
+      <div className="bill-card-actions" style={{ display: "grid", gridTemplateColumns: "minmax(100px, .65fr) minmax(130px, 1.35fr) 58px", gap: 12, alignItems: "center", marginTop: 12 }}>
         {onEditar && (
           <button
             type="button"
             onClick={onEditar}
             aria-label={"Editar " + titulo}
             style={{
-              minHeight: 58,
+              minHeight: 48,
               borderRadius: 999,
               border: "1px solid " + COLORS.border,
               background: "linear-gradient(180deg, #fff, " + COLORS.surface2 + ")",
@@ -258,18 +258,18 @@ export function BillCard({
               alignItems: "center",
               justifyContent: "center",
               gap: 14,
-              fontSize: "clamp(15px, 3.8vw, 20px)",
+              fontSize: "clamp(13px, 3.3vw, 15px)",
               fontWeight: 600,
             }}
           >
-            <Pencil size={24} /> Editar
+            <Pencil size={19} /> Editar
           </button>
         )}
 
         {quitada ? (
           <span
             style={{
-              minHeight: 58,
+              minHeight: 48,
               borderRadius: 999,
               background: COLORS.surface2,
               color: receita ? COLORS.income : COLORS.fg2,
@@ -278,7 +278,7 @@ export function BillCard({
               justifyContent: "center",
               gap: 10,
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(15px, 3.8vw, 20px)",
+              fontSize: "clamp(13px, 3.3vw, 15px)",
               fontWeight: 800,
             }}
           >
@@ -289,7 +289,7 @@ export function BillCard({
             type="button"
             onClick={onPagar}
             style={{
-              minHeight: 58,
+              minHeight: 48,
               borderRadius: 999,
               border: "none",
               background: gradBtn,
@@ -299,12 +299,12 @@ export function BillCard({
               justifyContent: "center",
               gap: 14,
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(16px, 4vw, 22px)",
+              fontSize: "clamp(13.5px, 3.4vw, 16px)",
               fontWeight: 800,
               boxShadow: "0 14px 22px -16px rgba(21,19,42,.55)",
             }}
           >
-            {receita ? <ArrowDownToLine size={25} /> : <CreditCard size={25} />}
+            {receita ? <ArrowDownToLine size={20} /> : <CreditCard size={20} />}
             {receita ? "RECEBER" : "PAGAR"}
           </button>
         )}
@@ -315,8 +315,8 @@ export function BillCard({
             onClick={onExcluir}
             aria-label={"Excluir " + titulo}
             style={{
-              width: 62,
-              height: 62,
+              width: 50,
+              height: 50,
               borderRadius: "50%",
               border: "1px solid " + COLORS.expenseBorder,
               background: COLORS.expenseSoft,
@@ -327,7 +327,7 @@ export function BillCard({
               justifySelf: "end",
             }}
           >
-            <Trash2 size={26} strokeWidth={2.5} />
+            <Trash2 size={20} strokeWidth={2.5} />
           </button>
         )}
       </div>

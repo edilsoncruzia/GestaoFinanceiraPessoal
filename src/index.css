@@ -507,8 +507,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
    ========================================================================== */
 @media (max-width: 559px) {
   .bill-card-main {
-    grid-template-columns: 78px minmax(0, 1fr) !important;
-    gap: 12px !important;
+    grid-template-columns: 66px minmax(0, 1fr) !important;
+    gap: 10px !important;
   }
 
   .bill-card-value {
@@ -524,13 +524,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   }
 
   .bill-card-actions {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) 54px !important;
-    gap: 10px !important;
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr) 46px !important;
+    gap: 8px !important;
   }
 
   .tx-card-row {
-    grid-template-columns: 66px minmax(0, 1fr) 24px !important;
-    gap: 10px !important;
+    grid-template-columns: 56px minmax(0, 1fr) 22px !important;
+    gap: 8px !important;
   }
 
   .tx-card-value {
@@ -542,6 +542,25 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
     grid-column: 3 !important;
     grid-row: 1 !important;
     align-self: start !important;
+  }
+
+  .open-sort-tabs {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .open-sort-tabs button {
+    min-width: 0 !important;
+    min-height: 46px !important;
+    padding: 0 6px !important;
+    gap: 5px !important;
+    font-size: 12.5px !important;
+    white-space: nowrap !important;
+  }
+
+  .open-sort-tabs svg {
+    width: 17px !important;
+    height: 17px !important;
+    flex-shrink: 0 !important;
   }
 }
 

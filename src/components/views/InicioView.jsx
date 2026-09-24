@@ -345,10 +345,10 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
         >
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 id="titulo-contas-abertas" className="serif" style={{ fontSize: "clamp(28px, 7vw, 39px)", lineHeight: 1.05, fontWeight: 800, margin: 0, color: COLORS.ink }}>
+            <h2 id="titulo-contas-abertas" className="serif" style={{ fontSize: "clamp(24px, 5.8vw, 32px)", lineHeight: 1.05, fontWeight: 800, margin: 0, color: COLORS.ink }}>
               Contas em aberto
             </h2>
-            <p style={{ margin: "8px 0 0", fontSize: "clamp(15px, 4.2vw, 20px)", color: COLORS.muted, lineHeight: 1.25 }}>
+            <p style={{ margin: "8px 0 0", fontSize: "clamp(13px, 3.6vw, 17px)", color: COLORS.muted, lineHeight: 1.25 }}>
               Veja o que ainda vai entrar e sair da sua conta.
             </p>
             </div>
@@ -363,7 +363,7 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
                 border: 0,
                 background: "transparent",
                 color: COLORS.accentDeep,
-                fontSize: "clamp(16px, 4vw, 21px)",
+                fontSize: "clamp(13px, 3.4vw, 16px)",
                 fontWeight: 800,
                 padding: "0 2px",
                 whiteSpace: "nowrap",
@@ -388,7 +388,7 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
                       {openItems.filter(ehDespesaItem).length} contas
                     </b>
                   </span>
-                  <b className="num" style={{ display: "block", marginTop: 4, color: COLORS.expense, fontFamily: "var(--font-display)", fontSize: "clamp(18px, 5vw, 35px)", lineHeight: 1.1, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <b className="num" style={{ display: "block", marginTop: 4, color: COLORS.expense, fontFamily: "var(--font-display)", fontSize: "clamp(17px, 4.5vw, 26px)", lineHeight: 1.1, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {mask(openPagar)}
                   </b>
                 </span>
@@ -404,7 +404,7 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
                       {openItems.filter((i) => !ehDespesaItem(i)).length} contas
                     </b>
                   </span>
-                  <b className="num" style={{ display: "block", marginTop: 4, color: COLORS.income, fontFamily: "var(--font-display)", fontSize: "clamp(18px, 5vw, 35px)", lineHeight: 1.1, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <b className="num" style={{ display: "block", marginTop: 4, color: COLORS.income, fontFamily: "var(--font-display)", fontSize: "clamp(17px, 4.5vw, 26px)", lineHeight: 1.1, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {mask(openReceber)}
                   </b>
                 </span>
@@ -412,25 +412,25 @@ export function InicioView({ balance, availableBalance, reservedAmount, availabl
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: 4, marginBottom: 18, borderRadius: 18, border: "1px solid " + COLORS.border, background: COLORS.surface }}>
+          <div className="open-sort-tabs" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: 4, marginBottom: 18, borderRadius: 18, border: "1px solid " + COLORS.border, background: COLORS.surface }}>
             {[["indicada", "Data indicada", Calendar], ["vencimento", "Vencimento", CalendarDays]].map(([v, l, Icon]) => (
               <button key={v} onClick={() => setSortBy(v)} aria-pressed={sortBy === v}
                 style={{
-                  minHeight: 68,
+                  minHeight: 52,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 12,
-                  padding: "0 14px",
+                  gap: 8,
+                  padding: "0 10px",
                   borderRadius: 14,
-                  fontSize: "clamp(16px, 4.4vw, 22px)",
-                  fontWeight: 800,
+                  fontSize: "clamp(13px, 3.5vw, 16px)",
+                  fontWeight: 750,
                   border: "1px solid " + (sortBy === v ? "rgba(255,255,255,.22)" : "transparent"),
                   background: sortBy === v ? "linear-gradient(135deg, " + COLORS.accentBright + ", " + COLORS.accent + ")" : "transparent",
                   color: sortBy === v ? "#fff" : COLORS.fg2,
                   boxShadow: sortBy === v ? "0 12px 26px -16px rgba(76,29,149,.65)" : "none",
                 }}>
-                <Icon size={26} strokeWidth={2.5} />{l}
+                <Icon size={20} strokeWidth={2.4} />{l}
               </button>
             ))}
           </div>
