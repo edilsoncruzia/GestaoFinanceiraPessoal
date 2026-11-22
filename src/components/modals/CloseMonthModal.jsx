@@ -51,7 +51,7 @@ export function CloseMonthModal({ month, items, monthIncome, monthExpense, onMov
                   {i.recurrence === "unica" && (
                     moved[i.id]
                       ? <span style={{ fontSize: 12, color: COLORS.green, fontWeight: 500 }}>Movido</span>
-                      : <button onClick={() => { onMove(i.id); setMoved((p) => ({ ...p, [i.id]: true })); }} style={{ fontSize: 12, padding: "5px 8px", borderRadius: 7, border: "1px solid " + COLORS.green, background: "transparent", color: COLORS.green, whiteSpace: "nowrap" }}>Mover p/ próx. mês</button>
+                      : <button onClick={async () => { if (await onMove(i.id)) setMoved((p) => ({ ...p, [i.id]: true })); }} style={{ fontSize: 12, padding: "5px 8px", borderRadius: 7, border: "1px solid " + COLORS.green, background: "transparent", color: COLORS.green, whiteSpace: "nowrap" }}>Mover p/ próx. mês</button>
                   )}
                 </div>
               </Card>

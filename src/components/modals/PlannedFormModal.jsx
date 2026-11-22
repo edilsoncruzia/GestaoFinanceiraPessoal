@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { COLORS, PRIORITY, DEFAULT_PRIORITY, CATEGORY_PALETTE } from '../../constants/tokens';
 import { useCategories } from '../../context/CategoriesContext';
-import { MEMBERS, TODAY_MONTH } from '../../constants/seedData';
+import { MEMBERS } from '../../constants/seedData';
+import { defaultEntryDate } from '../../utils/formatters';
 import { ModalSheet } from '../ui/ModalSheet';
 import { FormField } from '../ui/FormField';
 import { Plus, Trash2 } from 'lucide-react';
@@ -64,7 +65,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
   const [category, setCategory] = useState(editing ? editing.category : "alimentacao");
   const [description, setDescription] = useState(editing ? editing.description : "");
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
-  const [dueDate, setDueDate] = useState(editing ? editing.dueDate : (selectedMonth === TODAY_MONTH ? "2026-09-01" : selectedMonth + "-01"));
+  const [dueDate, setDueDate] = useState(editing ? editing.dueDate : defaultEntryDate(selectedMonth));
   const [accountId, setAccountId] = useState(editing ? editing.accountId : (defaultAccount?.id ?? null));
   const [fromAccountId, setFromAccountId] = useState(editing && editing.fromAccountId ? editing.fromAccountId : (defaultAccount?.id ?? null));
   const [toAccountId, setToAccountId] = useState(editing && editing.toAccountId ? editing.toAccountId : ((accounts.find((a) => a.id !== defaultAccount?.id) || accounts[1] || defaultAccount)?.id ?? null));
@@ -112,7 +113,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
     setType(newType);
     if (newType !== "transferencia") {
       const first = Object.entries(categories).find(([, c]) => c.type === newType);
-      setCategory(first[0]);
+      setCategory(first?.[0] || "");
       setPriority(DEFAULT_PRIORITY[first[0]] || "importante");
       if (newType === "expense" && !editing) setCampos((prev) => ({ ...prev, ...defaultsPorCategoria(first[0]) }));
     }
@@ -125,11 +126,11 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
     if (!editing && type === "expense") setCampos((prev) => ({ ...prev, ...defaultsPorCategoria(newCategory) }));
   }
 
-  function createCategory() {
+  async function createCategory() {
     const label = newCatName.trim();
     if (!label) return;
     const key = "cat-" + Date.now().toString(36);
-    if (onAddCategory) onAddCategory({ key, label, color: newCatColor, type });
+    if (onAddCategory && !await onAddCategory({ key, label, color: newCatColor, type })) return;
     setCategory(key);
     if (!editing) setPriority(DEFAULT_PRIORITY[key] || "importante");
     if (!editing && type === "expense") setCampos((prev) => ({ ...prev, ...defaultsPorCategoria(key) }));
@@ -151,6 +152,7 @@ export function PlannedFormModal({ accounts, sources, selectedMonth, editing, on
   }
 
   function handleSubmit() {
+    if (!dueDate) { setError("Informe a data de vencimento."); return; }
     if (!description.trim()) { setError("Informe uma descrição."); return; }
     if (!amount || Number(amount) <= 0) { setError("Informe um valor válido."); return; }
     if (type === "transferencia" && fromAccountId === toAccountId) { setError("Escolha contas diferentes para origem e destino."); return; }

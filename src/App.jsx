@@ -3,9 +3,9 @@ import { COLORS, CATEGORIES, NECESSIDADES, DESEJOS, PRIORITY, DEFAULT_PRIORITY, 
 import { CategoriesContext } from './context/CategoriesContext';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { computeHealthScore } from './utils/health';
-import { SEED_ACCOUNTS, SEED_TRANSACTIONS, SEED_PLANNED, SEED_GOALS, BUDGETS, MEMBERS, INITIAL_BALANCE, TODAY_MONTH, TODAY_DATE } from './constants/seedData';
+import { INITIAL_BALANCE, TODAY_MONTH, TODAY_DATE } from './constants/seedData';
 import {
-  fmtDate, monthKey, round2, statusFor, plannedStatus, displayStatus,
+  fmtDate, monthKey, dateInNextMonth, round2, statusFor, plannedStatus, displayStatus,
   memberLabel, inScope, addMonths, monthDiff, monthLabel, monthLabelFull, generatePlannedOccurrences,
   accountBalance, buildOpenItems, monthlyCashFlow, salarioLiquidoDoMes
 } from './utils/formatters';
@@ -18,16 +18,19 @@ import {
   syncSourceToSupabase, deleteSourceFromSupabase,
   syncCategoryToSupabase, deleteCategoryFromSupabase,
   syncIdeaToSupabase, deleteIdeaFromSupabase,
-  saveSetting, clearSupabaseData
+  saveSetting, clearSupabaseData, syncGoalToSupabase, contributeToGoalInSupabase, skipPlannedMonth, updatePlannedDate,
+  restoreSupabaseBackup, splitPlanned, recordTransactionBatch, saveRealizedPlanned
 } from './lib/supabase';
+import { exampleFinanceData, parseFinanceBackup, readLocalFinanceData, saveLocalFinanceData } from './lib/localFinance';
 
 // UI & Layout Components
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { MonthNav } from './components/ui/MonthNav';
 import { MemberFilterBar } from './components/ui/MemberFilterBar';
-import { AppShell, AppTopbar } from './components/shell/AppShell';
+import { AppShell } from './components/shell/AppShell';
 
 // Views
+import { FinanceAccess } from './components/views/FinanceAccess';
 import { InicioView } from './components/views/InicioView';
 import { TransacoesView } from './components/views/TransacoesView';
 import { OrcamentoView } from './components/views/OrcamentoView';
@@ -61,23 +64,70 @@ import { AccountScopeModal } from './components/modals/AccountScopeModal';
 export default function App() {
   return (
     <ErrorBoundary>
-      {/* O modo privacidade vive acima de tudo: o "olho" do topo precisa
-          alcançar TODA tela e TODO modal, não só o saldo do herói. */}
       <PrivacyProvider>
-        <FinanceApp />
+        {isSupabaseConfigured ? (
+          <FinanceAccess>
+            {({ userId, logOut, error }) => <CloudFinance key={userId} onSignOut={logOut} sessionError={error} />}
+          </FinanceAccess>
+        ) : <FinanceApp />}
       </PrivacyProvider>
     </ErrorBoundary>
   );
 }
 
-function FinanceApp() {
+function CloudFinance({ onSignOut, sessionError }) {
+  const [data, setData] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let current = true;
+    loadInitialData().then((result) => {
+      if (current) setData(result);
+    }).catch(() => {
+      if (current) setFailed(true);
+    });
+    return () => { current = false; };
+  }, [attempt]);
+
+  if (data) return <FinanceApp initialData={data} onSignOut={onSignOut} sessionError={sessionError} />;
+
+  return (
+    <main className="finance-status">
+      {failed ? (
+        <>
+          <p role="alert">Não foi possível carregar os dados do Supabase.</p>
+          <button onClick={() => { setFailed(false); setAttempt((value) => value + 1); }}>Tentar novamente</button>
+        </>
+      ) : <p role="status">Carregando dados financeiros…</p>}
+      <button onClick={onSignOut}>Sair</button>
+      {sessionError && <p role="alert">{sessionError}</p>}
+    </main>
+  );
+}
+
+function categoriesFor(data) {
+  const categories = buildCategoriesObject(data.categories);
+  const usesReserve = [...data.planned, ...data.transactions].some((row) => row.category === 'reserva');
+  if (usesReserve && !categories.reserva) categories.reserva = CATEGORIES.reserva;
+  return categories;
+}
+
+let lastEntryId = 0;
+function nextEntryId() {
+  lastEntryId = Math.max(Date.now(), lastEntryId + 1);
+  return lastEntryId;
+}
+
+function FinanceApp({ initialData, onSignOut, sessionError }) {
+  const [data] = useState(() => initialData ?? readLocalFinanceData());
   const [tab, setTab] = useState("inicio");
   const [moreView, setMoreView] = useState(null);
-  const [transactions, setTransactions] = useState(isSupabaseConfigured ? [] : SEED_TRANSACTIONS);
-  const [planned, setPlanned] = useState(isSupabaseConfigured ? [] : SEED_PLANNED);
-  const [accounts, setAccounts] = useState(isSupabaseConfigured ? [] : SEED_ACCOUNTS);
-  const [goals, setGoals] = useState(isSupabaseConfigured ? [] : SEED_GOALS);
-  const [budgets, setBudgets] = useState(isSupabaseConfigured ? [] : BUDGETS);
+  const [transactions, setTransactions] = useState(data.transactions);
+  const [planned, setPlanned] = useState(data.planned);
+  const [accounts, setAccounts] = useState(data.accounts);
+  const [goals, setGoals] = useState(data.goals);
+  const [budgets, setBudgets] = useState(data.budgets);
   const [showForm, setShowForm] = useState(false);
   const [showPlannedForm, setShowPlannedForm] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
@@ -89,14 +139,10 @@ function FinanceApp() {
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [accountAction, setAccountAction] = useState(null); // { account, action: 'edit' | 'delete' }
-  const [sources, setSources] = useState([]);
-  const [categories, setCategories] = useState(CATEGORIES);
-  const [ideas, setIdeas] = useState([]);
-  // Reserva mínima: teto fixo configurado em Mais › Reserva mínima.
-  // Guardado no LocalStorage (sempre) e no Supabase quando disponível.
-  const [reservaConfig, setReservaConfig] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('gf_reserva')) || { limite: 0 }; } catch (e) { return { limite: 0 }; }
-  });
+  const [sources, setSources] = useState(data.sources);
+  const [categories, setCategories] = useState(() => categoriesFor(data));
+  const [ideas, setIdeas] = useState(data.ideas);
+  const [reservaConfig, setReservaConfig] = useState(data.reserva);
   const [extratoAccount, setExtratoAccount] = useState(null);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("todos");
@@ -107,46 +153,44 @@ function FinanceApp() {
   const [toast, setToast] = useState("");
   const fileInputRef = useRef(null);
 
-  // Carregar dados (Supabase ou LocalStorage) ao iniciar
-  useEffect(() => {
-    loadInitialData().then((data) => {
-      if (data.accounts) setAccounts(data.accounts);
-      if (data.transactions) setTransactions(data.transactions);
-      if (data.planned) setPlanned(data.planned);
-      if (data.goals) setGoals(data.goals);
-      if (data.budgets) setBudgets(data.budgets);
-      if (data.sources) setSources(data.sources);
-      if (Array.isArray(data.ideas)) setIdeas(data.ideas);
-      if (data.settings && data.settings.reserva) setReservaConfig({ limite: Number(data.settings.reserva.limite) || 0 });
-      if (Array.isArray(data.categories) && data.categories.length) {
-        const obj = buildCategoriesObject(data.categories);
-        // A receita de transporte da sobra da reserva precisa da categoria própria.
-        const usaReserva = (data.planned || []).some((p) => p.category === "reserva") || (data.transactions || []).some((t) => t.category === "reserva");
-        if (usaReserva && !obj.reserva) obj.reserva = { ...CATEGORIES.reserva };
-        setCategories(obj);
-      }
-    });
-  }, []);
+  const snapshot = useMemo(() => ({
+    accounts, transactions, planned, goals, budgets, sources,
+    categories: categoriesToRows(categories), ideas, reserva: reservaConfig,
+  }), [accounts, transactions, planned, goals, budgets, sources, categories, ideas, reservaConfig]);
+  const [storageFailed, setStorageFailed] = useState(false);
+  const pendingWrites = useRef(new Set());
 
-  // Persistir no LocalStorage
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      localStorage.setItem('gf_accounts', JSON.stringify(accounts));
-      localStorage.setItem('gf_transactions', JSON.stringify(transactions));
-      localStorage.setItem('gf_planned', JSON.stringify(planned));
-      localStorage.setItem('gf_goals', JSON.stringify(goals));
-      localStorage.setItem('gf_categories', JSON.stringify(categoriesToRows(categories)));
-      localStorage.setItem('gf_ideas', JSON.stringify(ideas));
+    if (isSupabaseConfigured) return;
+    try {
+      saveLocalFinanceData(snapshot);
+      setStorageFailed(false);
+    } catch {
+      setStorageFailed(true);
     }
-  }, [accounts, transactions, planned, goals, categories, ideas]);
+  }, [snapshot]);
 
-  // Persistir a configuração da reserva mínima (local + Supabase).
-  const reservaSavedRef = useRef(false);
-  useEffect(() => {
-    try { localStorage.setItem('gf_reserva', JSON.stringify(reservaConfig)); } catch (e) { /* modo privado */ }
-    if (!reservaSavedRef.current) { reservaSavedRef.current = true; return; }
-    saveSetting('reserva', reservaConfig);
-  }, [reservaConfig]);
+  async function withWrite(key, operation) {
+    if (pendingWrites.current.has(key)) return;
+    pendingWrites.current.add(key);
+    try {
+      return await operation();
+    } finally {
+      pendingWrites.current.delete(key);
+    }
+  }
+
+  function replaceData(next) {
+    setAccounts(next.accounts);
+    setTransactions(next.transactions);
+    setPlanned(next.planned);
+    setGoals(next.goals);
+    setBudgets(next.budgets);
+    setSources(next.sources);
+    setCategories(categoriesFor(next));
+    setIdeas(next.ideas);
+    setReservaConfig(next.reserva);
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -505,218 +549,223 @@ function FinanceApp() {
     return true;
   }), [sorted, filterType, search]);
 
-  async function upsertTransaction(tx) {
-    const isEdit = transactions.some((t) => t.id === tx.id);
-    const newTx = { ...tx, id: tx.id || Date.now() };
-    const dbId = await syncTransactionToSupabase(newTx);
-    if (dbId == null) { showToast("Erro ao salvar no Supabase — verifique a conexão"); return; }
-    const final = { ...newTx, id: dbId ?? newTx.id };
-    setTransactions((prev) => isEdit ? prev.map((t) => t.id === tx.id ? final : t) : [...prev, final]);
-    setShowForm(false); setEditingTx(null);
-    showToast(isEdit ? "Transação atualizada ✓" : (tx.type === "transferencia" ? "Transferência registrada ✓" : "Lançamento adicionado ✓"));
+  function writeError(message) {
+    showToast(message);
+    return false;
+  }
+
+  function upsertTransaction(tx) {
+    return withWrite('transaction-form', async () => {
+      const isEdit = transactions.some((row) => row.id === tx.id);
+      const row = { ...tx, id: tx.id ?? nextEntryId() };
+      const id = await syncTransactionToSupabase(row);
+      if (id == null) return writeError("Não foi possível salvar a transação.");
+      const saved = { ...row, id };
+      setTransactions((prev) => isEdit ? prev.map((entry) => entry.id === id ? saved : entry) : [...prev, saved]);
+      setShowForm(false);
+      setEditingTx(null);
+      showToast(isEdit ? "Transação atualizada ✓" : "Transação adicionada ✓");
+      return true;
+    });
   }
 
   function deleteTransaction(id) {
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
-    deleteTransactionFromSupabase(id);
-    showToast("Transação excluída");
+    return withWrite('transaction-' + id, async () => {
+      if (!await deleteTransactionFromSupabase(id)) return writeError("Não foi possível excluir a transação.");
+      setTransactions((prev) => prev.filter((row) => row.id !== id));
+      showToast("Transação excluída");
+      return true;
+    });
   }
 
-  async function upsertPlanned(p, editMeta) {
-    const isEdit = planned.some((x) => x.id === p.id);
-    if (isEdit && editMeta && editMeta.scope && editMeta.scope !== "all") {
-      await editSeriesOccurrence(p, editMeta);
-      setShowPlannedForm(false); setEditingPlanned(null);
-      return;
-    }
-    const newP = { ...p, id: p.id || Date.now() };
-    const dbId = await syncPlannedToSupabase(newP);
-    const final = { ...newP, id: dbId ?? newP.id };
-    setPlanned((prev) => isEdit ? prev.map((x) => x.id === p.id ? final : x) : [...prev, final]);
-    if (p.realized) {
-      const linked = transactions.some((t) => t.plannedId === final.id);
-      if (!linked) realizePlanned(final);
-    }
-    setShowPlannedForm(false); setEditingPlanned(null);
-    showToast(isEdit ? "Previsto atualizado ✓" : "Previsto salvo ✓");
+  function upsertPlanned(item, editMeta) {
+    return withWrite('planned-form', async () => {
+      const existing = planned.find((row) => row.id === item.id);
+      const scopedEdit = existing && editMeta?.scope && editMeta.scope !== "all";
+      const saved = scopedEdit
+        ? await editSeriesOccurrence(existing, item, editMeta)
+        : await savePlannedEntry(existing, item);
+      if (!saved) return writeError("Não foi possível salvar o previsto.");
+      setShowPlannedForm(false);
+      setEditingPlanned(null);
+      showToast(existing ? "Previsto atualizado ✓" : "Previsto salvo ✓");
+      return true;
+    });
   }
 
-  // Aplica uma edição a uma ocorrência de série (recorrente/parcelada) com escopo.
-  // O histórico já consolidado (transações) nunca é apagado.
-  async function editSeriesOccurrence(p, meta) {
-    const template = planned.find((x) => x.id === p.id);
-    if (!template) { showToast("Série não encontrada"); return; }
-    const currentMonth = monthKey(meta.originalDueDate || template.dueDate);
-    const curInstallment = meta.originalInstallmentCurrent;
+  function planAsTransaction(item) {
+    return {
+      id: nextEntryId(),
+      date: item.dueDate,
+      type: item.type,
+      category: item.category,
+      description: item.description,
+      amount: item.amount,
+      accountId: item.type === "transferencia" ? item.fromAccountId : item.accountId,
+      fromAccountId: item.fromAccountId,
+      toAccountId: item.toAccountId,
+      memberId: item.memberId,
+      plannedId: item.id,
+      fonteId: item.fonteId,
+      attachment: item.attachment,
+      attachmentMethod: item.attachmentMethod,
+      includeInIR: item.includeInIR,
+      formaPagamento: item.formaPagamento,
+    };
+  }
 
+  async function savePlannedEntry(existing, item) {
+    const row = { ...existing, ...item, id: item.id ?? nextEntryId() };
+    const result = row.realized
+      ? await saveRealizedPlanned(row, planAsTransaction(row), transactions)
+      : { id: await syncPlannedToSupabase(row) };
+    if (result?.id == null) return false;
+
+    const saved = { ...row, id: result.id };
+    setPlanned((prev) => existing ? prev.map((entry) => entry.id === saved.id ? saved : entry) : [...prev, saved]);
+    if (result.transaction) setTransactions((prev) => [...prev, result.transaction]);
+    return true;
+  }
+
+  async function editSeriesOccurrence(original, item, meta) {
+    const month = monthKey(meta.originalDueDate || original.dueDate);
+    const next = {
+      ...original, ...item, id: nextEntryId(), endMonth: null, skippedMonths: [],
+    };
+    let updated;
+    let changes;
     if (meta.scope === "this") {
-      // Pula este mês na série e cria um lançamento único com os novos dados.
-      const skipped = [...new Set([...(template.skippedMonths || []), currentMonth])];
-      const tUpd = { ...template, skippedMonths: skipped };
-      setPlanned((prev) => prev.map((x) => (x.id === template.id ? tUpd : x)));
-      await syncPlannedToSupabase(tUpd);
-
-      const newItem = { ...template, ...p, id: Date.now(), recurrence: "unica", dueDate: p.dueDate, installmentCurrent: undefined, installmentTotal: undefined, periodicity: undefined, endMonth: null, skippedMonths: [] };
-      const dbId = await syncPlannedToSupabase(newItem);
-      const final = { ...newItem, id: dbId ?? newItem.id };
-      setPlanned((prev) => [...prev, final]);
-      showToast("Alteração aplicada só a este lançamento ✓");
-    } else if (meta.scope === "future") {
-      if (template.recurrence === "parcelada") {
-        // Encerra a série antiga antes desta parcela e cria uma nova daqui em diante.
-        const newTotal = curInstallment ? Number(curInstallment) - 1 : 0;
-        if (newTotal >= (template.installmentCurrent || 1)) {
-          const tUpd = { ...template, installmentTotal: newTotal };
-          setPlanned((prev) => prev.map((x) => (x.id === template.id ? tUpd : x)));
-          await syncPlannedToSupabase(tUpd);
-        } else {
-          setPlanned((prev) => prev.filter((x) => x.id !== template.id));
-          await deletePlannedFromSupabase(template.id);
-        }
-        const newTpl = { ...template, ...p, id: Date.now(), recurrence: "parcelada", installmentCurrent: curInstallment || 1, installmentTotal: template.installmentTotal, dueDate: p.dueDate, endMonth: null, skippedMonths: [] };
-        const dbId = await syncPlannedToSupabase(newTpl);
-        const final = { ...newTpl, id: dbId ?? newTpl.id };
-        setPlanned((prev) => [...prev, final]);
+      Object.assign(next, { recurrence: "unica", installmentCurrent: null, installmentTotal: null, periodicity: null });
+      updated = { ...original, skippedMonths: [...new Set([...(original.skippedMonths || []), month])] };
+      changes = { skip_month: month };
+    } else if (original.recurrence === "parcelada") {
+      const installment = Number(meta.originalInstallmentCurrent) || 1;
+      Object.assign(next, { recurrence: "parcelada", installmentCurrent: installment, installmentTotal: original.installmentTotal });
+      if (installment > (original.installmentCurrent || 1)) {
+        updated = { ...original, installmentTotal: installment - 1 };
+        changes = { installment_total: updated.installmentTotal };
       } else {
-        // Recorrente: a série antiga termina no mês anterior; a nova começa agora.
-        const tUpd = { ...template, endMonth: addMonths(currentMonth, -1) };
-        setPlanned((prev) => prev.map((x) => (x.id === template.id ? tUpd : x)));
-        await syncPlannedToSupabase(tUpd);
-
-        const newTpl = { ...template, ...p, id: Date.now(), recurrence: "recorrente", dueDate: p.dueDate, endMonth: null, skippedMonths: [] };
-        const dbId = await syncPlannedToSupabase(newTpl);
-        const final = { ...newTpl, id: dbId ?? newTpl.id };
-        setPlanned((prev) => [...prev, final]);
+        updated = { ...original, endMonth: addMonths(month, -1) };
+        changes = { end_month: updated.endMonth };
       }
-      showToast("Alteração aplicada a este e aos próximos ✓");
+    } else {
+      next.recurrence = "recorrente";
+      updated = { ...original, endMonth: addMonths(month, -1) };
+      changes = { end_month: updated.endMonth };
     }
+
+    const result = await splitPlanned(original, changes, next, next.realized ? planAsTransaction(next) : null);
+    if (!result) return false;
+    setPlanned((prev) => [...prev.map((row) => row.id === original.id ? updated : row), { ...next, id: result.id }]);
+    if (result.transaction) setTransactions((prev) => [...prev, result.transaction]);
+    return true;
   }
 
-  async function deletePlanned(item, scope) {
+  function deletePlanned(item, scope) {
     const id = typeof item === "object" ? item.id : item;
-    if (scope === "current" && typeof item === "object") {
-      const template = planned.find((p) => p.id === id);
-      if (!template) return;
-      const month = item.dueDate.slice(0, 7);
-      const skipped = [...new Set([...(template.skippedMonths || []), month])];
-      const updated = { ...template, skippedMonths: skipped };
-      setPlanned((prev) => prev.map((p) => (p.id === id ? updated : p)));
-      await syncPlannedToSupabase(updated);
-      showToast("Ocorrência removida deste mês ✓");
-    } else {
-      setPlanned((prev) => prev.filter((p) => p.id !== id));
-      await deletePlannedFromSupabase(id);
+    return withWrite('planned-' + id, async () => {
+      if (scope === "current" && typeof item === "object") {
+        return skipPlannedOccurrence(item, "Ocorrência removida deste mês ✓");
+      }
+      if (!await deletePlannedFromSupabase(id)) return writeError("Não foi possível excluir o previsto.");
+      setPlanned((prev) => prev.filter((row) => row.id !== id));
+      setTransactions((prev) => prev.map((row) => row.plannedId === id ? { ...row, plannedId: null } : row));
       showToast("Compromisso excluído ✓");
-    }
+      return true;
+    });
+  }
+
+  async function skipPlannedOccurrence(item, message) {
+    const original = planned.find((row) => row.id === item.id);
+    if (!original) return false;
+    const month = monthKey(item.dueDate || original.dueDate);
+    const skippedMonths = await skipPlannedMonth(original, month);
+    if (!skippedMonths) return writeError("Não foi possível atualizar o previsto.");
+    setPlanned((prev) => prev.map((row) => row.id === item.id ? { ...row, skippedMonths } : row));
+    showToast(message);
+    return true;
   }
 
   function movePlannedToNextMonth(id) {
-    setPlanned((prev) => prev.map((p) => p.id === id ? { ...p, dueDate: addMonths(p.dueDate, 1) } : p));
+    return withWrite('planned-' + id, async () => {
+      const original = planned.find((row) => row.id === id);
+      if (!original) return false;
+      const dueDate = dateInNextMonth(original.dueDate);
+      if (!await updatePlannedDate(id, dueDate)) return writeError("Não foi possível mover o previsto.");
+      setPlanned((prev) => prev.map((row) => row.id === id ? { ...row, dueDate } : row));
+      return true;
+    });
   }
 
-  async function payPlanned(item, payload) {
-    const newTx = { id: Date.now(), date: payload.date, type: item.type, category: item.category, description: item.description, amount: payload.amount, accountId: payload.accountId, memberId: item.memberId, plannedId: item.id, fonteId: payload.fonteId, attachment: payload.attachment, attachmentMethod: payload.attachmentMethod, includeInIR: item.type === "expense" ? Boolean(item.includeInIR) : undefined };
-    const dbId = await syncTransactionToSupabase(newTx);
-    if (dbId == null) { showToast("Erro ao salvar pagamento no Supabase"); return; }
-    const final = { ...newTx, id: dbId ?? newTx.id };
-    setTransactions((prev) => [...prev, final]);
-    setPayTarget(null);
-    showToast(item.type === "income" ? "Recebimento registrado ✓" : "Pagamento registrado ✓");
-  }
-
-  // Registra o salário (bruto) + os descontos em folha como despesas, em um único fluxo.
-  async function registerSalaryReceipt(item, payload) {
-    const gross = Number(item.amount) || 0;
-    const deductions = payload.deductions || [];
-
-    const incomeTx = { id: Date.now(), date: payload.date, type: "income", category: item.category, description: item.description, amount: gross, accountId: payload.accountId, memberId: item.memberId, plannedId: item.id, fonteId: payload.fonteId };
-    const incomeDbId = await syncTransactionToSupabase(incomeTx);
-    if (incomeDbId == null) { showToast("Erro ao salvar o salário no Supabase"); return; }
-    const incomeFinal = { ...incomeTx, id: incomeDbId ?? incomeTx.id };
-    setTransactions((prev) => [...prev, incomeFinal]);
-
-    let n = 0;
-    for (const d of deductions) {
-      const expenseTx = { id: Date.now() + (++n), date: payload.date, type: "expense", category: d.category, description: d.label, amount: d.amount, accountId: payload.accountId, memberId: item.memberId, plannedId: item.id, deductedInPayroll: true };
-      const dbId = await syncTransactionToSupabase(expenseTx);
-      if (dbId == null) continue;
-      const final = { ...expenseTx, id: dbId ?? expenseTx.id };
-      setTransactions((prev) => [...prev, final]);
-    }
-
-    if (payload.saveModel) {
-      const template = planned.find((x) => x.id === item.id);
-      if (template) {
-        const model = deductions.map((d) => ({ id: "d-" + Date.now().toString(36), label: d.label, category: d.category, amount: d.amount }));
-        const updated = { ...template, salaryDeductions: model };
-        setPlanned((prev) => prev.map((x) => (x.id === template.id ? updated : x)));
-        await syncPlannedToSupabase(updated);
-      }
-    }
-
-    setPayTarget(null);
-    showToast("Salário e descontos registrados ✓");
-  }
-
-  // Pagar fatura do cartão: cria uma transação individual por lançamento,
-  // todas marcadas como "via cartão", e deixa os lançamentos como pagos (plannedId).
-  async function pagarFatura(fatura, payload) {
-    const lista = payload.itens || [];
-    let n = 0;
-    for (const it of lista) {
-      const tx = {
-        id: Date.now() + (++n),
-        date: it.date || payload.date,
-        type: "expense",
-        category: it.category,
-        description: it.description,
-        amount: it.amount,
-        accountId: fatura.accountId,
-        memberId: it.memberId != null ? it.memberId : fatura.memberId,
-        plannedId: it.plannedId,
-        formaPagamento: "cartao",
+  function payPlanned(item, payload) {
+    return withWrite('payment', async () => {
+      const row = {
+        id: nextEntryId(), date: payload.date, type: item.type, category: item.category,
+        description: item.description, amount: payload.amount, accountId: payload.accountId,
+        memberId: item.memberId, plannedId: item.id, fonteId: payload.fonteId,
+        attachment: payload.attachment, attachmentMethod: payload.attachmentMethod, includeInIR: item.includeInIR,
       };
-      const dbId = await syncTransactionToSupabase(tx);
-      if (dbId == null) { showToast("Erro ao salvar lançamento da fatura"); return; }
-      const final = { ...tx, id: dbId ?? tx.id };
-      setTransactions((prev) => [...prev, final]);
-    }
-    setPayTarget(null);
-    showToast("Fatura paga — " + lista.length + " lançamento(s) registrado(s) ✓");
+      const id = await syncTransactionToSupabase(row);
+      if (id == null) return writeError("Não foi possível salvar o pagamento.");
+      setTransactions((prev) => [...prev, { ...row, id }]);
+      setPayTarget(null);
+      showToast(item.type === "income" ? "Recebimento registrado ✓" : "Pagamento registrado ✓");
+      return true;
+    });
   }
 
-  // Abre o cadastro completo (categoria, parcelas, recorrência...) de um lançamento da fatura.
+  function registerSalaryReceipt(item, payload) {
+    return withWrite('payment', async () => {
+      const deductions = payload.deductions || [];
+      const common = {
+        date: payload.date, accountId: payload.accountId, memberId: item.memberId, plannedId: item.id,
+      };
+      const entries = [{
+        ...common, id: nextEntryId(), type: "income", category: item.category,
+        description: item.description, amount: Number(item.amount) || 0, fonteId: payload.fonteId,
+      }, ...deductions.map((row) => ({
+        ...common, id: nextEntryId(), type: "expense", category: row.category,
+        description: row.label, amount: row.amount, deductedInPayroll: true,
+      }))];
+
+      const template = payload.saveModel ? planned.find((row) => row.id === item.id) : null;
+      const model = template && {
+        ...template,
+        salaryDeductions: deductions.map((row) => ({ ...row, id: "d-" + nextEntryId().toString(36) })),
+      };
+      const saved = await recordTransactionBatch(entries, model);
+      if (!saved) return writeError("Não foi possível salvar o salário e os descontos.");
+      setTransactions((prev) => [...prev, ...saved]);
+      if (model) setPlanned((prev) => prev.map((row) => row.id === model.id ? model : row));
+      setPayTarget(null);
+      showToast("Salário e descontos registrados ✓");
+      return true;
+    });
+  }
+
+  function pagarFatura(fatura, payload) {
+    return withWrite('payment', async () => {
+      const entries = (payload.itens || []).map((row) => ({
+        id: nextEntryId(), date: row.date || payload.date, type: "expense", category: row.category,
+        description: row.description, amount: row.amount, accountId: fatura.accountId,
+        memberId: row.memberId ?? fatura.memberId, plannedId: row.plannedId, formaPagamento: "cartao",
+      }));
+      if (!entries.length) return false;
+      const saved = await recordTransactionBatch(entries);
+      if (!saved) return writeError("Não foi possível salvar os lançamentos da fatura.");
+      setTransactions((prev) => [...prev, ...saved]);
+      setPayTarget(null);
+      showToast("Fatura paga · " + saved.length + " lançamento(s) registrado(s) ✓");
+      return true;
+    });
+  }
+
   function abrirEdicaoLancamento(plannedId) {
     const tpl = planned.find((x) => x.id === plannedId);
     if (!tpl) return;
     setPayTarget(null);
     setEditingPlanned(tpl);
     setShowPlannedForm(true);
-  }
-
-  async function realizePlanned(item) {
-    const newTx = {
-      id: Date.now(),
-      date: item.dueDate,
-      type: item.type,
-      category: item.category || null,
-      description: item.description,
-      amount: item.amount,
-      accountId: item.type === "transferencia" ? item.fromAccountId : item.accountId,
-      fromAccountId: item.type === "transferencia" ? item.fromAccountId : undefined,
-      toAccountId: item.type === "transferencia" ? item.toAccountId : undefined,
-      memberId: item.memberId,
-      plannedId: item.id,
-      fonteId: item.fonteId,
-      attachment: item.attachment,
-      attachmentMethod: item.attachmentMethod,
-      includeInIR: item.type === "expense" ? Boolean(item.includeInIR) : undefined,
-    };
-    const dbId = await syncTransactionToSupabase(newTx);
-    if (dbId == null) { showToast("Erro ao efetivar no Supabase"); return; }
-    const final = { ...newTx, id: dbId ?? newTx.id };
-    setTransactions((prev) => [...prev, final]);
-    showToast(item.type === "income" ? "Recebimento efetivado ✓" : (item.type === "transferencia" ? "Transferência efetivada ✓" : "Pagamento efetivado ✓"));
   }
 
   function openNewAccount() { setEditingAccount(null); setShowAccountForm(true); }
@@ -733,188 +782,272 @@ function FinanceApp() {
     }
   }
 
-  function confirmAccountAction(scope) {
+  async function confirmAccountAction(scope) {
     const { account, action } = accountAction;
-    if (action === "delete") deleteAccount(account, scope === "all");
-    else saveAccount(account);
-    setAccountAction(null);
+    const done = action === "delete" ? await deleteAccount(account, scope === "all") : await saveAccount(account);
+    if (done) setAccountAction(null);
   }
 
-  async function saveAccount(a) {
-    const prevDefaults = accounts.filter((x) => x.isDefault && x.id !== a.id);
-    const dbId = await syncAccountToSupabase(a);
-    const final = { ...a, id: dbId ?? a.id };
-    setAccounts((prev) => {
-      let next = final.isDefault ? prev.map((x) => (x.id === final.id ? x : { ...x, isDefault: false })) : prev;
-      const exists = next.some((x) => x.id === final.id);
-      return exists ? next.map((x) => (x.id === final.id ? final : x)) : [...next, final];
+  function saveAccount(account) {
+    return withWrite('account', async () => {
+      const row = { ...account, id: account.id ?? nextEntryId() };
+      const id = await syncAccountToSupabase(row);
+      if (id == null) return writeError("Não foi possível salvar a conta.");
+      const saved = { ...row, id };
+      setAccounts((prev) => {
+        const others = saved.isDefault ? prev.map((item) => ({ ...item, isDefault: false })) : prev;
+        return others.some((item) => item.id === id)
+          ? others.map((item) => item.id === id ? saved : item)
+          : [...others, saved];
+      });
+      setShowAccountForm(false);
+      setEditingAccount(null);
+      showToast("Conta salva ✓");
+      return true;
     });
-    if (final.isDefault) {
-      for (const o of prevDefaults) await syncAccountToSupabase({ ...o, isDefault: false });
-    }
-    setShowAccountForm(false); setEditingAccount(null);
-    showToast("Conta salva ✓");
   }
 
-  async function deleteAccount(a, deleteRecords) {
-    if (deleteRecords) {
-      setTransactions((prev) => prev.filter((t) => t.accountId !== a.id && t.fromAccountId !== a.id && t.toAccountId !== a.id));
-      setPlanned((prev) => prev.filter((p) => p.accountId !== a.id));
-    } else {
-      setTransactions((prev) => prev.map((t) => {
-        if (t.accountId === a.id) return { ...t, accountId: null };
-        if (t.fromAccountId === a.id) return { ...t, fromAccountId: null };
-        if (t.toAccountId === a.id) return { ...t, toAccountId: null };
-        return t;
-      }));
-      setPlanned((prev) => prev.map((p) => (p.accountId === a.id ? { ...p, accountId: null } : p)));
-    }
-    setAccounts((prev) => prev.filter((x) => x.id !== a.id));
-    await deleteAccountFromSupabase(a.id, deleteRecords);
-    showToast(deleteRecords ? "Conta e lançamentos excluídos" : "Conta excluída");
+  function deleteAccount(account, deleteRecords) {
+    return withWrite('account', async () => {
+      const id = account.id;
+      if (!await deleteAccountFromSupabase(id, deleteRecords)) return writeError("Não foi possível excluir a conta.");
+
+      const attached = (row) => [row.accountId, row.fromAccountId, row.toAccountId].includes(id);
+      const withoutAccount = (row) => ({
+        ...row,
+        accountId: row.accountId === id ? null : row.accountId,
+        fromAccountId: row.fromAccountId === id ? null : row.fromAccountId,
+        toAccountId: row.toAccountId === id ? null : row.toAccountId,
+      });
+      const removed = new Set(deleteRecords ? planned.filter(attached).map((row) => row.id) : []);
+      setTransactions((prev) => deleteRecords
+        ? prev.filter((row) => !attached(row)).map((row) => removed.has(row.plannedId) ? { ...row, plannedId: null } : row)
+        : prev.map(withoutAccount));
+      setPlanned((prev) => deleteRecords ? prev.filter((row) => !attached(row)) : prev.map(withoutAccount));
+      setGoals((prev) => prev.map((row) => row.accountId === id ? { ...row, accountId: null } : row));
+      setAccounts((prev) => prev.filter((row) => row.id !== id));
+      showToast(deleteRecords ? "Conta e lançamentos excluídos" : "Conta excluída");
+      return true;
+    });
   }
 
-  async function saveSource(s) {
-    const dbId = await syncSourceToSupabase(s);
-    const final = { ...s, id: dbId ?? s.id };
-    setSources((prev) => prev.some((x) => x.id === final.id) ? prev.map((x) => x.id === final.id ? final : x) : [...prev, final]);
-    showToast("Fonte salva ✓");
+  function saveSource(source) {
+    return withWrite('source-form', async () => {
+      const row = { ...source, id: source.id ?? nextEntryId() };
+      const id = await syncSourceToSupabase(row);
+      if (id == null) return writeError("Não foi possível salvar a fonte.");
+      const saved = { ...row, id };
+      setSources((prev) => prev.some((item) => item.id === id)
+        ? prev.map((item) => item.id === id ? saved : item)
+        : [...prev, saved]);
+      showToast("Fonte salva ✓");
+      return true;
+    });
   }
+
   async function deleteSource(id) {
-    setSources((prev) => prev.filter((x) => x.id !== id));
-    await deleteSourceFromSupabase(id);
+    if (!await deleteSourceFromSupabase(id)) return writeError("Não foi possível excluir a fonte.");
+    const detach = (row) => row.fonteId === id ? { ...row, fonteId: null } : row;
+    setSources((prev) => prev.filter((row) => row.id !== id));
+    setTransactions((prev) => prev.map(detach));
+    setPlanned((prev) => prev.map(detach));
     showToast("Fonte excluída");
-  }
-  function saveCategory(cat) {
-    setCategories((prev) => ({ ...prev, [cat.key]: { ...(prev[cat.key] || {}), ...cat, icon: CATEGORIES[cat.key]?.icon || prev[cat.key]?.icon } }));
-    syncCategoryToSupabase(cat);
-    showToast("Categoria salva ✓");
-  }
-  function deleteCategory(key) {
-    setCategories((prev) => { const next = { ...prev }; delete next[key]; return next; });
-    deleteCategoryFromSupabase(key);
-    showToast("Categoria excluída");
-  }
-  function attachReceipt(t, dataUrl) {
-    if (!dataUrl) { showToast("Erro ao ler o comprovante"); return; }
-    const updated = { ...t, attachment: dataUrl };
-    setTransactions((prev) => prev.map((x) => (x.id === t.id ? updated : x)));
-    syncTransactionToSupabase(updated);
-    showToast("Comprovante anexado ✓");
-  }
-  async function saveIdea(text, attachment, attachmentMethod) {
-    const d = new Date();
-    const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    const idea = { id: Date.now(), text: text.trim(), done: false, date: dateStr, attachment: attachment || null, attachmentMethod: attachmentMethod || null };
-    const dbId = await syncIdeaToSupabase(idea);
-    const final = { ...idea, id: dbId ?? idea.id };
-    setIdeas((prev) => [...prev, final]);
-    showToast("Ideia registrada ✓");
-  }
-  function toggleIdeaDone(id) {
-    const idea = ideas.find((x) => x.id === id);
-    if (!idea) return;
-    const updated = { ...idea, done: !idea.done };
-    setIdeas((prev) => prev.map((x) => (x.id === id ? updated : x)));
-    syncIdeaToSupabase(updated);
-  }
-  function deleteIdea(id) {
-    setIdeas((prev) => prev.filter((x) => x.id !== id));
-    deleteIdeaFromSupabase(id);
-    showToast("Ideia removida");
-  }
-  function updateIdea(id, text) {
-    const idea = ideas.find((x) => x.id === id);
-    if (!idea) return;
-    const updated = { ...idea, text: text.trim() };
-    setIdeas((prev) => prev.map((x) => (x.id === id ? updated : x)));
-    syncIdeaToSupabase(updated);
-    showToast("Ideia atualizada ✓");
-  }
-  async function finalizePlanned(item) {
-    const template = planned.find((p) => p.id === item.id);
-    if (!template) return;
-    const month = monthKey(item.dueDate || template.dueDate);
-    const skipped = [...new Set([...(template.skippedMonths || []), month])];
-    const updated = { ...template, skippedMonths: skipped };
-    setPlanned((prev) => prev.map((p) => (p.id === item.id ? updated : p)));
-    await syncPlannedToSupabase(updated);
-    setPayTarget(null);
-    showToast("Fechado como está neste mês ✓");
-  }
-  async function clearSupabase(scope = "all") {
-    await clearSupabaseData(scope);
-    if (scope === "income" || scope === "expense") {
-      const keep = (x) => x.type !== scope;
-      const nTx = transactions.filter(keep);
-      const nPl = planned.filter(keep);
-      setTransactions(nTx);
-      setPlanned(nPl);
-      if (!isSupabaseConfigured) {
-        localStorage.setItem('gf_transactions', JSON.stringify(nTx));
-        localStorage.setItem('gf_planned', JSON.stringify(nPl));
-      }
-      showToast(scope === "income" ? "Receitas removidas ✓" : "Despesas removidas ✓");
-    } else {
-      setTransactions([]); setPlanned([]); setGoals([]); setBudgets([]); setAccounts([]); setSources([]); setCategories(CATEGORIES); setIdeas([]);
-      localStorage.removeItem('gf_accounts'); localStorage.removeItem('gf_transactions'); localStorage.removeItem('gf_planned'); localStorage.removeItem('gf_goals'); localStorage.removeItem('gf_categories'); localStorage.removeItem('gf_ideas');
-      setSelectedMonth(TODAY_MONTH); setMemberFilter("todos"); setTab("inicio"); setMoreView(null);
-      showToast("Base de dados do Supabase limpa ✓");
-    }
+    return true;
   }
 
-  function addGoal(g) {
-    setGoals((prev) => [...prev, { ...g, id: Date.now(), saved: 0 }]);
-    setShowGoalForm(false);
-    showToast("Meta criada ✓");
+  function saveCategory(category) {
+    return withWrite('category-form', async () => {
+      if (!await syncCategoryToSupabase(category)) return writeError("Não foi possível salvar a categoria.");
+      setCategories((prev) => ({
+        ...prev,
+        [category.key]: { ...category, icon: CATEGORIES[category.key]?.icon || prev[category.key]?.icon },
+      }));
+      showToast("Categoria salva ✓");
+      return true;
+    });
+  }
+
+  async function deleteCategory(key) {
+    if (!await deleteCategoryFromSupabase(key)) return writeError("Não foi possível excluir a categoria.");
+    setCategories((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    showToast("Categoria excluída");
+    return true;
+  }
+
+  async function attachReceipt(entry, dataUrl) {
+    if (!dataUrl) return writeError("Não foi possível ler o comprovante.");
+    const updated = { ...entry, attachment: dataUrl };
+    if (await syncTransactionToSupabase(updated) == null) return writeError("Não foi possível salvar o comprovante.");
+    setTransactions((prev) => prev.map((row) => row.id === entry.id ? updated : row));
+    showToast("Comprovante anexado ✓");
+    return true;
+  }
+
+  function saveIdea(text, attachment, attachmentMethod) {
+    return withWrite('idea-form', async () => {
+      const idea = { id: nextEntryId(), text: text.trim(), done: false, date: TODAY_DATE, attachment, attachmentMethod };
+      const id = await syncIdeaToSupabase(idea);
+      if (id == null) return writeError("Não foi possível salvar a ideia.");
+      setIdeas((prev) => [...prev, { ...idea, id }]);
+      showToast("Ideia registrada ✓");
+      return true;
+    });
+  }
+
+  function updateIdea(id, changes) {
+    return withWrite('idea-' + id, async () => {
+      const idea = ideas.find((row) => row.id === id);
+      if (!idea) return false;
+      const updated = { ...idea, ...changes };
+      if (await syncIdeaToSupabase(updated) == null) return writeError("Não foi possível atualizar a ideia.");
+      setIdeas((prev) => prev.map((row) => row.id === id ? updated : row));
+      return true;
+    });
+  }
+
+  async function deleteIdea(id) {
+    if (!await deleteIdeaFromSupabase(id)) return writeError("Não foi possível remover a ideia.");
+    setIdeas((prev) => prev.filter((row) => row.id !== id));
+    showToast("Ideia removida");
+    return true;
+  }
+
+  function finalizePlanned(item) {
+    return withWrite('planned-' + item.id, async () => {
+      if (await skipPlannedOccurrence(item, "Fechado como está neste mês ✓")) setPayTarget(null);
+    });
+  }
+
+  function clearSupabase(scope) {
+    return withWrite('backup', async () => {
+      if (!await clearSupabaseData(scope)) return writeError("Não foi possível limpar os dados do Supabase.");
+      if (scope === "all") {
+        replaceData({
+          accounts: [], transactions: [], planned: [], goals: [], budgets: [], sources: [],
+          categories: exampleFinanceData().categories, ideas: [], reserva: reservaConfig,
+        });
+        setTab("inicio");
+        setMoreView(null);
+      } else {
+        const removed = new Set(planned.filter((row) => row.type === scope).map((row) => row.id));
+        setPlanned((prev) => prev.filter((row) => row.type !== scope));
+        setTransactions((prev) => prev.filter((row) => row.type !== scope)
+          .map((row) => removed.has(row.plannedId) ? { ...row, plannedId: null } : row));
+      }
+      showToast("Dados removidos ✓");
+      return true;
+    });
+  }
+
+  function addGoal(goal) {
+    return withWrite('goal-form', async () => {
+      const row = { ...goal, id: nextEntryId(), saved: 0 };
+      const id = await syncGoalToSupabase(row);
+      if (id == null) return writeError("Não foi possível criar a meta.");
+      setGoals((prev) => [...prev, { ...row, id }]);
+      setShowGoalForm(false);
+      showToast("Meta criada ✓");
+      return true;
+    });
   }
 
   function contributeToGoal(goal, payload) {
-    setGoals((prev) => prev.map((g) => g.id === goal.id ? { ...g, saved: Math.min(g.target, g.saved + payload.amount) } : g));
-    const newTx = { id: Date.now(), date: payload.date, type: "expense", category: "poupanca", description: "Contribuição: " + goal.name, amount: payload.amount, accountId: payload.accountId, memberId: goal.memberId };
-    setTransactions((prev) => [...prev, newTx]);
-    syncTransactionToSupabase(newTx);
-    setContributeTarget(null);
-    showToast("Contribuição registrada ✓");
+    return withWrite('goal-contribution', async () => {
+      const transaction = {
+        id: nextEntryId(), date: payload.date, type: "expense", category: "poupanca",
+        description: "Contribuição: " + goal.name, amount: payload.amount,
+        accountId: payload.accountId, memberId: goal.memberId,
+      };
+      if (isSupabaseConfigured) {
+        const saved = await contributeToGoalInSupabase(goal, transaction);
+        if (!saved) return writeError("Não foi possível salvar a contribuição.");
+        setGoals((prev) => prev.map((row) => row.id === goal.id ? saved.goal : row));
+        setTransactions((prev) => [...prev, saved.transaction]);
+      } else {
+        setGoals((prev) => prev.map((row) => row.id === goal.id
+          ? { ...row, saved: Math.min(row.target, row.saved + payload.amount) }
+          : row));
+        setTransactions((prev) => [...prev, transaction]);
+      }
+      setContributeTarget(null);
+      showToast("Contribuição registrada ✓");
+      return true;
+    });
+  }
+
+  function saveReserve(config) {
+    return withWrite('reserve', async () => {
+      if (!await saveSetting('reserva', config)) return writeError("Não foi possível salvar a configuração da reserva.");
+      setReservaConfig(config);
+      showToast("Configuração da reserva salva ✓");
+      return true;
+    });
   }
 
   function resetToSeed() {
-    setTransactions(SEED_TRANSACTIONS); setPlanned(SEED_PLANNED); setAccounts(SEED_ACCOUNTS); setGoals(SEED_GOALS); setBudgets(BUDGETS); setCategories(CATEGORIES); setIdeas([]);
-    setSelectedMonth(TODAY_MONTH); setMemberFilter("todos"); setTab("inicio"); setMoreView(null);
-    localStorage.removeItem('gf_accounts');
-    localStorage.removeItem('gf_transactions');
-    localStorage.removeItem('gf_planned');
-    localStorage.removeItem('gf_goals');
-    localStorage.removeItem('gf_categories');
-    localStorage.removeItem('gf_ideas');
-    showToast("Dados de exemplo restaurados ✓");
+    const example = exampleFinanceData();
+    try {
+      saveLocalFinanceData(example);
+      replaceData(example);
+      setSelectedMonth(TODAY_MONTH);
+      setMemberFilter("todos");
+      setTab("inicio");
+      setMoreView(null);
+      showToast("Dados de exemplo restaurados ✓");
+    } catch {
+      writeError("Não foi possível gravar os dados neste navegador.");
+    }
   }
 
   function exportData() {
-    const payload = { accounts, transactions, planned, goals, categories: categoriesToRows(categories), ideas, exportedAt: new Date().toISOString() };
+    const payload = { ...snapshot, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "gestao-financeira-dados.json";
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "gestao-financeira-dados.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
     URL.revokeObjectURL(url);
   }
 
   function importData(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
+    return withWrite('backup', async () => {
+      let backup;
       try {
-        const data = JSON.parse(reader.result);
-        if (Array.isArray(data.accounts)) setAccounts(data.accounts);
-        if (Array.isArray(data.transactions)) setTransactions(data.transactions);
-        if (Array.isArray(data.planned)) setPlanned(data.planned);
-        if (Array.isArray(data.goals)) setGoals(data.goals);
-        if (Array.isArray(data.categories) && data.categories.length) setCategories(buildCategoriesObject(data.categories));
-        if (Array.isArray(data.ideas)) setIdeas(data.ideas);
-        showToast("Dados importados ✓");
-      } catch (e) { showToast("Erro ao importar arquivo"); }
-    };
-    reader.readAsText(file);
+        backup = parseFinanceBackup(await file.text());
+      } catch {
+        return writeError("O arquivo não é um backup válido do Gestão Financeira.");
+      }
+      if (!window.confirm("Substituir os dados atuais pelas seções presentes no backup?")) return false;
+      try {
+        if (isSupabaseConfigured) {
+          await restoreSupabaseBackup(backup);
+        } else {
+          const next = { ...snapshot, ...backup };
+          saveLocalFinanceData(next);
+          replaceData(next);
+        }
+      } catch {
+        return writeError("Não foi possível confirmar a restauração do backup.");
+      }
+
+      if (isSupabaseConfigured) {
+        try {
+          replaceData(await loadInitialData());
+        } catch {
+          window.location.reload();
+          return true;
+        }
+      }
+      showToast("Dados importados ✓");
+      return true;
+    });
   }
 
   // Rota ativa: acende a aba na barra inferior (celular) e o item na barra
@@ -931,7 +1064,7 @@ function FinanceApp() {
         }}
         onAdd={() => { setEditingPlanned(null); setShowPlannedForm(true); }}
         topbar={
-          <AppTopbar>
+          <>
             <MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} />
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
               <MemberFilterBar value={memberFilter} onChange={setMemberFilter} />
@@ -942,7 +1075,7 @@ function FinanceApp() {
                 Novo previsto
               </button>
             </div>
-          </AppTopbar>
+          </>
         }
       >
           {tab === "inicio" && (
@@ -989,17 +1122,18 @@ function FinanceApp() {
           {tab === "mais" && moreView === "contas" && <ContasView accounts={accounts} transactions={transactions} onBack={() => setMoreView(null)} onAdd={openNewAccount} onEdit={openEditAccount} onDelete={requestDeleteAccount} onViewStatements={(a) => setExtratoAccount(a)} />}
           {tab === "mais" && moreView === "categorias" && <CategoriasView onBack={() => setMoreView(null)} onSave={saveCategory} onDelete={deleteCategory} />}
           {tab === "mais" && moreView === "declaracao" && <DeclaracaoIRView transactions={transactions} onBack={() => setMoreView(null)} onAttach={attachReceipt} />}
-          {tab === "mais" && moreView === "ajustes" && <IdeiasView ideas={ideas} onBack={() => setMoreView(null)} onSave={saveIdea} onDelete={deleteIdea} onToggle={toggleIdeaDone} onUpdate={updateIdea} />}
+          {tab === "mais" && moreView === "ajustes" && <IdeiasView ideas={ideas} onBack={() => setMoreView(null)} onSave={saveIdea} onDelete={deleteIdea} onToggle={(id) => updateIdea(id, { done: !ideas.find((row) => row.id === id)?.done })} onUpdate={(id, text) => updateIdea(id, { text: text.trim() })} />}
           {tab === "mais" && moreView === "metas" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /></div><MetasView goals={goals} memberFilter={memberFilter} accounts={accounts} onContribute={setContributeTarget} onNewGoal={() => setShowGoalForm(true)} /></>}
           {tab === "mais" && moreView === "relatorios" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} /></div><div className="only-phone" style={{ marginBottom: 12 }}><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /></div><RelatoriosView month={selectedMonth} transactions={transactions} planned={planned} sources={sources} /></>}
           {tab === "mais" && moreView === "regra" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} /></div><div className="only-phone" style={{ marginBottom: 12 }}><MemberFilterBar value={memberFilter} onChange={setMemberFilter} /></div><Regra503020View income={monthIncome} expenses={currentMonthTx.filter((t) => t.type === "expense")} /></>}
           {tab === "mais" && moreView === "projecao" && <><BackRow onBack={() => setMoreView(null)} /><ProjecaoView planned={nonReservedPlanned} transactions={nonReservedTx} balance={availableBalance} memberFilter={memberFilter} setMemberFilter={setMemberFilter} /></>}
           {tab === "mais" && moreView === "priorizacao" && <><BackRow onBack={() => setMoreView(null)} /><div className="only-phone" style={{ marginBottom: 12 }}><MonthNav month={selectedMonth} onChange={setSelectedMonth} saldoDoMes={saldoDoMes} /></div><PriorizacaoView planned={nonReservedPlanned} transactions={nonReservedTx} budgets={budgets} accounts={accounts} selectedMonth={selectedMonth} availableBalance={availableBalance} memberFilter={memberFilter} reservaConfig={reservaConfig} /></>}
-          {tab === "mais" && moreView === "dados" && <><BackRow onBack={() => setMoreView(null)} /><DadosView onExport={exportData} onImport={() => fileInputRef.current && fileInputRef.current.click()} onReset={resetToSeed} onClearSupabase={clearSupabase} /></>}
+          {tab === "mais" && moreView === "dados" && <><BackRow onBack={() => setMoreView(null)} /><DadosView onSignOut={onSignOut} sessionError={sessionError} onExport={exportData} onImport={() => fileInputRef.current && fileInputRef.current.click()} onReset={resetToSeed} onClearSupabase={clearSupabase} /></>}
           {tab === "mais" && moreView === "fontes" && <><FontesView sources={sources} onBack={() => setMoreView(null)} onSave={saveSource} onDelete={deleteSource} /></>}
-          {tab === "mais" && moreView === "reserva" && <ReservaView onBack={() => setMoreView(null)} month={selectedMonth} onMonthChange={setSelectedMonth} reserva={reservaMes} config={reservaConfig} salario={salarioMes} onSaveConfig={setReservaConfig} saldoDoMes={saldoDoMes} />}
+          {tab === "mais" && moreView === "reserva" && <ReservaView onBack={() => setMoreView(null)} month={selectedMonth} onMonthChange={setSelectedMonth} reserva={reservaMes} config={reservaConfig} salario={salarioMes} onSaveConfig={saveReserve} saldoDoMes={saldoDoMes} />}
       </AppShell>
 
+      {storageFailed && <p className="finance-storage-error" role="alert">O navegador não conseguiu gravar os dados. Exporte um backup para preservar as alterações desta sessão.</p>}
       <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ""; }} />
 
       {/* ── Overlays: agora FORA do shell ─────────────────────────────────────

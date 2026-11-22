@@ -39,6 +39,16 @@ function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 function clampDay(y, m, day) { return Math.min(Number(day) || 1, daysInMonth(y, m)); }
 function toDateStr(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
 
+export function defaultEntryDate(selectedMonth, today = toDateStr(new Date())) {
+  return selectedMonth === today.slice(0, 7) ? today : selectedMonth + '-01';
+}
+
+export function dateInNextMonth(date) {
+  const nextMonth = addMonths(date.slice(0, 7), 1);
+  const [year, month] = nextMonth.split('-').map(Number);
+  return nextMonth + '-' + pad2(clampDay(year, month, date.slice(8, 10)));
+}
+
 // Datas de vencimento de um template dentro de um mês (YYYY-MM), respeitando
 // recorrência (única/recorrente/parcelada), periodicidade e fim opcional (endMonth).
 function occurrenceDatesInMonth(t, month) {

@@ -9,4 +9,3 @@ CREATE TABLE IF NOT EXISTS ideas (
 );
 
 ALTER TABLE ideas ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Permitir acesso total em ideas" ON ideas FOR ALL USING (true) WITH CHECK (true);

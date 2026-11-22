@@ -1,31 +1,38 @@
 # Gestão Financeira Pessoal
 
-Aplicativo (web) para gestão financeira pessoal/do casal — controle de contas, orçamentos,
-transações, metas, regra 50/30/20 e projeções.
+Aplicativo web React e Vite para controle de contas, transações, orçamentos, metas e projeções financeiras de uma pessoa ou casal.
 
-## Stack
-- **React 18** + **Vite 5**
-- **Supabase** (persistência, com fallback automático para **LocalStorage**)
-- Recharts e lucide-react
+## Rodar localmente
 
-## Como rodar localmente
-```bash
-pnpm install
-cp .env.example .env    # preencha com seu projeto Supabase
-pnpm dev
+    pnpm install
+    pnpm dev
+
+Sem configuração do Supabase, o aplicativo começa com dados de exemplo e salva os registros no navegador.
+
+## Configurar o Supabase
+
+Para uma instalação nova, execute [supabase/schema.sql](supabase/schema.sql) no SQL Editor. Em uma base existente que ainda não recebeu as correções, comece pelas duas migrações abaixo. Execute na ordem indicada.
+
+1. [Proteger o acesso da família](supabase/migrations/20261122225921_protect_household_finances.sql)
+2. [Ativar as operações de persistência](supabase/migrations/20261122225928_persist_finance_operations.sql)
+
+A base existente continua compartilhada como um único grupo. A primeira migração bloqueia o acesso pelo navegador até que os usuários sejam autorizados. As tabelas e os registros existentes são preservados.
+
+Crie ou identifique os usuários em **Authentication → Users**. No SQL Editor, autorize o UUID de cada pessoa que deve ter acesso à base. Para o Google, habilite o provedor, configure a URL de retorno do aplicativo e autorize o UUID da conta criada no Supabase Auth.
+
+```sql
+insert into public.household_access (user_id)
+values ('UUID_DO_USUARIO_NO_SUPABASE_AUTH')
+on conflict do nothing;
 ```
 
-## Configuração Supabase
-1. Crie um projeto em https://supabase.com.
-2. Abra o **SQL Editor** e rode o conteúdo de `supabase/schema.sql`.
-3. Em **Project Settings → API**, copie a `Project URL` e a `anon public key` para o `.env`:
-   - `VITE_SUPABASE_URL=`
-   - `VITE_SUPABASE_ANON_KEY=`
+Copie **.env.example** para **.env** e preencha o URL do projeto e a chave pública (publishable ou anon). O login por senha usa o e-mail do Supabase Auth. Em uma base já publicada, aplique as migrações, autorize os membros e publique esta versão do app no mesmo período de manutenção.
 
-> Sem as variáveis configuradas o app roda normalmente usando dados locais (seed/LocalStorage).
+## Verificações
 
-## Build de produção
-```bash
-pnpm build
-```
-O resultado fica em `dist/` e é auto-detectado pela Vercel.
+Os comandos abaixo foram validados com Node.js 24.
+
+    pnpm lint
+    pnpm build
+
+O build é gerado em **dist/**.

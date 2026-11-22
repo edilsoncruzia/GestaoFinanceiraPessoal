@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { COLORS, CATEGORY_PALETTE } from '../../constants/tokens';
 import { useCategories } from '../../context/CategoriesContext';
-import { MEMBERS, CONNECTED_MEMBER_ID, TODAY_MONTH } from '../../constants/seedData';
+import { MEMBERS, CONNECTED_MEMBER_ID } from '../../constants/seedData';
+import { defaultEntryDate } from '../../utils/formatters';
 import { ModalSheet } from '../ui/ModalSheet';
 import { FormField } from '../ui/FormField';
 import { SourceSelect } from '../ui/SourceSelect';
@@ -17,7 +18,7 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
   const [category, setCategory] = useState(editing ? editing.category : (initialType === "income" ? "salario" : "alimentacao"));
   const [description, setDescription] = useState(editing ? editing.description : "");
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
-  const [date, setDate] = useState(editing ? editing.date : (selectedMonth === TODAY_MONTH ? "2026-09-01" : selectedMonth + "-01"));
+  const [date, setDate] = useState(editing ? editing.date : defaultEntryDate(selectedMonth));
   const [accountId, setAccountId] = useState(editing && editing.accountId ? editing.accountId : (defaultAccount?.id ?? null));
   const [fromAccountId, setFromAccountId] = useState(editing && editing.fromAccountId ? editing.fromAccountId : (defaultAccount?.id ?? null));
   const [toAccountId, setToAccountId] = useState(editing && editing.toAccountId ? editing.toAccountId : ((accounts.find((a) => a.id !== defaultAccount?.id) || accounts[1] || defaultAccount)?.id ?? null));
@@ -32,13 +33,12 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
 
   const categories = useCategories();
   const options = Object.entries(categories).filter(([, c]) => c.type === type);
-  const connectedMember = MEMBERS.find((m) => m.id === CONNECTED_MEMBER_ID);
 
   function handleTypeChange(newType) {
     setType(newType);
     if (newType !== "transferencia") {
       const first = Object.entries(categories).find(([, c]) => c.type === newType);
-      setCategory(first[0]);
+      setCategory(first?.[0] || "");
     }
   }
 
@@ -47,17 +47,18 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
     setCategory(value);
   }
 
-  function createCategory() {
+  async function createCategory() {
     const label = newCatName.trim();
     if (!label) return;
     const key = "cat-" + Date.now().toString(36);
-    if (onAddCategory) onAddCategory({ key, label, color: newCatColor, type });
+    if (onAddCategory && !await onAddCategory({ key, label, color: newCatColor, type })) return;
     setCategory(key);
     setShowNewCat(false);
     setNewCatName("");
   }
 
   function handleSubmit() {
+    if (!date) { setError("Informe a data da transação."); return; }
     if (!amount || Number(amount) <= 0) { setError("Informe um valor válido."); return; }
     let payload;
     if (type === "transferencia") {
@@ -139,9 +140,9 @@ export function TransactionFormModal({ accounts, sources, selectedMonth, editing
               </span>
             </label>
           )}
-          <FormField label={"Dono · detectado por " + connectedMember.email}>
+          <FormField label="Dono">
             <select value={memberId} onChange={(e) => setMemberId(e.target.value)} style={inputStyle}>
-              {MEMBERS.map((m) => <option key={m.id} value={m.id}>{m.name}{m.id === CONNECTED_MEMBER_ID ? " (conta conectada)" : ""}</option>)}
+              {MEMBERS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               <option value="null">Casal (conjunta)</option>
             </select>
           </FormField>

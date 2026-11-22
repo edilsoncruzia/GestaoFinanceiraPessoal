@@ -16,9 +16,9 @@ export function FontesView({ sources, onBack, onSave, onDelete }) {
 
   function openNew() { setEditing(null); setName(""); setType(""); setShowForm(true); }
   function openEdit(s) { setEditing(s); setName(s.name); setType(s.type || ""); setShowForm(true); }
-  function submit() {
+  async function submit() {
     if (!name.trim()) return;
-    onSave({ id: editing ? editing.id : undefined, name: name.trim(), type });
+    if (!await onSave({ id: editing?.id, name: name.trim(), type })) return;
     setShowForm(false); setEditing(null); setName(""); setType("");
   }
 

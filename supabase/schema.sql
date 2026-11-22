@@ -1,9 +1,6 @@
 -- Script de criação do Schema para o Supabase (Gestão Financeira Pessoal)
 -- Cole este código no SQL Editor do seu projeto Supabase e clique em RUN.
 
--- 1. Habilitar a extensão UUID se necessário
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- 2. Tabela de Membros da Família / Casal
 CREATE TABLE IF NOT EXISTS members (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -17,11 +14,9 @@ CREATE TABLE IF NOT EXISTS members (
 ALTER TABLE members ADD COLUMN IF NOT EXISTS cpf TEXT;
 
 -- Inserir membros padrões se a tabela estiver vazia
-INSERT INTO members (id, name, color, email)
+INSERT INTO members (id, name, color)
 OVERRIDING SYSTEM VALUE
-VALUES 
-  (1, 'Você', '#1F5D4C', 'voce@gmail.com'),
-  (2, 'Esposa', '#8A5B7A', 'esposa@gmail.com')
+VALUES (1, 'Membro 1', '#1F5D4C'), (2, 'Membro 2', '#7155A5')
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. Tabela de Contas Bancárias e Cartões
@@ -173,13 +168,4 @@ ALTER TABLE sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ideas ENABLE ROW LEVEL SECURITY;
 
--- Políticas de acesso anônimo/leitura e escrita (Para uso simples de chave anon/demo)
-CREATE POLICY "Permitir acesso total em members" ON members FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir acesso total em accounts" ON accounts FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir acesso total em goals" ON goals FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir acesso total em planned" ON planned FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir acesso total em transactions" ON transactions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir acesso total em budgets" ON budgets FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir acesso total em sources" ON sources FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir acesso total em categories" ON categories FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir acesso total em ideas" ON ideas FOR ALL USING (true) WITH CHECK (true);
+-- O acesso é configurado pela migração protect_household_finances.

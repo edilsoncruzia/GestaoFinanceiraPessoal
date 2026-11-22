@@ -27,10 +27,10 @@ export function CategoriasView({ onBack, onSave, onDelete }) {
 
   function openNew() { setEditingKey(null); setName(""); setType("expense"); setColor(CATEGORY_PALETTE[0]); setShowForm(true); }
   function openEdit(key, c) { setEditingKey(key); setName(c.label); setType(c.type); setColor(c.color); setShowForm(true); }
-  function submit() {
+  async function submit() {
     const label = name.trim();
     if (!label) return;
-    onSave({ key: editingKey || ("cat-" + Date.now().toString(36)), label, color, type });
+    if (!await onSave({ key: editingKey || ("cat-" + Date.now().toString(36)), label, color, type })) return;
     setShowForm(false); setEditingKey(null);
   }
 

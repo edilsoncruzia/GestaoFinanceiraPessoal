@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS categories (
 );
 
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Permitir acesso total em categories" ON categories FOR ALL USING (true) WITH CHECK (true);
 
 -- 3. (Opcional) Semeia as categorias padrão, caso a tabela esteja vazia.
 --    O próprio app também semeia automaticamente na primeira carga.

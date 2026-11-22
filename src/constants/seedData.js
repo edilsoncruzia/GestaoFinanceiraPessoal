@@ -1,6 +1,6 @@
 export const MEMBERS = [
-  { id: 1, name: "Você", color: "#1F5D4C", email: "voce@gmail.com" },
-  { id: 2, name: "Esposa", color: "#8A5B7A", email: "esposa@gmail.com" },
+  { id: 1, name: "Você", color: "#1F5D4C" },
+  { id: 2, name: "Esposa", color: "#8A5B7A" },
 ];
 
 export const CONNECTED_MEMBER_ID = 1;

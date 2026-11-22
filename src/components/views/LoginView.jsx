@@ -16,17 +16,17 @@ function GoogleIcon() {
 }
 
 export function LoginView({ onGoogleLogin, onPasswordLogin, loading, error }) {
-  const [cpf, setCpf] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!cpf.trim() || !password.trim()) return;
-    onPasswordLogin(cpf.trim(), password);
+    if (!email.trim() || !password) return;
+    onPasswordLogin(email.trim(), password);
   }
 
   return (
-    <div style={{ fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif", background: COLORS.paper, color: COLORS.ink, height: 700, width: "100%", maxWidth: 430, margin: "0 auto", position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid " + COLORS.line, boxShadow: "0 12px 36px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "28px" }}>
+    <div style={{ fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif", background: COLORS.paper, color: COLORS.ink, minHeight: "min(700px, 100dvh)", width: "100%", maxWidth: 430, margin: "0 auto", position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid " + COLORS.line, boxShadow: "0 12px 36px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "28px" }}>
       <div style={{ width: 72, height: 72, borderRadius: 22, background: COLORS.green, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 24px rgba(31,93,76,0.35)" }}>
         <Wallet size={34} color="#fff" />
       </div>
@@ -39,20 +39,20 @@ export function LoginView({ onGoogleLogin, onPasswordLogin, loading, error }) {
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", margin: "18px 0" }}>
         <div style={{ flex: 1, height: 1, background: COLORS.line }} />
-        <span style={{ fontSize: 12, color: COLORS.muted }}>ou com CPF</span>
+        <span style={{ fontSize: 12, color: COLORS.muted }}>ou com e-mail</span>
         <div style={{ flex: 1, height: 1, background: COLORS.line }} />
       </div>
 
       <form onSubmit={handleSubmit} style={{ width: "100%" }}>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontSize: 13, color: COLORS.muted, marginBottom: 6 }}>CPF</label>
-          <input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" inputMode="numeric" style={inputStyle} />
+          <label htmlFor="login-email" style={{ display: "block", fontSize: 13, color: COLORS.muted, marginBottom: 6 }}>E-mail</label>
+          <input id="login-email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontSize: 13, color: COLORS.muted, marginBottom: 6 }}>Senha</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
+          <label htmlFor="login-password" style={{ display: "block", fontSize: 13, color: COLORS.muted, marginBottom: 6 }}>Senha</label>
+          <input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
         </div>
-        {error && <p style={{ fontSize: 14, color: COLORS.rust, margin: "0 0 12px" }}>{error}</p>}
+        {error && <p role="alert" style={{ fontSize: 14, color: COLORS.rust, margin: "0 0 12px" }}>{error}</p>}
         <button type="submit" disabled={loading} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: COLORS.green, color: "#fff", fontSize: 16, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           <LogIn size={17} /> Entrar
         </button>

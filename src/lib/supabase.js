@@ -1,101 +1,72 @@
 import { createClient } from '@supabase/supabase-js';
-import { SEED_ACCOUNTS, SEED_TRANSACTIONS, SEED_PLANNED, SEED_GOALS, BUDGETS, MEMBERS } from '../constants/seedData';
 import { DEFAULT_CATEGORY_ROWS } from '../constants/tokens';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  !supabaseUrl.includes('seu-projeto') && 
-  supabaseUrl.startsWith('https://')
+  supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('seu-projeto') && supabaseUrl.startsWith('https://')
 );
 
-export const supabase = isSupabaseConfigured 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
-  : null;
+const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey, { auth: { flowType: "pkce" } }) : null;
 
-// Helpers de carregamento com fallback inteligente (LocalStorage / SeedData)
-export async function loadInitialData() {
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const [accountsRes, txRes, plannedRes, goalsRes, budgetsRes, sourcesRes, categoriesRes, ideasRes, settingsRes] = await Promise.all([
-        supabase.from('accounts').select('*'),
-        supabase.from('transactions').select('*'),
-        supabase.from('planned').select('*'),
-        supabase.from('goals').select('*'),
-        supabase.from('budgets').select('*'),
-        supabase.from('sources').select('*'),
-        supabase.from('categories').select('*'),
-        supabase.from('ideas').select('*'),
-        supabase.from('settings').select('key, value'),
-      ]);
+async function checked(query) {
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
 
-      // Só cai no fallback de exemplo se as tabelas PRINCIPAIS (contas/transações) falharem.
-      // Tabelas auxiliares com erro viram lista vazia, sem apagar o resto.
-      if (!accountsRes.error && !txRes.error) {
-        let categories = null;
-        if (!categoriesRes.error) {
-          categories = (categoriesRes.data || []).map(mapCategoryFromDb);
-          if (categories.length === 0) {
-            await seedCategories();
-            categories = DEFAULT_CATEGORY_ROWS.map((c) => ({ ...c }));
-          }
-        }
-        return {
-          accounts: (accountsRes.data || []).map(mapAccountFromDb),
-          transactions: (txRes.data || []).map(mapTxFromDb),
-          planned: plannedRes.error ? [] : (plannedRes.data || []).map(mapPlannedFromDb),
-          goals: goalsRes.error ? [] : (goalsRes.data || []).map(mapGoalFromDb),
-          budgets: budgetsRes.error ? [] : (budgetsRes.data || []).map(mapBudgetFromDb),
-          sources: sourcesRes.error ? [] : (sourcesRes.data || []).map(mapSourceFromDb),
-          categories,
-          ideas: ideasRes.error ? [] : (ideasRes.data || []).map(mapIdeaFromDb),
-          // Configurações do app (ex.: teto da Reserva mínima). Ausência da
-          // tabela não é erro — cai no que estiver salvo no LocalStorage.
-          settings: settingsRes && !settingsRes.error ? parseSettingsRows(settingsRes.data) : null,
-        };
-      }
-    } catch (err) {
-      console.warn('Erro ao carregar dados do Supabase. Utilizando fallback local:', err);
-    }
+async function loadRows(table, key = 'id') {
+  const size = 500;
+  const rows = [];
+  let total;
+  while (total === undefined || rows.length < total) {
+    const start = rows.length;
+    const options = start === 0 ? { count: 'exact' } : undefined;
+    const { data, error, count } = await supabase.from(table).select('*', options).order(key).range(start, start + size - 1);
+    if (error) throw error;
+    if (count != null) total = count;
+    rows.push(...data);
+    if (!data.length || (total === undefined && data.length < size)) break;
   }
+  return rows;
+}
 
-  // Fallback LocalStorage ou SeedData
-  const localAccounts = localStorage.getItem('gf_accounts');
-  const localTx = localStorage.getItem('gf_transactions');
-  const localPlanned = localStorage.getItem('gf_planned');
-  const localGoals = localStorage.getItem('gf_goals');
-  const localCategories = localStorage.getItem('gf_categories');
-  const localIdeas = localStorage.getItem('gf_ideas');
-
+export async function loadInitialData() {
+  const [accounts, transactions, planned, goals, budgets, sources, categories, ideas, settings] = await Promise.all([
+    loadRows('accounts'),
+    loadRows('transactions'),
+    loadRows('planned'),
+    loadRows('goals'),
+    loadRows('budgets'),
+    loadRows('sources'),
+    loadRows('categories', 'key'),
+    loadRows('ideas'),
+    loadRows('settings', 'key'),
+  ]);
+  if (!categories.length) {
+    await checked(supabase.from('categories').upsert(DEFAULT_CATEGORY_ROWS.map(categoryPayload), {
+      onConflict: 'key', ignoreDuplicates: true,
+    }));
+  }
   return {
-    accounts: localAccounts ? JSON.parse(localAccounts) : SEED_ACCOUNTS,
-    transactions: localTx ? JSON.parse(localTx) : SEED_TRANSACTIONS,
-    planned: localPlanned ? JSON.parse(localPlanned) : SEED_PLANNED,
-    goals: localGoals ? JSON.parse(localGoals) : SEED_GOALS,
-    categories: localCategories ? JSON.parse(localCategories) : null,
-    ideas: localIdeas ? JSON.parse(localIdeas) : [],
+    accounts: accounts.map(mapAccountFromDb),
+    transactions: transactions.map(mapTxFromDb),
+    planned: planned.map(mapPlannedFromDb),
+    goals: goals.map(mapGoalFromDb),
+    budgets: budgets.map(mapBudgetFromDb),
+    sources: sources.map(mapSourceFromDb),
+    categories: categories.length ? categories.map(categoryPayload) : DEFAULT_CATEGORY_ROWS,
+    ideas: ideas.map(mapIdeaFromDb),
+    reserva: normalizeReserva(settings.find((row) => row.key === 'reserva')?.value),
   };
 }
 
-function parseSettingsRows(rows) {
-  const out = {};
-  (rows || []).forEach((r) => {
-    try { out[r.key] = JSON.parse(r.value); } catch (e) { out[r.key] = r.value; }
-  });
-  return out;
-}
-
-// Salva uma configuração do app (chave -> valor JSON). Best-effort: se a tabela
-// "settings" ainda não existir, o LocalStorage continua sendo a fonte da verdade.
-export async function saveSetting(key, value) {
-  if (!isSupabaseConfigured || !supabase) return;
+function normalizeReserva(value) {
   try {
-    await supabase.from('settings').upsert({ key, value: JSON.stringify(value) }, { onConflict: 'key' });
-  } catch (e) {
-    console.warn('Configuração "' + key + '" não sincronizada com o Supabase:', e);
+    return { limite: Math.max(0, Number(JSON.parse(value || '{}')?.limite) || 0) };
+  } catch {
+    return { limite: 0 };
   }
 }
 
@@ -200,341 +171,311 @@ function mapBudgetFromDb(b) {
   };
 }
 
-// Funções de Persistência no Supabase
-export async function syncTransactionToSupabase(tx) {
-  if (!isSupabaseConfigured || !supabase) return tx.id;
-  try {
-    const payload = {
-      date: tx.date,
-      type: tx.type,
-      category: tx.category || null,
-      description: tx.description,
-      amount: tx.amount,
-      account_id: tx.accountId || null,
-      from_account_id: tx.fromAccountId || null,
-      to_account_id: tx.toAccountId || null,
-      member_id: tx.memberId || null,
-      planned_id: tx.plannedId || null,
-      attachment: tx.attachment || null,
-      attachment_method: tx.attachmentMethod || null,
-      fonte_id: tx.fonteId || null,
-      include_in_ir: Boolean(tx.includeInIR),
-      deducted_in_payroll: Boolean(tx.deductedInPayroll),
-      forma_pagamento: (tx.formaPagamento && tx.formaPagamento !== "normal") ? tx.formaPagamento : undefined
-    };
-
-    if (tx.id && typeof tx.id === 'number' && tx.id < 1000000000000) {
-      await supabase.from('transactions').update(payload).eq('id', tx.id);
-      return tx.id;
-    } else {
-      const { data, error } = await supabase.from('transactions').insert([payload]).select('id');
-      if (error) throw error;
-      const id = Array.isArray(data) ? data[0]?.id : data?.id;
-      return id ?? null;
-    }
-  } catch (e) {
-    console.error('Erro ao sincronizar transação com Supabase:', e);
-    return null;
-  }
-}
-
-export async function deleteTransactionFromSupabase(id) {
-  if (!isSupabaseConfigured || !supabase) return;
-  try {
-    await supabase.from('transactions').delete().eq('id', id);
-  } catch (e) {
-    console.error('Erro ao excluir transação no Supabase:', e);
-  }
-}
-
-export async function syncPlannedToSupabase(p) {
-  if (!isSupabaseConfigured || !supabase) return p.id;
-  try {
-    const payload = {
-      type: p.type,
-      category: p.category || null,
-      description: p.description,
-      amount: p.amount,
-      due_date: p.dueDate,
-      recurrence: p.recurrence,
-      installment_current: p.installmentCurrent || null,
-      installment_total: p.installmentTotal || null,
-      priority: p.priority || 'importante',
-      account_id: p.accountId || null,
-      from_account_id: p.fromAccountId || null,
-      to_account_id: p.toAccountId || null,
-      member_id: p.memberId || null,
-      periodicity: p.periodicity || null,
-      realized: Boolean(p.realized),
-      attachment: p.attachment || null,
-      attachment_method: p.attachmentMethod || null,
-      skipped_months: (p.skippedMonths || []).join(","),
-      end_month: p.endMonth || null,
-      salary_deductions: JSON.stringify(p.salaryDeductions || []),
-      include_in_ir: Boolean(p.includeInIR),
-      fonte_id: p.fonteId || null,
-      multa_fixa_porcentagem: p.multa_fixa_porcentagem != null ? Number(p.multa_fixa_porcentagem) : null,
-      multa_fixa_valor: Number(p.multa_fixa_valor) || 0,
-      taxa_juros_diaria: p.taxa_juros_diaria != null ? Number(p.taxa_juros_diaria) : null,
-      taxa_juros_mensal: Number(p.taxa_juros_mensal) || 0,
-      dias_carencia: Number(p.dias_carencia) || 0,
-      tipo_consequencia: p.tipo_consequencia || null,
-      dias_para_sancao: Number(p.dias_para_sancao) || 30,
-      aceita_pagamento_parcial: Boolean(p.aceita_pagamento_parcial),
-      valor_minimo: Number(p.valor_minimo) || 0,
-      forma_pagamento: (p.formaPagamento && p.formaPagamento !== "normal") ? p.formaPagamento : undefined,
-      // Só vai para o banco quando existe (a coluna é criada pela migração
-      // migration_beneficio.sql; sem ela o resto do lançamento salva normal).
-      restrito_categoria: (p.type === "income" && p.restritoCategoria) ? p.restritoCategoria : undefined
-    };
-
-    if (p.id && typeof p.id === 'number' && p.id < 1000000000000) {
-      await supabase.from('planned').update(payload).eq('id', p.id);
-      return p.id;
-    } else {
-      const { data, error } = await supabase.from('planned').insert([payload]).select('id').single();
-      if (error) throw error;
-      return data.id;
-    }
-  } catch (e) {
-    console.error('Erro ao sincronizar previsto com Supabase:', e);
-    return p.id;
-  }
-}
-
-export async function deletePlannedFromSupabase(id) {
-  if (!isSupabaseConfigured || !supabase) return;
-  try {
-    await supabase.from('planned').delete().eq('id', id);
-  } catch (e) {
-    console.error('Erro ao excluir previsto no Supabase:', e);
-  }
-}
-
-export async function syncAccountToSupabase(a) {
-  if (!isSupabaseConfigured || !supabase) return a.id;
-  try {
-    const payload = {
-      name: a.name,
-      type: a.type,
-      bank: a.bank || null,
-      color: a.color || null,
-      limit_amount: a.limit || 0,
-      closing_day: a.closingDay ?? null,
-      due_day: a.dueDay ?? null,
-      member_id: a.memberId ?? null,
-      initial_balance: a.initialBalance || 0,
-      is_default: Boolean(a.isDefault),
-      brand: a.brand || null,
-      current_invoice: a.currentInvoice || 0,
-      count_in_available: a.countInAvailable == null ? true : Boolean(a.countInAvailable)
-    };
-
-    if (a.id && typeof a.id === 'number' && a.id < 1000000000000) {
-      await supabase.from('accounts').update(payload).eq('id', a.id);
-      return a.id;
-    } else {
-      const { data, error } = await supabase.from('accounts').insert([payload]).select('id').single();
-      if (error) throw error;
-      return data.id;
-    }
-  } catch (e) {
-    console.error('Erro ao sincronizar conta com Supabase:', e);
-    return a.id;
-  }
-}
-
-export async function deleteAccountFromSupabase(id, deleteRecords) {
-  if (!isSupabaseConfigured || !supabase) return;
-  try {
-    if (deleteRecords) {
-      await supabase.from('transactions').delete().or(`account_id.eq.${id},from_account_id.eq.${id},to_account_id.eq.${id}`);
-      await supabase.from('planned').delete().eq('account_id', id);
-    }
-    await supabase.from('accounts').delete().eq('id', id);
-  } catch (e) {
-    console.error('Erro ao excluir conta no Supabase:', e);
-  }
-}
-
-export function mapSourceFromDb(s) {
+function transactionPayload(tx) {
   return {
-    id: s.id,
-    name: s.name,
-    type: s.type
+    date: tx.date,
+    type: tx.type,
+    category: tx.category || null,
+    description: tx.description,
+    amount: tx.amount,
+    account_id: tx.accountId || null,
+    from_account_id: tx.fromAccountId || null,
+    to_account_id: tx.toAccountId || null,
+    member_id: tx.memberId || null,
+    planned_id: tx.plannedId || null,
+    attachment: tx.attachment || null,
+    attachment_method: tx.attachmentMethod || null,
+    fonte_id: tx.fonteId || null,
+    include_in_ir: Boolean(tx.includeInIR),
+    deducted_in_payroll: Boolean(tx.deductedInPayroll),
+    forma_pagamento: tx.formaPagamento || "normal"
   };
 }
 
-export async function syncSourceToSupabase(s) {
-  if (!isSupabaseConfigured || !supabase) return s.id;
-  try {
-    const payload = { name: s.name, type: s.type || null };
-    if (s.id && typeof s.id === 'number' && s.id < 1000000000000) {
-      await supabase.from('sources').update(payload).eq('id', s.id);
-      return s.id;
-    } else {
-      const { data, error } = await supabase.from('sources').insert([payload]).select('id').single();
-      if (error) throw error;
-      return data.id;
-    }
-  } catch (e) {
-    console.error('Erro ao sincronizar fonte com Supabase:', e);
-    return s.id;
-  }
-}
-
-export async function deleteSourceFromSupabase(id) {
-  if (!isSupabaseConfigured || !supabase) return;
-  try {
-    await supabase.from('sources').delete().eq('id', id);
-  } catch (e) {
-    console.error('Erro ao excluir fonte no Supabase:', e);
-  }
-}
-
-export function mapCategoryFromDb(c) {
+function plannedPayload(p) {
   return {
-    key: c.key,
-    label: c.label,
-    color: c.color,
-    type: c.type
+    type: p.type,
+    category: p.category || null,
+    description: p.description,
+    amount: p.amount,
+    due_date: p.dueDate,
+    recurrence: p.recurrence,
+    installment_current: p.installmentCurrent || null,
+    installment_total: p.installmentTotal || null,
+    priority: p.priority || 'importante',
+    account_id: p.accountId || null,
+    from_account_id: p.fromAccountId || null,
+    to_account_id: p.toAccountId || null,
+    member_id: p.memberId || null,
+    periodicity: p.periodicity || null,
+    realized: Boolean(p.realized),
+    attachment: p.attachment || null,
+    attachment_method: p.attachmentMethod || null,
+    skipped_months: (p.skippedMonths || []).join(","),
+    end_month: p.endMonth || null,
+    salary_deductions: JSON.stringify(p.salaryDeductions || []),
+    include_in_ir: Boolean(p.includeInIR),
+    fonte_id: p.fonteId || null,
+    multa_fixa_porcentagem: p.multa_fixa_porcentagem != null ? Number(p.multa_fixa_porcentagem) : null,
+    multa_fixa_valor: Number(p.multa_fixa_valor) || 0,
+    taxa_juros_diaria: p.taxa_juros_diaria != null ? Number(p.taxa_juros_diaria) : null,
+    taxa_juros_mensal: Number(p.taxa_juros_mensal) || 0,
+    dias_carencia: Number(p.dias_carencia) || 0,
+    tipo_consequencia: p.tipo_consequencia || null,
+    dias_para_sancao: Number(p.dias_para_sancao) || 30,
+    aceita_pagamento_parcial: Boolean(p.aceita_pagamento_parcial),
+    valor_minimo: Number(p.valor_minimo) || 0,
+    forma_pagamento: p.formaPagamento || "normal",
+    restrito_categoria: p.type === "income" ? p.restritoCategoria || null : null
   };
 }
 
-export async function syncCategoryToSupabase(cat) {
-  if (!isSupabaseConfigured || !supabase) return;
+function accountPayload(a) {
+  return {
+    name: a.name,
+    type: a.type,
+    bank: a.bank || null,
+    color: a.color || null,
+    limit_amount: a.limit || 0,
+    closing_day: a.closingDay ?? null,
+    due_day: a.dueDay ?? null,
+    member_id: a.memberId ?? null,
+    initial_balance: a.initialBalance || 0,
+    is_default: Boolean(a.isDefault),
+    brand: a.brand || null,
+    current_invoice: a.currentInvoice || 0,
+    count_in_available: a.countInAvailable == null ? true : Boolean(a.countInAvailable)
+  };
+}
+
+function categoryPayload({ key, label, color, type }) {
+  return { key, label, color, type };
+}
+
+function sourcePayload({ name, type }) {
+  return { name, type: type || null };
+}
+
+function mapSourceFromDb(row) {
+  return { id: row.id, ...sourcePayload(row) };
+}
+
+function mapIdeaFromDb(row) {
+  return {
+    id: row.id,
+    text: row.text,
+    done: Boolean(row.done),
+    date: row.created_at?.slice(0, 10) || '',
+    attachment: row.attachment || null,
+    attachmentMethod: row.attachment_method || null,
+  };
+}
+
+function ideaPayload(idea) {
+  return {
+    text: idea.text,
+    done: Boolean(idea.done),
+    attachment: idea.attachment || null,
+    attachment_method: idea.attachmentMethod || null,
+  };
+}
+
+function goalPayload(goal) {
+  return {
+    name: goal.name,
+    target: goal.target,
+    saved: goal.saved ?? 0,
+    member_id: goal.memberId ?? null,
+    account_id: goal.accountId ?? null,
+  };
+}
+
+async function write(action, fallback = false) {
   try {
-    await supabase.from('categories').upsert({
-      key: cat.key,
-      label: cat.label,
-      color: cat.color,
-      type: cat.type
-    }, { onConflict: 'key' });
-  } catch (e) {
-    console.error('Erro ao sincronizar categoria com Supabase:', e);
+    return await action();
+  } catch (error) {
+    console.error('Falha na gravação com Supabase', error.code || error.name);
+    return fallback;
   }
 }
 
-export async function deleteCategoryFromSupabase(key) {
-  if (!isSupabaseConfigured || !supabase) return;
-  try {
-    await supabase.from('categories').delete().eq('key', key);
-  } catch (e) {
-    console.error('Erro ao excluir categoria no Supabase:', e);
-  }
+function saveRecord(table, id, payload) {
+  if (!supabase) return id;
+  return write(async () => {
+    const exists = id && typeof id === 'number' && id < 1000000000000;
+    const query = exists
+      ? supabase.from(table).update(payload).eq('id', id)
+      : supabase.from(table).insert(payload);
+    const row = await checked(query.select('id').single());
+    return row.id;
+  }, null);
 }
 
-export async function seedCategories() {
-  if (!isSupabaseConfigured || !supabase) return;
-  try {
-    await supabase.from('categories').upsert(DEFAULT_CATEGORY_ROWS.map((c) => ({ key: c.key, label: c.label, color: c.color, type: c.type })), { onConflict: 'key' });
-  } catch (e) {
-    console.error('Erro ao semear categorias no Supabase:', e);
-  }
+function removeRecord(table, key, value) {
+  if (!supabase) return true;
+  return write(async () => {
+    await checked(supabase.from(table).delete().eq(key, value).select(key).single());
+    return true;
+  });
 }
 
-export function mapIdeaFromDb(i) {
-  return { id: i.id, text: i.text, done: Boolean(i.done), date: i.created_at ? i.created_at.slice(0, 10) : "", attachment: i.attachment || null, attachmentMethod: i.attachment_method || null };
+function runOperation(name, args) {
+  return write(async () => {
+    await checked(supabase.rpc(name, args));
+    return true;
+  });
 }
 
-export async function syncIdeaToSupabase(idea) {
-  if (!isSupabaseConfigured || !supabase) return idea.id;
-  try {
-    const payload = { text: idea.text, done: Boolean(idea.done), attachment: idea.attachment || null, attachment_method: idea.attachmentMethod || null };
-    if (idea.id && typeof idea.id === 'number' && idea.id < 1000000000000) {
-      await supabase.from('ideas').update(payload).eq('id', idea.id);
-      return idea.id;
-    } else {
-      const { data, error } = await supabase.from('ideas').insert([payload]).select('id').single();
-      if (error) throw error;
-      return data.id;
+export const syncTransactionToSupabase = (tx) => saveRecord('transactions', tx.id, transactionPayload(tx));
+export const deleteTransactionFromSupabase = (id) => removeRecord('transactions', 'id', id);
+export const syncPlannedToSupabase = (item) => saveRecord('planned', item.id, plannedPayload(item));
+export const deletePlannedFromSupabase = (id) => removeRecord('planned', 'id', id);
+export const syncSourceToSupabase = (source) => saveRecord('sources', source.id, sourcePayload(source));
+export const deleteSourceFromSupabase = (id) => removeRecord('sources', 'id', id);
+export const syncGoalToSupabase = (goal) => saveRecord('goals', goal.id, goalPayload(goal));
+export const syncIdeaToSupabase = (idea) => saveRecord('ideas', idea.id, ideaPayload(idea));
+export const deleteIdeaFromSupabase = (id) => removeRecord('ideas', 'id', id);
+export const deleteCategoryFromSupabase = (key) => removeRecord('categories', 'key', key);
+
+export function syncAccountToSupabase(account) {
+  if (!supabase) return account.id;
+  return write(() => checked(supabase.rpc('save_finance_account', {
+    account_key: account.id < 1000000000000 ? account.id : null,
+    account_row: accountPayload(account),
+  })), null);
+}
+
+export function deleteAccountFromSupabase(id, deleteRecords) {
+  return !supabase || runOperation('delete_finance_account', { account_key: id, delete_records: deleteRecords });
+}
+
+export function syncCategoryToSupabase(category) {
+  if (!supabase) return true;
+  return write(async () => {
+    await checked(supabase.from('categories').upsert(categoryPayload(category), { onConflict: 'key' }));
+    return true;
+  });
+}
+
+export function saveSetting(key, value) {
+  if (!supabase) return true;
+  return write(async () => {
+    await checked(supabase.from('settings').upsert({ key, value: JSON.stringify(value) }, { onConflict: 'key' }));
+    return true;
+  });
+}
+
+export function clearSupabaseData(scope) {
+  return !supabase || runOperation('clear_finance_data', { data_scope: scope });
+}
+
+function persistPlanned(item, transaction, originalId = null, changes = null) {
+  return write(async () => {
+    const result = await checked(supabase.rpc('persist_finance_planned', {
+      planned_key: !originalId && item.id < 1000000000000 ? item.id : null,
+      planned_row: plannedPayload(item),
+      entry: transaction ? transactionPayload(transaction) : null,
+      original_id: originalId,
+      changes,
+    }));
+    return {
+      id: result.id,
+      transaction: result.transaction ? mapTxFromDb(result.transaction) : null,
+    };
+  }, null);
+}
+
+export function splitPlanned(original, changes, next, transaction) {
+  if (!supabase) return { id: next.id, transaction };
+  return persistPlanned(next, transaction, original.id, changes);
+}
+
+export function saveRealizedPlanned(item, transaction, existingTransactions) {
+  if (supabase) return persistPlanned(item, transaction);
+  return {
+    id: item.id,
+    transaction: existingTransactions.some((row) => row.plannedId === item.id) ? null : transaction,
+  };
+}
+
+export function skipPlannedMonth(item, month) {
+  if (!supabase) return [...new Set([...(item.skippedMonths || []), month])];
+  return write(() => checked(supabase.rpc('skip_finance_planned_month', {
+    planned_key: item.id, skipped_month: month,
+  })), null);
+}
+
+export function updatePlannedDate(id, dueDate) {
+  if (!supabase) return true;
+  return write(async () => {
+    await checked(supabase.from('planned').update({ due_date: dueDate }).eq('id', id).select('id').single());
+    return true;
+  });
+}
+
+export function recordTransactionBatch(entries, model) {
+  if (!supabase) return entries;
+  return write(async () => {
+    if (!model) {
+      const data = await checked(supabase.from('transactions').insert(entries.map(transactionPayload)).select());
+      return data.map(mapTxFromDb);
     }
-  } catch (e) {
-    console.error('Erro ao sincronizar ideia com Supabase:', e);
-    return idea.id;
-  }
+    const data = await checked(supabase.rpc('record_salary_entries', {
+      entries: entries.map(transactionPayload),
+      model_id: model.id,
+      deductions: JSON.stringify(model.salaryDeductions),
+    }));
+    return data.map(mapTxFromDb);
+  }, null);
 }
 
-export async function deleteIdeaFromSupabase(id) {
-  if (!isSupabaseConfigured || !supabase) return;
-  try {
-    await supabase.from('ideas').delete().eq('id', id);
-  } catch (e) {
-    console.error('Erro ao excluir ideia no Supabase:', e);
-  }
+export function contributeToGoalInSupabase(goal, transaction) {
+  return write(async () => {
+    const result = await checked(supabase.rpc('contribute_to_finance_goal', {
+      goal_key: goal.id,
+      entry: transactionPayload(transaction),
+    }));
+    return { goal: mapGoalFromDb(result.goal), transaction: mapTxFromDb(result.transaction) };
+  }, null);
 }
 
-// Limpa dados do Supabase mantendo os membros do casal.
-// scope: 'all' (tudo) | 'income' (apenas receitas) | 'expense' (apenas despesas)
-export async function clearSupabaseData(scope = 'all') {
-  if (!isSupabaseConfigured || !supabase) return;
-
-  if (scope === 'income') {
-    await supabase.from('transactions').delete().eq('type', 'income');
-    await supabase.from('planned').delete().eq('type', 'income');
-    return;
-  }
-  if (scope === 'expense') {
-    await supabase.from('transactions').delete().eq('type', 'expense');
-    await supabase.from('planned').delete().eq('type', 'expense');
-    return;
-  }
-
-  // 'all' — apaga tudo
-  const tables = ['transactions', 'planned', 'goals', 'budgets', 'accounts', 'sources'];
-  for (const t of tables) {
-    await supabase.from(t).delete().gte('id', 0);
-  }
-  try {
-    await supabase.from('categories').delete().neq('key', '');
-  } catch (e) {
-    console.error('Erro ao limpar categorias no Supabase:', e);
-  }
-  try {
-    await supabase.from('ideas').delete().gte('id', 0);
-  } catch (e) {
-    console.error('Erro ao limpar ideias no Supabase:', e);
-  }
+export function restoreSupabaseBackup(backup) {
+  const payload = {
+    accounts: backup.accounts.map((row) => ({ id: row.id, ...accountPayload(row) })),
+    planned: backup.planned.map((row) => ({ id: row.id, ...plannedPayload(row) })),
+    transactions: backup.transactions.map((row) => ({ id: row.id, ...transactionPayload(row) })),
+    goals: backup.goals.map((row) => ({ id: row.id, ...goalPayload(row) })),
+    categories: backup.categories.map(categoryPayload),
+    ideas: backup.ideas.map((row) => ({ ...ideaPayload(row), created_at: row.date || null })),
+  };
+  if (backup.sources) payload.sources = backup.sources.map((row) => ({ id: row.id, ...sourcePayload(row) }));
+  if (backup.budgets) payload.budgets = backup.budgets.map((row) => ({
+    category: row.category, limit_amount: row.limit, member_id: row.memberId ?? null,
+  }));
+  if (backup.reserva) payload.reserva = backup.reserva;
+  return checked(supabase.rpc('restore_finance_backup', { backup: payload }));
 }
 
-// ===== Autenticação (Supabase Auth) =====
-export async function getAuthSession() {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session;
+export async function checkHouseholdAccess() {
+  return Boolean(await checked(supabase.from('household_access').select('user_id').maybeSingle()));
 }
 
-export function onAuthChange(cb) {
-  if (!supabase) return () => {};
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => cb(session));
+export function onAuthChange(callback) {
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
   return () => data.subscription.unsubscribe();
 }
 
-export async function signInWithPasswordAuth(email, password) {
-  if (!supabase) return { error: { message: 'Supabase não configurado' } };
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  return { error };
+export function signInWithPasswordAuth(email, password) {
+  return supabase.auth.signInWithPassword({ email, password });
 }
 
-export async function signInWithGoogleAuth() {
-  if (!supabase) return { error: { message: 'Supabase não configurado' } };
-  const { error } = await supabase.auth.signInWithOAuth({
+export function signInWithGoogleAuth() {
+  return supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname },
   });
-  return { error };
 }
 
-export async function signOutAuth() {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+export function signOutAuth() {
+  return supabase.auth.signOut({ scope: 'local' });
 }
-
-// Busca o e-mail do membro a partir do CPF (login por CPF + senha).
-export async function lookupMemberEmailByCpf(cpf) {
-  if (!supabase) return null;
-  const { data, error } = await supabase.from('members').select('email').eq('cpf', cpf).maybeSingle();
-  if (error || !data) return null;
-  return data.email;
-}
-

@@ -5,7 +5,7 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { SectionTitle } from '../ui/SectionTitle';
 import { Card } from '../ui/Card';
 
-export function DadosView({ onExport, onImport, onReset, onClearSupabase }) {
+export function DadosView({ onExport, onImport, onReset, onClearSupabase, onSignOut, sessionError }) {
   const [confirming, setConfirming] = useState(false);
   const [clearConfirming, setClearConfirming] = useState(false);
   const [clearScope, setClearScope] = useState(null); // null | 'all' | 'income' | 'expense'
@@ -16,7 +16,9 @@ export function DadosView({ onExport, onImport, onReset, onClearSupabase }) {
       {isSupabaseConfigured && (
         <Card style={{ marginBottom: 12, background: COLORS.green + "12", borderColor: COLORS.green }}>
           <p style={{ fontSize: 14, fontWeight: 600, color: COLORS.green, margin: "0 0 4px" }}>Conectado ao Supabase ✓</p>
-          <p style={{ fontSize: 13, color: COLORS.ink, margin: 0 }}>Seus dados estão sincronizados em tempo real com seu projeto na nuvem.</p>
+          <p style={{ fontSize: 13, color: COLORS.ink, margin: 0 }}>Os dados são gravados na base compartilhada do Supabase.</p>
+          <button onClick={onSignOut} style={{ marginTop: 10 }}>Sair da conta</button>
+          {sessionError && <p role="alert">{sessionError}</p>}
         </Card>
       )}
 
@@ -38,7 +40,7 @@ export function DadosView({ onExport, onImport, onReset, onClearSupabase }) {
         <button onClick={onImport} style={{ fontSize: 13, padding: "8px 12px", borderRadius: 8, border: "1px solid " + COLORS.amber, background: "transparent", color: COLORS.amber, fontWeight: 500, whiteSpace: "nowrap" }}>Importar</button>
       </Card>
 
-      {!confirming ? (
+      {!isSupabaseConfigured && (!confirming ? (
         <Card style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: COLORS.rust + "1E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RotateCcw size={18} color={COLORS.rust} /></div>
           <div style={{ flex: 1 }}>
@@ -52,9 +54,9 @@ export function DadosView({ onExport, onImport, onReset, onClearSupabase }) {
           <AlertTriangle size={18} color={COLORS.rust} style={{ flexShrink: 0 }} />
           <p style={{ fontSize: 14, margin: 0, flex: 1 }}>Tem certeza? Isso descarta tudo que foi cadastrado nesta sessão.</p>
           <button onClick={() => setConfirming(false)} style={{ fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "1px solid " + COLORS.line, background: "transparent", color: COLORS.muted }}>Cancelar</button>
-          <button onClick={onReset} style={{ fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "none", background: COLORS.rust, color: "#fff", fontWeight: 500 }}>Restaurar</button>
+          <button onClick={() => { onReset(); setConfirming(false); }} style={{ fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "none", background: COLORS.rust, color: "#fff", fontWeight: 500 }}>Restaurar</button>
         </Card>
-      )}
+      ))}
 
       {isSupabaseConfigured && !clearConfirming && (
         <Card style={{ display: "flex", alignItems: "center", gap: 12 }}>

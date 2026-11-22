@@ -646,3 +646,28 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .tab-content { max-width: 1480px; }
   .grid-auto { grid-template-columns: minmax(0, 1.7fr) minmax(340px, 1fr); gap: 24px; }
 }
+
+.finance-status {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+  text-align: center;
+}
+
+.finance-status button {
+  min-height: 44px;
+  margin: 0.25rem;
+  padding: 0.5rem 1rem;
+}
+
+.finance-storage-error {
+  position: fixed;
+  inset: auto 1rem calc(var(--tabbar-height) + 24px);
+  z-index: 81;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  color: var(--color-expense);
+}

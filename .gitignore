@@ -29,3 +29,6 @@ Thumbs.db
 
 # pnpm store local (pode ser criado durante installs)
 .pnpm-store
+
+# Estado local da Supabase CLI
+supabase/.temp/

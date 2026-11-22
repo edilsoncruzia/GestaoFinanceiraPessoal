@@ -54,20 +54,20 @@ export function IdeiasView({ ideas, onBack, onSave, onDelete, onToggle, onUpdate
   const doneCount = ideas.filter((i) => i.done).length;
   const isImage = (v) => v && typeof v === "string" && v.startsWith("data:image");
 
-  function submit() {
+  async function submit() {
     const t = text.trim();
     if (!t) return;
-    onSave(t, attachment, attachmentMethod);
+    if (!await onSave(t, attachment, attachmentMethod)) return;
     setText("");
     setAttachment("");
     setAttachmentMethod("");
   }
 
   function startEdit(idea) { setEditingId(idea.id); setEditText(idea.text); }
-  function saveEdit() {
+  async function saveEdit() {
     const t = editText.trim();
     if (!t) return;
-    onUpdate(editingId, t);
+    if (!await onUpdate(editingId, t)) return;
     setEditingId(null);
     setEditText("");
   }

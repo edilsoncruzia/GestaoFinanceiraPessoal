@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS sources (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE sources ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Permitir acesso total em sources" ON sources FOR ALL USING (true) WITH CHECK (true);
 
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS fonte_id BIGINT REFERENCES sources(id) ON DELETE SET NULL;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS attachment_method TEXT;
